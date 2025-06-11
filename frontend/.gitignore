@@ -1,15 +1,61 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# --------------------------
+# .NET Core
+# --------------------------
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
 
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+*.dll
+*.exe
+*.log
+*.app
+*.dbmdl
+*.pdb
+
+# Visual Studio
+.vscode/
+.vs/
+.vscode/*
+
+# ASP.NET Core secrets
+secrets.json
+
+# Entity Framework
+Migrations/
+
+# Rider IDE
+.idea/
+
+# dotnet user-specific files
+*.swp
+*.tmp
+*.bak
+
+# Dotnet publish output
+publish/
+out/
+
+# --------------------------
+# React
+# --------------------------
 # dependencies
-/node_modules
-/.pnp
+/node_modules/
+.pnp/
 .pnp.js
 
 # testing
-/coverage
+/coverage/
 
 # production
-/build
+/build/
 
 # misc
 .DS_Store
@@ -18,6 +64,18 @@
 .env.test.local
 .env.production.local
 
+# log files
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+
+# editor
+*.sublime-project
+*.sublime-workspace
+
+# eslint cache
+.eslintcache
+
+# Mac system files
+Thumbs.db
