@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useGoogleLogin } from '@react-oauth/google';
 import './Auth.css';
 
 const Signup = () => {
@@ -58,32 +59,38 @@ const Signup = () => {
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    try {
-      setError('');
-      setLoading(true);
-      const user = await googleSignIn();
-      
-      // Redirect based on role
-      switch (user.role) {
-        case 'manufacturer':
-          navigate('/manufacturer/dashboard');
-          break;
-        case 'reseller':
-          navigate('/reseller/dashboard');
-          break;
-        case 'customer':
-          navigate('/customer/dashboard');
-          break;
-        default:
-          navigate('/');
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (response) => {
+      try {
+        setError('');
+        setLoading(true);
+        const user = await googleSignIn(response.access_token);
+        
+        // Redirect based on role
+        switch (user.role) {
+          case 'manufacturer':
+            navigate('/manufacturer/dashboard');
+            break;
+          case 'reseller':
+            navigate('/reseller/dashboard');
+            break;
+          case 'customer':
+            navigate('/customer/dashboard');
+            break;
+          default:
+            navigate('/');
+        }
+      } catch (error) {
+        setError('Failed to sign up with Google.');
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      setError('Failed to sign up with Google.');
-    } finally {
+    },
+    onError: () => {
+      setError('Google sign in failed');
       setLoading(false);
     }
-  };
+  });
 
   return (
     <div className="auth-container">
@@ -160,7 +167,7 @@ const Signup = () => {
         </form>
         <div className="divider">OR</div>
         <button
-          onClick={handleGoogleSignUp}
+          onClick={() => googleLogin()}
           disabled={loading}
           className="google-button"
         >

@@ -54,9 +54,9 @@ export const authService = {
   },
 
   // Google authentication
-  googleSignIn: async (googleToken) => {
+  googleSignIn: async (accessToken) => {
     try {
-      const response = await authAPI.post('/auth/google', { googleToken });
+      const response = await authAPI.post('/auth/google', { accessToken });
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Google authentication failed' };

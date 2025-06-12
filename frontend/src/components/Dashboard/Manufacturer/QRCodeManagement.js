@@ -10,15 +10,19 @@ const QRCodeManagement = () => {
 
   const handleOnDrop = (data) => {
     setLoading(true);
-    // Process CSV data
-    const processedCodes = data.map((row, index) => ({
-      id: index + 1,
-      code: row.data[0] || `QR-${Math.random().toString(36).substr(2, 9)}`,
-      status: 'Available',
-      assignedTo: '-',
-    }));
-    setQrCodes(processedCodes);
-    setLoading(false);
+    try {
+      const processedCodes = data.data.map((row, index) => ({
+        id: index + 1,
+        code: row[0] || `QR-${Math.random().toString(36).substr(2, 9)}`,
+        status: 'Available',
+        assignedTo: '-',
+      }));
+      setQrCodes(processedCodes);
+    } catch (error) {
+      console.error('Error processing CSV:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOnError = (err) => {
@@ -27,37 +31,67 @@ const QRCodeManagement = () => {
 
   const generateQRCodes = () => {
     setLoading(true);
-    const count = parseInt(count);
-    if (isNaN(count) || count <= 0) {
-      alert('Please enter a valid number');
+    try {
+      const countNum = parseInt(count);
+      if (isNaN(countNum) || countNum <= 0) {
+        alert('Please enter a valid number');
+        return;
+      }
+
+      const newCodes = Array.from({ length: countNum }, (_, index) => ({
+        id: index + 1,
+        code: `QR-${Math.random().toString(36).substr(2, 9)}`,
+        status: 'Available',
+        assignedTo: '-',
+      }));
+
+      setQrCodes(newCodes);
+    } catch (error) {
+      console.error('Error generating QR codes:', error);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const newCodes = Array.from({ length: count }, (_, index) => ({
-      id: index + 1,
-      code: `QR-${Math.random().toString(36).substr(2, 9)}`,
-      status: 'Available',
-      assignedTo: '-',
-    }));
-
-    setQrCodes(newCodes);
-    setLoading(false);
   };
 
   const exportToCSV = () => {
-    const csvContent = qrCodes
-      .map((code) => `${code.code},${code.status},${code.assignedTo}`)
-      .join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'qr_codes.csv';
-    link.click();
+    try {
+      const csvContent = 'Code,Status,Assigned To\n' + qrCodes
+        .map((code) => `${code.code},${code.status},${code.assignedTo}`)
+        .join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'qr_codes.csv';
+      link.click();
+    } catch (error) {
+      console.error('Error exporting to CSV:', error);
+    }
+  };
+
+  // File input handler for CSV upload
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result;
+        const rows = text.split('\n').map(row => row.split(','));
+        const processedCodes = rows
+          .filter(row => row[0] && row[0].trim())
+          .map((row, index) => ({
+            id: index + 1,
+            code: row[0].trim() || `QR-${Math.random().toString(36).substr(2, 9)}`,
+            status: 'Available',
+            assignedTo: '-',
+          }));
+        setQrCodes(processedCodes);
+      };
+      reader.readAsText(file);
+    }
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">QR Code Management</h1>
         {qrCodes.length > 0 && (
@@ -99,17 +133,25 @@ const QRCodeManagement = () => {
         <div className="p-6">
           {activeTab === 'upload' ? (
             <div className="space-y-4">
-              <div className="flex justify-center">
-                <CSVReader
-                  onDrop={handleOnDrop}
-                  onError={handleOnError}
-                  addRemoveButton
-                  config={{
-                    header: false,
-                  }}
-                >
-                  <span>Drop CSV file here or click to upload.</span>
-                </CSVReader>
+              <div className="flex items-center justify-center w-full">
+                <label htmlFor="csv-upload" className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                      <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                    </svg>
+                    <p className="mb-2 text-sm text-gray-500">
+                      <span className="font-semibold">Click to upload</span> or drag and drop
+                    </p>
+                    <p className="text-xs text-gray-500">CSV files only</p>
+                  </div>
+                  <input 
+                    id="csv-upload" 
+                    type="file" 
+                    accept=".csv"
+                    onChange={handleFileUpload}
+                    className="hidden" 
+                  />
+                </label>
               </div>
             </div>
           ) : (
@@ -128,15 +170,15 @@ const QRCodeManagement = () => {
                     id="count"
                     value={count}
                     onChange={(e) => setCount(e.target.value)}
-                    className="focus:ring-blue-500 focus:border-blue-500 flex-1 block w-full rounded-md sm:text-sm border-gray-300"
+                    className="focus:ring-blue-500 focus:border-blue-500 flex-1 block w-full rounded-md sm:text-sm border border-gray-300 px-3 py-2"
                     placeholder="Enter number of codes"
                   />
                   <button
                     onClick={generateQRCodes}
                     disabled={loading}
-                    className="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                   >
-                    Generate
+                    {loading ? 'Generating...' : 'Generate'}
                   </button>
                 </div>
               </div>
@@ -209,4 +251,4 @@ const QRCodeManagement = () => {
   );
 };
 
-export default QRCodeManagement; 
+export default QRCodeManagement;
