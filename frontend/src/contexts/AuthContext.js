@@ -47,9 +47,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
   };
 
-  const googleSignIn = async (googleToken) => {
+  const googleSignIn = async (accessToken) => {
     try {
-      const data = await authService.googleSignIn(googleToken);
+      const data = await authService.googleSignIn(accessToken);
       setUser(data.user);
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('token', data.token);

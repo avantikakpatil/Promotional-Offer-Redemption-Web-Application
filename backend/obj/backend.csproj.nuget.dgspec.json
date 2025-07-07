@@ -1,6 +1,7 @@
 {
   "format": 1,
   "restore": {
+<<<<<<< HEAD
     "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\backend.csproj": {}
   },
   "projects": {
@@ -12,6 +13,19 @@
         "projectPath": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\backend.csproj",
         "packagesPath": "C:\\Users\\Avantika Patil\\.nuget\\packages\\",
         "outputPath": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\",
+=======
+    "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\backend.csproj": {}
+  },
+  "projects": {
+    "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\backend.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\backend.csproj",
+        "projectName": "backend",
+        "projectPath": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\backend.csproj",
+        "packagesPath": "C:\\Users\\Avantika Patil\\.nuget\\packages\\",
+        "outputPath": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\obj\\",
+>>>>>>> 4751f8009e84eff2496374eeb547ec2185de4146
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Avantika Patil\\AppData\\Roaming\\NuGet\\NuGet.Config"

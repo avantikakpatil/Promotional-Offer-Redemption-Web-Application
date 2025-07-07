@@ -28,4 +28,25 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="wwwroot\css\site.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <Target Name="NpmInstall" BeforeTargets="Build">
+    <Message Text="Running npm install..." Importance="high" />
+    <Exec Command="npm install" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <Target Name="BuildTailwind" AfterTargets="NpmInstall" BeforeTargets="Build">
+    <Message Text="Building Tailwind CSS..." Importance="high" />
+    <Exec Command="npm run build:css" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <Target Name="WatchTailwind" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+    <Message Text="Watching Tailwind CSS..." Importance="high" />
+    <Exec Command="npm run watch:css" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
 </Project>
