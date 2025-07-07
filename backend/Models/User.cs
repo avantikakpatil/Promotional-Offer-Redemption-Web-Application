@@ -27,9 +27,5 @@ namespace backend.Models
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? LastLoginAt { get; set; }
-        
-        // Navigation properties
-        public virtual ICollection<Offer> Offers { get; set; } = new List<Offer>();
-        public virtual ICollection<OfferRedemption> OfferRedemptions { get; set; } = new List<OfferRedemption>();
     }
 }

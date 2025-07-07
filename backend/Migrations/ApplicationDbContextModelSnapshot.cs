@@ -22,7 +22,7 @@ namespace backend.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("PromotionalOfferRedemption.Models.Points", b =>
+            modelBuilder.Entity("backend.Models.Campaign", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -30,221 +30,21 @@ namespace backend.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("Balance")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("LastUpdated")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
-
-                    b.ToTable("Points");
-                });
-
-            modelBuilder.Entity("PromotionalOfferRedemption.Models.PointsHistory", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("Points")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("PointsHistory");
-                });
-
-            modelBuilder.Entity("PromotionalOfferRedemption.Models.Reward", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("Available")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime?>("ExpiryDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Image")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("Points")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Rewards");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            Available = true,
-                            Category = "gift-cards",
-                            Description = "Get a $5 gift card to use at any participating store",
-                            Image = "💳",
-                            Name = "$5 Gift Card",
-                            Points = 500
-                        },
-                        new
-                        {
-                            Id = 2,
-                            Available = true,
-                            Category = "gift-cards",
-                            Description = "Get a $10 gift card to use at any participating store",
-                            Image = "💳",
-                            Name = "$10 Gift Card",
-                            Points = 1000
-                        },
-                        new
-                        {
-                            Id = 3,
-                            Available = true,
-                            Category = "food",
-                            Description = "Enjoy a free coffee at any participating café",
-                            Image = "☕",
-                            Name = "Free Coffee",
-                            Points = 150
-                        },
-                        new
-                        {
-                            Id = 4,
-                            Available = true,
-                            Category = "food",
-                            Description = "Get a free burger at any participating restaurant",
-                            Image = "🍔",
-                            Name = "Free Burger",
-                            Points = 300
-                        },
-                        new
-                        {
-                            Id = 5,
-                            Available = true,
-                            Category = "discounts",
-                            Description = "Get 20% off your next purchase",
-                            Image = "🎟️",
-                            Name = "20% Off Coupon",
-                            Points = 200
-                        },
-                        new
-                        {
-                            Id = 6,
-                            Available = true,
-                            Category = "entertainment",
-                            Description = "Enjoy a free movie ticket at any participating theater",
-                            Image = "🎬",
-                            Name = "Free Movie Ticket",
-                            Points = 800
-                        },
-                        new
-                        {
-                            Id = 7,
-                            Available = true,
-                            Category = "subscriptions",
-                            Description = "Get one month of premium subscription",
-                            Image = "⭐",
-                            Name = "Premium Subscription (1 month)",
-                            Points = 1500
-                        },
-                        new
-                        {
-                            Id = 8,
-                            Available = true,
-                            Category = "gift-cards",
-                            Description = "Get a $25 gift card to use at any participating store",
-                            Image = "💳",
-                            Name = "$25 Gift Card",
-                            Points = 2500
-                        });
-                });
-
-            modelBuilder.Entity("PromotionalOfferRedemption.Models.RewardRedemption", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("RedeemedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("RewardId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RewardId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("RewardRedemptions");
-                });
-
-            modelBuilder.Entity("backend.Models.Offer", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    b.Property<decimal?>("Budget")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
                     b.Property<string>("Description")
-                        .HasColumnType("longtext");
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
 
-                    b.Property<decimal>("DiscountPercentage")
-                        .HasColumnType("decimal(65,30)");
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
@@ -252,28 +52,50 @@ namespace backend.Migrations
                     b.Property<int>("ManufacturerId")
                         .HasColumnType("int");
 
-                    b.Property<string>("Title")
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<int>("Points")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProductType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateTime>("ValidFrom")
-                        .HasColumnType("datetime(6)");
+                    b.Property<string>("TargetAudience")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
 
-                    b.Property<DateTime>("ValidTo")
-                        .HasColumnType("datetime(6)");
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp(6)");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ManufacturerId");
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("IX_Campaigns_IsActive");
 
-                    b.ToTable("Offers");
+                    b.HasIndex("ManufacturerId")
+                        .HasDatabaseName("IX_Campaigns_ManufacturerId");
+
+                    b.HasIndex("ProductType")
+                        .HasDatabaseName("IX_Campaigns_ProductType");
+
+                    b.HasIndex("StartDate", "EndDate")
+                        .HasDatabaseName("IX_Campaigns_DateRange");
+
+                    b.ToTable("Campaigns");
                 });
 
-            modelBuilder.Entity("backend.Models.OfferRedemption", b =>
+            modelBuilder.Entity("backend.Models.RewardTier", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -281,34 +103,29 @@ namespace backend.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("OfferId")
+                    b.Property<int>("CampaignId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("RedeemedAt")
-                        .HasColumnType("datetime(6)");
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
-                    b.Property<string>("RedemptionCode")
+                    b.Property<string>("Reward")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("UserId")
+                    b.Property<int>("Threshold")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OfferId");
+                    b.HasIndex("CampaignId", "Threshold")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RewardTiers_CampaignId_Threshold");
 
-                    b.HasIndex("RedemptionCode")
-                        .IsUnique();
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("OfferRedemptions");
+                    b.ToTable("RewardTiers");
                 });
 
             modelBuilder.Entity("backend.Models.User", b =>
@@ -324,6 +141,7 @@ namespace backend.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
+                        .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
                     b.Property<DateTime?>("LastLoginAt")
@@ -331,8 +149,8 @@ namespace backend.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -354,87 +172,31 @@ namespace backend.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("PromotionalOfferRedemption.Models.Points", b =>
-                {
-                    b.HasOne("backend.Models.User", "User")
-                        .WithOne()
-                        .HasForeignKey("PromotionalOfferRedemption.Models.Points", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("PromotionalOfferRedemption.Models.PointsHistory", b =>
-                {
-                    b.HasOne("backend.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("PromotionalOfferRedemption.Models.RewardRedemption", b =>
-                {
-                    b.HasOne("PromotionalOfferRedemption.Models.Reward", "Reward")
-                        .WithMany()
-                        .HasForeignKey("RewardId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("backend.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Reward");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("backend.Models.Offer", b =>
+            modelBuilder.Entity("backend.Models.Campaign", b =>
                 {
                     b.HasOne("backend.Models.User", "Manufacturer")
-                        .WithMany("Offers")
+                        .WithMany()
                         .HasForeignKey("ManufacturerId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Manufacturer");
                 });
 
-            modelBuilder.Entity("backend.Models.OfferRedemption", b =>
+            modelBuilder.Entity("backend.Models.RewardTier", b =>
                 {
-                    b.HasOne("backend.Models.Offer", "Offer")
-                        .WithMany("OfferRedemptions")
-                        .HasForeignKey("OfferId")
+                    b.HasOne("backend.Models.Campaign", "Campaign")
+                        .WithMany("RewardTiers")
+                        .HasForeignKey("CampaignId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("backend.Models.User", "User")
-                        .WithMany("OfferRedemptions")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Offer");
-
-                    b.Navigation("User");
+                    b.Navigation("Campaign");
                 });
 
-            modelBuilder.Entity("backend.Models.Offer", b =>
+            modelBuilder.Entity("backend.Models.Campaign", b =>
                 {
-                    b.Navigation("OfferRedemptions");
-                });
-
-            modelBuilder.Entity("backend.Models.User", b =>
-                {
-                    b.Navigation("OfferRedemptions");
-
-                    b.Navigation("Offers");
+                    b.Navigation("RewardTiers");
                 });
 #pragma warning restore 612, 618
         }

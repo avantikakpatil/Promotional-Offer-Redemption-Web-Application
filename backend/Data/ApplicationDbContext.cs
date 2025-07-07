@@ -1,9 +1,7 @@
-// Data/ApplicationDbContext.cs
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
-using PromotionalOfferRedemption.Models;
 
 namespace backend.Data
 {
@@ -15,163 +13,96 @@ namespace backend.Data
         }
 
         public DbSet<User> Users { get; set; }
-        public DbSet<Offer> Offers { get; set; }
-        public DbSet<OfferRedemption> OfferRedemptions { get; set; }
-        public DbSet<Points> Points { get; set; }
-        public DbSet<PointsHistory> PointsHistory { get; set; }
-        public DbSet<Reward> Rewards { get; set; }
-        public DbSet<RewardRedemption> RewardRedemptions { get; set; }
-        
+        public DbSet<Campaign> Campaigns { get; set; }
+        public DbSet<RewardTier> RewardTiers { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
-            
-            // User configuration
+
+            // Configure User entity
             builder.Entity<User>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
                 entity.HasIndex(e => e.Email).IsUnique();
                 entity.Property(e => e.Role).HasConversion<string>();
             });
-            
-            // Offer configuration
-            builder.Entity<Offer>(entity =>
+
+            // Configure Campaign entity
+            builder.Entity<Campaign>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.HasOne(d => d.Manufacturer)
-                      .WithMany(p => p.Offers)
-                      .HasForeignKey(d => d.ManufacturerId)
-                      .OnDelete(DeleteBehavior.Restrict);
-            });
-            
-            // OfferRedemption configuration
-            builder.Entity<OfferRedemption>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.HasIndex(e => e.RedemptionCode).IsUnique();
-                entity.Property(e => e.Status).HasConversion<string>();
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.ProductType).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Description).IsRequired().HasMaxLength(1000);
+                entity.Property(e => e.TargetAudience).HasMaxLength(500);
+                entity.Property(e => e.Budget).HasColumnType("decimal(18,2)");
                 
-                entity.HasOne(d => d.Offer)
-                      .WithMany(p => p.OfferRedemptions)
-                      .HasForeignKey(d => d.OfferId)
+                // Fix: Use TIMESTAMP instead of DATETIME for better MySQL compatibility
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnType("timestamp(6)")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(e => e.UpdatedAt)
+                    .HasColumnType("timestamp(6)")
+                    .ValueGeneratedOnAddOrUpdate();
+
+                // Configure relationship with User (Manufacturer)
+                entity.HasOne(e => e.Manufacturer)
+                      .WithMany()
+                      .HasForeignKey(e => e.ManufacturerId)
                       .OnDelete(DeleteBehavior.Cascade);
-                      
-                entity.HasOne(d => d.User)
-                      .WithMany(p => p.OfferRedemptions)
-                      .HasForeignKey(d => d.UserId)
+
+                // Configure relationship with RewardTiers
+                entity.HasMany(e => e.RewardTiers)
+                      .WithOne(e => e.Campaign)
+                      .HasForeignKey(e => e.CampaignId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // Configure Points entity
-            builder.Entity<Points>()
-                .HasOne(p => p.User)
-                .WithOne()
-                .HasForeignKey<Points>(p => p.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            // Configure RewardTier entity
+            builder.Entity<RewardTier>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Reward).IsRequired().HasMaxLength(500);
+                
+                // Fix: Use TIMESTAMP for RewardTier as well
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnType("timestamp(6)")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
+                    .ValueGeneratedOnAdd();
 
-            // Configure PointsHistory entity
-            builder.Entity<PointsHistory>()
-                .HasOne(p => p.User)
-                .WithMany()
-                .HasForeignKey(p => p.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+                // Configure relationship with Campaign
+                entity.HasOne(e => e.Campaign)
+                      .WithMany(e => e.RewardTiers)
+                      .HasForeignKey(e => e.CampaignId)
+                      .OnDelete(DeleteBehavior.Cascade);
 
-            // Configure RewardRedemption entity
-            builder.Entity<RewardRedemption>()
-                .HasOne(r => r.User)
-                .WithMany()
-                .HasForeignKey(r => r.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+                // Create unique index for campaign-threshold combination
+                entity.HasIndex(e => new { e.CampaignId, e.Threshold })
+                      .IsUnique()
+                      .HasDatabaseName("IX_RewardTiers_CampaignId_Threshold");
+            });
 
-            builder.Entity<RewardRedemption>()
-                .HasOne(r => r.Reward)
-                .WithMany()
-                .HasForeignKey(r => r.RewardId)
-                .OnDelete(DeleteBehavior.Restrict);
+            // Configure indexes for better performance
+            builder.Entity<Campaign>()
+                .HasIndex(e => e.ManufacturerId)
+                .HasDatabaseName("IX_Campaigns_ManufacturerId");
 
-            // Seed some initial rewards
-            builder.Entity<Reward>().HasData(
-                new Reward
-                {
-                    Id = 1,
-                    Name = "$5 Gift Card",
-                    Points = 500,
-                    Category = "gift-cards",
-                    Image = "💳",
-                    Available = true,
-                    Description = "Get a $5 gift card to use at any participating store"
-                },
-                new Reward
-                {
-                    Id = 2,
-                    Name = "$10 Gift Card",
-                    Points = 1000,
-                    Category = "gift-cards",
-                    Image = "💳",
-                    Available = true,
-                    Description = "Get a $10 gift card to use at any participating store"
-                },
-                new Reward
-                {
-                    Id = 3,
-                    Name = "Free Coffee",
-                    Points = 150,
-                    Category = "food",
-                    Image = "☕",
-                    Available = true,
-                    Description = "Enjoy a free coffee at any participating café"
-                },
-                new Reward
-                {
-                    Id = 4,
-                    Name = "Free Burger",
-                    Points = 300,
-                    Category = "food",
-                    Image = "🍔",
-                    Available = true,
-                    Description = "Get a free burger at any participating restaurant"
-                },
-                new Reward
-                {
-                    Id = 5,
-                    Name = "20% Off Coupon",
-                    Points = 200,
-                    Category = "discounts",
-                    Image = "🎟️",
-                    Available = true,
-                    Description = "Get 20% off your next purchase"
-                },
-                new Reward
-                {
-                    Id = 6,
-                    Name = "Free Movie Ticket",
-                    Points = 800,
-                    Category = "entertainment",
-                    Image = "🎬",
-                    Available = true,
-                    Description = "Enjoy a free movie ticket at any participating theater"
-                },
-                new Reward
-                {
-                    Id = 7,
-                    Name = "Premium Subscription (1 month)",
-                    Points = 1500,
-                    Category = "subscriptions",
-                    Image = "⭐",
-                    Available = true,
-                    Description = "Get one month of premium subscription"
-                },
-                new Reward
-                {
-                    Id = 8,
-                    Name = "$25 Gift Card",
-                    Points = 2500,
-                    Category = "gift-cards",
-                    Image = "💳",
-                    Available = true,
-                    Description = "Get a $25 gift card to use at any participating store"
-                }
-            );
+            builder.Entity<Campaign>()
+                .HasIndex(e => e.IsActive)
+                .HasDatabaseName("IX_Campaigns_IsActive");
+
+            builder.Entity<Campaign>()
+                .HasIndex(e => new { e.StartDate, e.EndDate })
+                .HasDatabaseName("IX_Campaigns_DateRange");
+
+            builder.Entity<Campaign>()
+                .HasIndex(e => e.ProductType)
+                .HasDatabaseName("IX_Campaigns_ProductType");
         }
     }
 }
