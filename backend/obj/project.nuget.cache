@@ -1,14 +1,8 @@
 {
   "version": 2,
-<<<<<<< HEAD
   "dgSpecHash": "rw6LCevSDVU=",
   "success": true,
   "projectFilePath": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\backend.csproj",
-=======
-  "dgSpecHash": "+2/vEcQm4jw=",
-  "success": true,
-  "projectFilePath": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\backend.csproj",
->>>>>>> 4751f8009e84eff2496374eeb547ec2185de4146
   "expectedPackageFiles": [
     "C:\\Users\\Avantika Patil\\.nuget\\packages\\bcrypt.net-next\\4.0.3\\bcrypt.net-next.4.0.3.nupkg.sha512",
     "C:\\Users\\Avantika Patil\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
@@ -72,5 +66,12 @@
     "C:\\Users\\Avantika Patil\\.nuget\\packages\\system.text.json\\9.0.6\\system.text.json.9.0.6.nupkg.sha512",
     "C:\\Users\\Avantika Patil\\.nuget\\packages\\system.threading.channels\\7.0.0\\system.threading.channels.7.0.0.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "Undefined",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Problem reading the cache file D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\project.nuget.cache : Invalid property identifier character: <. Path 'version', line 3, position 0."
+    }
+  ]
 }

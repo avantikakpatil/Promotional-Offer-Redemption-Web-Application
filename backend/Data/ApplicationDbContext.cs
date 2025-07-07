@@ -15,6 +15,7 @@ namespace backend.Data
         public DbSet<User> Users { get; set; }
         public DbSet<Campaign> Campaigns { get; set; }
         public DbSet<RewardTier> RewardTiers { get; set; }
+        public DbSet<QRCode> QRCodes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

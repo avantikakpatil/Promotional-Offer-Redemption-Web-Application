@@ -21,81 +21,6 @@ import {
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 
-// QR Code Generator Component
-const QRCodeDisplay = ({ value, size = 100 }) => {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const generateQRCode = async () => {
-      const canvas = canvasRef.current;
-      if (!canvas || !value) return;
-
-      const ctx = canvas.getContext('2d');
-      const qrSize = size;
-      
-      // Set canvas size
-      canvas.width = qrSize;
-      canvas.height = qrSize;
-      
-      // Simple QR code pattern generator (basic implementation)
-      const moduleCount = 25; // 25x25 grid for simplicity
-      const moduleSize = qrSize / moduleCount;
-      
-      // Clear canvas
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, qrSize, qrSize);
-      
-      // Generate pattern based on the value hash
-      const hash = value.split('').reduce((a, b) => {
-        a = ((a << 5) - a) + b.charCodeAt(0);
-        return a & a;
-      }, 0);
-      
-      ctx.fillStyle = '#000000';
-      
-      // Draw finder patterns (corners)
-      const drawFinderPattern = (x, y) => {
-        // Outer square
-        ctx.fillRect(x * moduleSize, y * moduleSize, 7 * moduleSize, 7 * moduleSize);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect((x + 1) * moduleSize, (y + 1) * moduleSize, 5 * moduleSize, 5 * moduleSize);
-        ctx.fillStyle = '#000000';
-        ctx.fillRect((x + 2) * moduleSize, (y + 2) * moduleSize, 3 * moduleSize, 3 * moduleSize);
-      };
-      
-      drawFinderPattern(0, 0); // Top-left
-      drawFinderPattern(18, 0); // Top-right
-      drawFinderPattern(0, 18); // Bottom-left
-      
-      // Generate data pattern
-      for (let row = 0; row < moduleCount; row++) {
-        for (let col = 0; col < moduleCount; col++) {
-          // Skip finder patterns
-          if ((row < 9 && col < 9) || (row < 9 && col > 15) || (row > 15 && col < 9)) {
-            continue;
-          }
-          
-          // Generate pseudo-random pattern based on hash and position
-          const seed = hash + row * moduleCount + col;
-          if ((seed % 3) === 0) {
-            ctx.fillRect(col * moduleSize, row * moduleSize, moduleSize, moduleSize);
-          }
-        }
-      }
-    };
-
-    generateQRCode();
-  }, [value, size]);
-
-  return (
-    <canvas 
-      ref={canvasRef}
-      className="border border-gray-200 rounded"
-      style={{ imageRendering: 'pixelated' }}
-    />
-  );
-};
-
 const QRCodeManagement = () => {
   const [selectedCodes, setSelectedCodes] = useState([]);
   const [qrCodes, setQrCodes] = useState([]);
@@ -117,7 +42,7 @@ const QRCodeManagement = () => {
   // Missing state variables
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const [selectedCampaign, setSelectedCampaign] = useState('');
+  const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [count, setCount] = useState('');
 
   const handleViewQR = (code) => {
@@ -125,64 +50,6 @@ const QRCodeManagement = () => {
     setShowQRModal(true);
   };
 
-  const downloadQRCode = (code) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const qrSize = 300;
-    
-    canvas.width = qrSize;
-    canvas.height = qrSize;
-    
-    // Generate QR code on canvas (same logic as QRCodeDisplay)
-    const moduleCount = 25;
-    const moduleSize = qrSize / moduleCount;
-    
-    const hash = code.code.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-    
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, qrSize, qrSize);
-    ctx.fillStyle = '#000000';
-    
-    // Draw finder patterns
-    const drawFinderPattern = (x, y) => {
-      ctx.fillRect(x * moduleSize, y * moduleSize, 7 * moduleSize, 7 * moduleSize);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect((x + 1) * moduleSize, (y + 1) * moduleSize, 5 * moduleSize, 5 * moduleSize);
-      ctx.fillStyle = '#000000';
-      ctx.fillRect((x + 2) * moduleSize, (y + 2) * moduleSize, 3 * moduleSize, 3 * moduleSize);
-    };
-    
-    drawFinderPattern(0, 0);
-    drawFinderPattern(18, 0);
-    drawFinderPattern(0, 18);
-    
-    // Generate data pattern
-    for (let row = 0; row < moduleCount; row++) {
-      for (let col = 0; col < moduleCount; col++) {
-        if ((row < 9 && col < 9) || (row < 9 && col > 15) || (row > 15 && col < 9)) {
-          continue;
-        }
-        const seed = hash + row * moduleCount + col;
-        if ((seed % 3) === 0) {
-          ctx.fillRect(col * moduleSize, row * moduleSize, moduleSize, moduleSize);
-        }
-      }
-    }
-    
-    // Download the image
-    canvas.toBlob(blob => {
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `qr-code-${code.code}.png`;
-      link.click();
-      URL.revokeObjectURL(url);
-    });
-  };
-  
   const handleEditCode = (code) => {
     setEditingCode({ ...code });
     setShowEditModal(true);
@@ -232,27 +99,89 @@ const QRCodeManagement = () => {
     setCurrentPage(1); // Reset to first page when filtering
   }, [qrCodes, searchTerm, statusFilter]);
 
+  // Fetch campaigns from backend
   const fetchCampaigns = async () => {
     try {
-      // Mock campaigns data for demo
-      const mockCampaigns = [
-        { id: 1, name: 'Summer Sale 2024' },
-        { id: 2, name: 'Product Launch' },
-        { id: 3, name: 'Holiday Campaign' },
-        { id: 4, name: 'Brand Awareness' }
-      ];
-      setCampaigns(mockCampaigns);
-      
-      // Mock resellers data
-      const mockResellers = [
-        { id: 1, name: 'John Doe' },
-        { id: 2, name: 'Jane Smith' },
-        { id: 3, name: 'Mike Johnson' },
-        { id: 4, name: 'Sarah Wilson' }
-      ];
-      setResellers(mockResellers);
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/manufacturer/campaigns', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch campaigns');
+      const data = await res.json();
+      console.log('Fetched campaigns:', data); // Debug log
+      setCampaigns(Array.isArray(data.data) ? data.data : []);
     } catch (error) {
+      setCampaigns([]);
+      setErrors({ campaign: 'Error fetching campaigns' });
       console.error('Error fetching campaigns:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Generate QR codes using backend
+  const generateQRCodes = async () => {
+    const countNum = parseInt(count);
+    if (isNaN(countNum) || countNum <= 0) {
+      setErrors({ count: 'Please enter a valid number greater than 0' });
+      return;
+    }
+    if (countNum > 1000) {
+      setErrors({ count: 'Maximum 1,000 codes can be generated at once for performance' });
+      return;
+    }
+    if (!selectedCampaignId) {
+      setErrors({ campaign: 'Please select a campaign' });
+      return;
+    }
+    setLoading(true);
+    setErrors({});
+    try {
+      const token = localStorage.getItem('token');
+      const newCodes = [];
+      for (let i = 0; i < countNum; i++) {
+        const code = `QR-${selectedCampaignId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const res = await fetch('/api/manufacturer/qrcodes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ code, campaignId: selectedCampaignId }),
+        });
+        if (!res.ok) throw new Error('Failed to generate QR code');
+        const qr = await res.json();
+        newCodes.push(qr);
+      }
+      setQrCodes(prev => [...prev, ...newCodes]);
+      setCount('');
+      setActiveTab('list');
+    } catch (error) {
+      setErrors({ count: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch QR codes for selected campaign
+  const fetchQRCodesForCampaign = async (campaignId) => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/manufacturer/qrcodes/by-campaign/${campaignId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch QR codes');
+      const data = await res.json();
+      console.log('Fetched QR codes:', data); // Debug log
+      setQrCodes(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setQrCodes([]);
+      setErrors({ qrcodes: 'Error fetching QR codes' });
+      console.error('Error fetching QR codes:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -305,7 +234,7 @@ const QRCodeManagement = () => {
             code: row[0].trim(),
             status: 'Available',
             assignedTo: '-',
-            campaign: selectedCampaign || '-',
+            campaign: selectedCampaignId || '-',
             createdAt: new Date().toLocaleDateString(),
             scans: 0,
             lastScanned: '-'
@@ -343,51 +272,6 @@ const QRCodeManagement = () => {
     // Reset file input
     const fileInput = document.getElementById('csv-upload');
     if (fileInput) fileInput.value = '';
-  };
-
-  const generateQRCodes = () => {
-    const countNum = parseInt(count);
-    
-    if (isNaN(countNum) || countNum <= 0) {
-      setErrors({ count: 'Please enter a valid number greater than 0' });
-      return;
-    }
-    
-    if (countNum > 1000) {
-      setErrors({ count: 'Maximum 1,000 codes can be generated at once for performance' });
-      return;
-    }
-    
-    if (!selectedCampaign) {
-      setErrors({ campaign: 'Please select a campaign' });
-      return;
-    }
-    
-    setLoading(true);
-    setErrors({});
-    
-    try {
-      const newCodes = Array.from({ length: countNum }, (_, index) => ({
-        id: Date.now() + index,
-        code: `QR-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        status: 'Available',
-        assignedTo: '-',
-        campaign: selectedCampaign,
-        createdAt: new Date().toLocaleDateString(),
-        scans: 0,
-        lastScanned: '-'
-      }));
-
-      setQrCodes(prev => [...prev, ...newCodes]);
-      setCount('');
-      setActiveTab('list'); // Switch to list view
-      
-    } catch (error) {
-      console.error('Error generating QR codes:', error);
-      setErrors({ count: 'Error generating QR codes. Please try again.' });
-    } finally {
-      setLoading(false);
-    }
   };
 
   const exportToCSV = () => {
@@ -453,6 +337,9 @@ const QRCodeManagement = () => {
   const totalPages = Math.ceil(filteredCodes.length / itemsPerPage);
 
   const getStatusBadgeClass = (status) => {
+    if (!status || typeof status !== 'string') {
+      return 'bg-gray-100 text-gray-800'; // fallback/default class
+    }
     switch (status.toLowerCase()) {
       case 'available':
         return 'bg-green-100 text-green-800';
@@ -472,6 +359,15 @@ const QRCodeManagement = () => {
       setLoading(false);
     }, 1000);
   };
+
+  // Optionally, fetch QR codes when a campaign is selected
+  useEffect(() => {
+    if (selectedCampaignId) {
+      fetchQRCodesForCampaign(selectedCampaignId);
+    } else {
+      setQrCodes([]);
+    }
+  }, [selectedCampaignId]);
 
   return (
     <div className="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen">
@@ -549,15 +445,13 @@ const QRCodeManagement = () => {
                       Select Campaign (Optional)
                     </label>
                     <select
-                      value={selectedCampaign}
-                      onChange={(e) => setSelectedCampaign(e.target.value)}
+                      value={selectedCampaignId}
+                      onChange={e => setSelectedCampaignId(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Select Campaign</option>
-                      {campaigns.map(campaign => (
-                        <option key={campaign.id} value={campaign.name}>
-                          {campaign.name}
-                        </option>
+                      {Array.isArray(campaigns) && campaigns.map(campaign => (
+                        <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
                       ))}
                     </select>
                   </div>
@@ -631,13 +525,13 @@ QR003`}
                     Select Campaign *
                   </label>
                   <select
-                    value={selectedCampaign}
-                    onChange={(e) => setSelectedCampaign(e.target.value)}
+                    value={selectedCampaignId}
+                    onChange={e => setSelectedCampaignId(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Select Campaign</option>
-                    {campaigns.map(campaign => (
-                      <option key={campaign.id} value={campaign.name}>
+                    {Array.isArray(campaigns) && campaigns.map(campaign => (
+                      <option key={campaign.id} value={campaign.id}>
                         {campaign.name}
                       </option>
                     ))}
@@ -807,7 +701,14 @@ QR003`}
                               {code.assignedTo}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {code.campaign}
+                              {(() => {
+                                if (code.campaign && typeof code.campaign === 'object' && code.campaign.name) return code.campaign.name;
+                                if (code.campaign && typeof code.campaign === 'string') {
+                                  const found = campaigns.find(c => c.id === code.campaign || c.name === code.campaign);
+                                  return found ? found.name : code.campaign;
+                                }
+                                return '-';
+                              })()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {code.createdAt}
@@ -1031,7 +932,7 @@ QR003`}
                   onChange={(e) => setEditingCode(prev => ({ ...prev, campaign: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {campaigns.map(campaign => (
+                  {Array.isArray(campaigns) && campaigns.map(campaign => (
                     <option key={campaign.id} value={campaign.name}>
                       {campaign.name}
                     </option>
@@ -1081,3 +982,7 @@ QR003`}
 };
 
 export default QRCodeManagement;
+
+// In your backend's ServiceRegistration.cs or Program.cs, ensure you have:
+// services.AddScoped<IQRCodeService, QRCodeService>();
+// This line must be present to resolve IQRCodeService for QRCodeController.

@@ -3742,19 +3742,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-<<<<<<< HEAD
       "projectUniqueName": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\backend.csproj",
       "projectName": "backend",
       "projectPath": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\backend.csproj",
       "packagesPath": "C:\\Users\\Avantika Patil\\.nuget\\packages\\",
       "outputPath": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\",
-=======
-      "projectUniqueName": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\backend.csproj",
-      "projectName": "backend",
-      "projectPath": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\backend.csproj",
-      "packagesPath": "C:\\Users\\Avantika Patil\\.nuget\\packages\\",
-      "outputPath": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\obj\\",
->>>>>>> 4751f8009e84eff2496374eeb547ec2185de4146
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Avantika Patil\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -3844,5 +3836,13 @@
         "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.200/PortableRuntimeIdentifierGraph.json"
       }
     }
-  }
+  },
+  "logs": [
+    {
+      "code": "Undefined",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Problem reading the cache file D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\project.nuget.cache : Invalid property identifier character: <. Path 'version', line 3, position 0."
+    }
+  ]
 }

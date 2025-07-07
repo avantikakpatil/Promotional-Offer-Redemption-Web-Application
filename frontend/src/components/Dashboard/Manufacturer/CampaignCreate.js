@@ -1,12 +1,6 @@
-<<<<<<< HEAD
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Calendar, Package, Target, Info, AlertCircle } from 'lucide-react';
-=======
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Calendar, Package, Target, Info } from 'lucide-react';
->>>>>>> 4751f8009e84eff2496374eeb547ec2185de4146
 
 const CampaignCreate = () => {
   const navigate = useNavigate();
@@ -25,7 +19,6 @@ const CampaignCreate = () => {
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-<<<<<<< HEAD
   const [tokenInfo, setTokenInfo] = useState(null);
 
   // Configuration for API base URL
@@ -111,39 +104,6 @@ const CampaignCreate = () => {
     const thresholds = formData.rewardTiers.map(t => parseInt(t.threshold));
     const hasDuplicates = thresholds.some((t, i) => thresholds.indexOf(t) !== i);
     if (hasDuplicates) newErrors.rewardTiers = 'Duplicate reward tier thresholds are not allowed';
-=======
-
-  const validateForm = () => {
-    const newErrors = {};
-    
-    if (!formData.name.trim()) newErrors.name = 'Campaign name is required';
-    if (!formData.productType) newErrors.productType = 'Product type is required';
-    if (!formData.points || formData.points <= 0) newErrors.points = 'Points must be greater than 0';
-    if (!formData.startDate) newErrors.startDate = 'Start date is required';
-    if (!formData.endDate) newErrors.endDate = 'End date is required';
-    if (!formData.description.trim()) newErrors.description = 'Description is required';
-    
-    // Date validation
-    if (formData.startDate && formData.endDate) {
-      if (new Date(formData.startDate) >= new Date(formData.endDate)) {
-        newErrors.endDate = 'End date must be after start date';
-      }
-      if (new Date(formData.startDate) < new Date()) {
-        newErrors.startDate = 'Start date cannot be in the past';
-      }
-    }
-
-    // Reward tiers validation
-    formData.rewardTiers.forEach((tier, index) => {
-      if (!tier.threshold || tier.threshold <= 0) {
-        newErrors[`tier_${index}_threshold`] = 'Threshold must be greater than 0';
-      }
-      if (!tier.reward.trim()) {
-        newErrors[`tier_${index}_reward`] = 'Reward description is required';
-      }
-    });
-
->>>>>>> 4751f8009e84eff2496374eeb547ec2185de4146
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -154,7 +114,6 @@ const CampaignCreate = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
-    
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -168,7 +127,6 @@ const CampaignCreate = () => {
       ...prev,
       rewardTiers: newTiers,
     }));
-
     // Clear tier-specific errors
     const errorKey = `tier_${index}_${field}`;
     if (errors[errorKey]) {
@@ -188,7 +146,6 @@ const CampaignCreate = () => {
       ...prev,
       rewardTiers: prev.rewardTiers.filter((_, i) => i !== index),
     }));
-
     // Clear errors for removed tier
     const newErrors = { ...errors };
     delete newErrors[`tier_${index}_threshold`];
@@ -198,12 +155,9 @@ const CampaignCreate = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!validateForm()) {
       return;
     }
-
-<<<<<<< HEAD
     // Check authentication before proceeding
     const token = localStorage.getItem('token');
     if (!token) {
@@ -211,7 +165,6 @@ const CampaignCreate = () => {
       navigate('/login');
       return;
     }
-
     // Additional token validation
     if (tokenInfo && !tokenInfo.hasUserId && !tokenInfo.hasId) {
       alert('Invalid token: No user ID found. Please log in again.');
@@ -219,9 +172,7 @@ const CampaignCreate = () => {
       navigate('/login');
       return;
     }
-
     setLoading(true);
-    
     try {
       // Transform data to match backend DTO structure
       const campaignData = {
@@ -239,10 +190,8 @@ const CampaignCreate = () => {
           reward: tier.reward
         }))
       };
-
       console.log('Sending campaign data:', campaignData);
       console.log('Token info:', tokenInfo);
-
       // API call to create campaign
       const response = await fetch(`${API_BASE_URL}/api/manufacturer/campaigns`, {
         method: 'POST',
@@ -252,23 +201,18 @@ const CampaignCreate = () => {
         },
         body: JSON.stringify(campaignData)
       });
-
       console.log('Response status:', response.status);
       console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
       if (!response.ok) {
         let errorMessage = `HTTP error! status: ${response.status}`;
         let errorData = null;
-        
         // Try to parse error response
         const responseText = await response.text();
         console.log('Error response:', responseText);
-        
         if (responseText) {
           try {
             errorData = JSON.parse(responseText);
             errorMessage = errorData.message || errorData.error || errorMessage;
-            
             // Handle validation errors
             if (errorData.errors && Array.isArray(errorData.errors)) {
               errorMessage = errorData.errors.join(', ');
@@ -278,14 +222,11 @@ const CampaignCreate = () => {
             errorMessage = `${errorMessage} - Response: ${responseText}`;
           }
         }
-        
         throw new Error(errorMessage);
       }
-
       // Parse successful response
       const responseText = await response.text();
       let result;
-      
       if (responseText) {
         try {
           result = JSON.parse(responseText);
@@ -296,40 +237,12 @@ const CampaignCreate = () => {
       } else {
         result = { success: true, message: 'Campaign created successfully' };
       }
-
       console.log('Campaign created:', result);
-      
       // Navigate to dashboard on success
-=======
-    setLoading(true);
-    
-    try {
-      // API call to create campaign
-      const response = await fetch('/api/manufacturer/campaigns', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}` // Assuming token storage
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create campaign');
-      }
-
-      const result = await response.json();
-      console.log('Campaign created:', result);
-      
-      // Show success message
->>>>>>> 4751f8009e84eff2496374eeb547ec2185de4146
       alert('Campaign created successfully!');
       navigate('/manufacturer/dashboard');
-      
     } catch (error) {
       console.error('Error creating campaign:', error);
-<<<<<<< HEAD
-      
       // Handle specific error types
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         alert('Network error: Unable to connect to server. Please check if the backend is running.');
@@ -344,9 +257,6 @@ const CampaignCreate = () => {
       } else {
         alert(`Error creating campaign: ${error.message}`);
       }
-=======
-      alert('Error creating campaign. Please try again.');
->>>>>>> 4751f8009e84eff2496374eeb547ec2185de4146
     } finally {
       setLoading(false);
     }
@@ -371,7 +281,6 @@ const CampaignCreate = () => {
         <p className="text-gray-600">Set up a new promotional campaign with reward tiers to engage your customers</p>
       </div>
 
-<<<<<<< HEAD
       {/* Token Debug Info */}
       {tokenInfo && (
         <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
@@ -416,8 +325,6 @@ const CampaignCreate = () => {
         </div>
       )}
 
-=======
->>>>>>> 4751f8009e84eff2496374eeb547ec2185de4146
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Basic Information */}
         <div className="bg-white shadow-lg rounded-xl p-6 border border-gray-200">
@@ -543,10 +450,7 @@ const CampaignCreate = () => {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 placeholder="Campaign budget"
                 min="0"
-<<<<<<< HEAD
                 step="0.01"
-=======
->>>>>>> 4751f8009e84eff2496374eeb547ec2185de4146
               />
             </div>
 

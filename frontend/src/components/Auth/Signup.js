@@ -261,74 +261,7 @@ const Signup = () => {
               </button>
             </div>
           </div>
-<<<<<<< HEAD
-          <div className="form-group">
-            <label>Phone Number</label>
-            <input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Password</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Role</label>
-            <select
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              required
-            >
-              <option value="customer">Customer</option>
-              <option value="reseller">Reseller</option>
-              <option value="manufacturer">Manufacturer</option>
-            </select>
-          </div>
-          <button type="submit" disabled={loading} className="auth-button">
-            {loading ? 'Creating Account...' : 'Sign Up'}
-          </button>
-        </form>
-        <div className="divider">OR</div>
-        <button
-          onClick={handleGoogleSignUp}
-          disabled={loading}
-          className="google-button"
-        >
-          Sign up with Google
-        </button>
-        <p className="auth-link">
-          Already have an account? <a href="/login">Sign In</a>
-        </p>
-=======
-
-          <p className="mt-6 sm:mt-8 text-center text-sm text-gray-500">
-            Already have an account?{' '}
-            <a href="/login" className="font-semibold leading-6 text-blue-600 hover:text-blue-500">
-              Sign in
-            </a>
-          </p>
         </div>
->>>>>>> 4751f8009e84eff2496374eeb547ec2185de4146
       </div>
     </div>
   );

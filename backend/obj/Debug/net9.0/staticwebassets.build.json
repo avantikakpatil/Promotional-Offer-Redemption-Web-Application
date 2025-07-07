@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "27OInWBMSOnE0wz3gI757LvHKNZsc8jKQsse0ScldGg=",
+  "Hash": "/RZehXijQt+lD4hwDOWm6jy1PasF/2mItheuAlz79bc=",
   "Source": "backend",
   "BasePath": "_content/backend",
   "Mode": "Default",
@@ -10,17 +10,17 @@
     {
       "Name": "backend\\wwwroot",
       "Source": "backend",
-      "ContentRoot": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\wwwroot\\",
+      "ContentRoot": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\wwwroot\\",
       "BasePath": "_content/backend",
       "Pattern": "**"
     }
   ],
   "Assets": [
     {
-      "Identity": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\obj\\Debug\\net9.0\\compressed\\d6qnlrk0ev-710om4ibvs.gz",
+      "Identity": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\Debug\\net9.0\\compressed\\d6qnlrk0ev-710om4ibvs.gz",
       "SourceId": "backend",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\obj\\Debug\\net9.0\\compressed\\",
+      "ContentRoot": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\Debug\\net9.0\\compressed\\",
       "BasePath": "_content/backend",
       "RelativePath": "css/output#[.{fingerprint=710om4ibvs}]?.css.gz",
       "AssetKind": "All",
@@ -28,20 +28,20 @@
       "AssetRole": "Alternative",
       "AssetMergeBehavior": "",
       "AssetMergeSource": "",
-      "RelatedAsset": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\wwwroot\\css\\output.css",
+      "RelatedAsset": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\wwwroot\\css\\output.css",
       "AssetTraitName": "Content-Encoding",
       "AssetTraitValue": "gzip",
       "Fingerprint": "p0z9j7q309",
       "Integrity": "iegub51UB3VP7GtuhoiWew6K48X9k9YgJhT6uKqgs+I=",
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\wwwroot\\css\\output.css"
+      "OriginalItemSpec": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\wwwroot\\css\\output.css"
     },
     {
-      "Identity": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\obj\\Debug\\net9.0\\compressed\\jt1hm7z5lp-6p5p9uijqk.gz",
+      "Identity": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\Debug\\net9.0\\compressed\\jt1hm7z5lp-6p5p9uijqk.gz",
       "SourceId": "backend",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\obj\\Debug\\net9.0\\compressed\\",
+      "ContentRoot": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\Debug\\net9.0\\compressed\\",
       "BasePath": "_content/backend",
       "RelativePath": "css/site#[.{fingerprint=6p5p9uijqk}]?.css.gz",
       "AssetKind": "All",
@@ -49,20 +49,20 @@
       "AssetRole": "Alternative",
       "AssetMergeBehavior": "",
       "AssetMergeSource": "",
-      "RelatedAsset": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\wwwroot\\css\\site.css",
+      "RelatedAsset": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\wwwroot\\css\\site.css",
       "AssetTraitName": "Content-Encoding",
       "AssetTraitValue": "gzip",
       "Fingerprint": "64ux6mnyxx",
       "Integrity": "ShvATijEuh/1A8rh1aNYHKHrVhcET3nKNVOfK9czy/4=",
       "CopyToOutputDirectory": "PreserveNewest",
       "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\wwwroot\\css\\site.css"
+      "OriginalItemSpec": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\wwwroot\\css\\site.css"
     },
     {
-      "Identity": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\wwwroot\\css\\output.css",
+      "Identity": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\wwwroot\\css\\output.css",
       "SourceId": "backend",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\wwwroot\\",
+      "ContentRoot": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\wwwroot\\",
       "BasePath": "_content/backend",
       "RelativePath": "css/output#[.{fingerprint}]?.css",
       "AssetKind": "All",
@@ -80,10 +80,10 @@
       "OriginalItemSpec": "wwwroot\\css\\output.css"
     },
     {
-      "Identity": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\wwwroot\\css\\site.css",
+      "Identity": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\wwwroot\\css\\site.css",
       "SourceId": "backend",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\wwwroot\\",
+      "ContentRoot": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\wwwroot\\",
       "BasePath": "_content/backend",
       "RelativePath": "css/site#[.{fingerprint}]?.css",
       "AssetKind": "All",
@@ -104,7 +104,7 @@
   "Endpoints": [
     {
       "Route": "css/output.710om4ibvs.css",
-      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\obj\\Debug\\net9.0\\compressed\\d6qnlrk0ev-710om4ibvs.gz",
+      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\Debug\\net9.0\\compressed\\d6qnlrk0ev-710om4ibvs.gz",
       "Selectors": [
         {
           "Name": "Content-Encoding",
@@ -127,7 +127,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 15 Jun 2025 17:43:16 GMT"
+          "Value": "Mon, 07 Jul 2025 18:21:18 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -167,7 +167,7 @@
     },
     {
       "Route": "css/output.710om4ibvs.css",
-      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\wwwroot\\css\\output.css",
+      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\wwwroot\\css\\output.css",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -188,7 +188,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 15 Jun 2025 17:43:16 GMT"
+          "Value": "Mon, 07 Jul 2025 18:21:18 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -212,7 +212,7 @@
     },
     {
       "Route": "css/output.710om4ibvs.css.gz",
-      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\obj\\Debug\\net9.0\\compressed\\d6qnlrk0ev-710om4ibvs.gz",
+      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\Debug\\net9.0\\compressed\\d6qnlrk0ev-710om4ibvs.gz",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -233,7 +233,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 15 Jun 2025 17:43:16 GMT"
+          "Value": "Mon, 07 Jul 2025 18:21:18 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -265,7 +265,7 @@
     },
     {
       "Route": "css/output.css",
-      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\obj\\Debug\\net9.0\\compressed\\d6qnlrk0ev-710om4ibvs.gz",
+      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\Debug\\net9.0\\compressed\\d6qnlrk0ev-710om4ibvs.gz",
       "Selectors": [
         {
           "Name": "Content-Encoding",
@@ -288,7 +288,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 15 Jun 2025 17:43:16 GMT"
+          "Value": "Mon, 07 Jul 2025 18:21:18 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -320,7 +320,7 @@
     },
     {
       "Route": "css/output.css",
-      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\wwwroot\\css\\output.css",
+      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\wwwroot\\css\\output.css",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -341,7 +341,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 15 Jun 2025 17:43:16 GMT"
+          "Value": "Mon, 07 Jul 2025 18:21:18 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -357,7 +357,7 @@
     },
     {
       "Route": "css/output.css.gz",
-      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\obj\\Debug\\net9.0\\compressed\\d6qnlrk0ev-710om4ibvs.gz",
+      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\Debug\\net9.0\\compressed\\d6qnlrk0ev-710om4ibvs.gz",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -378,7 +378,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 15 Jun 2025 17:43:16 GMT"
+          "Value": "Mon, 07 Jul 2025 18:21:18 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -402,7 +402,7 @@
     },
     {
       "Route": "css/site.6p5p9uijqk.css",
-      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\obj\\Debug\\net9.0\\compressed\\jt1hm7z5lp-6p5p9uijqk.gz",
+      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\Debug\\net9.0\\compressed\\jt1hm7z5lp-6p5p9uijqk.gz",
       "Selectors": [
         {
           "Name": "Content-Encoding",
@@ -425,7 +425,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 15 Jun 2025 17:43:16 GMT"
+          "Value": "Mon, 07 Jul 2025 18:21:18 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -465,7 +465,7 @@
     },
     {
       "Route": "css/site.6p5p9uijqk.css",
-      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\wwwroot\\css\\site.css",
+      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\wwwroot\\css\\site.css",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -486,7 +486,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 15 Jun 2025 17:43:16 GMT"
+          "Value": "Mon, 07 Jul 2025 18:21:18 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -510,7 +510,7 @@
     },
     {
       "Route": "css/site.6p5p9uijqk.css.gz",
-      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\obj\\Debug\\net9.0\\compressed\\jt1hm7z5lp-6p5p9uijqk.gz",
+      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\Debug\\net9.0\\compressed\\jt1hm7z5lp-6p5p9uijqk.gz",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -531,7 +531,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 15 Jun 2025 17:43:16 GMT"
+          "Value": "Mon, 07 Jul 2025 18:21:18 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -563,7 +563,7 @@
     },
     {
       "Route": "css/site.css",
-      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\obj\\Debug\\net9.0\\compressed\\jt1hm7z5lp-6p5p9uijqk.gz",
+      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\Debug\\net9.0\\compressed\\jt1hm7z5lp-6p5p9uijqk.gz",
       "Selectors": [
         {
           "Name": "Content-Encoding",
@@ -586,7 +586,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 15 Jun 2025 17:43:16 GMT"
+          "Value": "Mon, 07 Jul 2025 18:21:18 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -618,7 +618,7 @@
     },
     {
       "Route": "css/site.css",
-      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\wwwroot\\css\\site.css",
+      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\wwwroot\\css\\site.css",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -639,7 +639,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 15 Jun 2025 17:43:16 GMT"
+          "Value": "Mon, 07 Jul 2025 18:21:18 GMT"
         },
         {
           "Name": "Cache-Control",
@@ -655,7 +655,7 @@
     },
     {
       "Route": "css/site.css.gz",
-      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application-3\\backend\\obj\\Debug\\net9.0\\compressed\\jt1hm7z5lp-6p5p9uijqk.gz",
+      "AssetFile": "D:\\Aarkay\\Promotional-Offer-Redemption-Web-Application\\backend\\obj\\Debug\\net9.0\\compressed\\jt1hm7z5lp-6p5p9uijqk.gz",
       "Selectors": [],
       "ResponseHeaders": [
         {
@@ -676,7 +676,7 @@
         },
         {
           "Name": "Last-Modified",
-          "Value": "Sun, 15 Jun 2025 17:43:16 GMT"
+          "Value": "Mon, 07 Jul 2025 18:21:18 GMT"
         },
         {
           "Name": "Cache-Control",

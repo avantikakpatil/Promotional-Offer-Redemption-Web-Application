@@ -612,3 +612,10 @@ D:\Aarkay\Promotional-Offer-Redemption-Web-Application-3\backend\obj\Debug\net9.
 D:\Aarkay\Promotional-Offer-Redemption-Web-Application-3\backend\obj\Debug\net9.0\backend.genruntimeconfig.cache
 D:\Aarkay\Promotional-Offer-Redemption-Web-Application-3\backend\obj\Debug\net9.0\ref\backend.dll
 >>>>>>> 4751f8009e84eff2496374eeb547ec2185de4146
+D:\Aarkay\Promotional-Offer-Redemption-Web-Application\backend\bin\Debug\net9.0\wwwroot\css\site.css.gz
+D:\Aarkay\Promotional-Offer-Redemption-Web-Application\backend\bin\Debug\net9.0\wwwroot\css\site.css
+D:\Aarkay\Promotional-Offer-Redemption-Web-Application\backend\bin\Debug\net9.0\package-lock.json
+D:\Aarkay\Promotional-Offer-Redemption-Web-Application\backend\bin\Debug\net9.0\package.json
+D:\Aarkay\Promotional-Offer-Redemption-Web-Application\backend\bin\Debug\net9.0\backend.staticwebassets.runtime.json
+D:\Aarkay\Promotional-Offer-Redemption-Web-Application\backend\obj\Debug\net9.0\compressed\d6qnlrk0ev-710om4ibvs.gz
+D:\Aarkay\Promotional-Offer-Redemption-Web-Application\backend\obj\Debug\net9.0\compressed\jt1hm7z5lp-6p5p9uijqk.gz

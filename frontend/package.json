@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-<<<<<<< HEAD
     "@heroicons/react": "^2.2.0",
     "@react-oauth/google": "^0.12.2",
     "@tailwindcss/forms": "^0.5.10",
@@ -16,20 +15,6 @@
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.3.0",
-=======
-    "@heroicons/react": "^2.1.1",
-    "@react-oauth/google": "^0.12.1",
-    "@testing-library/jest-dom": "^5.17.0",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
-    "@zxing/browser": "^0.1.0",
-    "@zxing/library": "^0.21.0",
-    "axios": "^1.6.7",
-    "chart.js": "^4.4.1",
-    "lucide-react": "^0.330.0",
-    "react": "^18.2.0",
-    "react-chartjs-2": "^5.2.0",
->>>>>>> 4751f8009e84eff2496374eeb547ec2185de4146
     "react-dom": "^18.2.0",
     "react-icons": "^4.12.0",
     "react-papaparse": "^4.4.0",

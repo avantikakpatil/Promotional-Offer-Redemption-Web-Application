@@ -15,7 +15,7 @@ namespace backend.Migrations
             migrationBuilder.AlterDatabase()
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            // Skip creating Users table if it already exists
+            // Users table creation is commented out to avoid conflicts if it already exists in the DB
             // migrationBuilder.CreateTable(
             //     name: "Users",
             //     columns: table => new
