@@ -12,7 +12,7 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250707172734_InitialCreate")]
+    [Migration("20250708135913_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -38,8 +38,8 @@ namespace backend.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -76,7 +76,10 @@ namespace backend.Migrations
                         .HasColumnType("varchar(500)");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp(6)");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
 
                     b.HasKey("Id");
 
@@ -95,6 +98,41 @@ namespace backend.Migrations
                     b.ToTable("Campaigns");
                 });
 
+            modelBuilder.Entity("backend.Models.QRCode", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsRedeemed")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime?>("RedeemedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignId");
+
+                    b.ToTable("QRCodes");
+                });
+
             modelBuilder.Entity("backend.Models.RewardTier", b =>
                 {
                     b.Property<int>("Id")
@@ -108,8 +146,8 @@ namespace backend.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
                     b.Property<string>("Reward")
                         .IsRequired()
@@ -181,6 +219,17 @@ namespace backend.Migrations
                         .IsRequired();
 
                     b.Navigation("Manufacturer");
+                });
+
+            modelBuilder.Entity("backend.Models.QRCode", b =>
+                {
+                    b.HasOne("backend.Models.Campaign", "Campaign")
+                        .WithMany()
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
                 });
 
             modelBuilder.Entity("backend.Models.RewardTier", b =>

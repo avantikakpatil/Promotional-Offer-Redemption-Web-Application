@@ -22,13 +22,20 @@ namespace backend.Services
             };
             _context.QRCodes.Add(qr);
             await _context.SaveChangesAsync();
-            return ToDto(qr);
+            // Fetch campaign info and reward tiers
+            var campaign = await _context.Campaigns
+                .Include(c => c.RewardTiers)
+                .FirstOrDefaultAsync(c => c.Id == qr.CampaignId);
+            return ToDto(qr, campaign);
         }
 
         public async Task<IEnumerable<QRCodeDto>> GetQRCodesByCampaignAsync(int campaignId)
         {
             var qrs = await _context.QRCodes.Where(q => q.CampaignId == campaignId).ToListAsync();
-            return qrs.Select(ToDto);
+            var campaign = await _context.Campaigns
+                .Include(c => c.RewardTiers)
+                .FirstOrDefaultAsync(c => c.Id == campaignId);
+            return qrs.Select(qr => ToDto(qr, campaign));
         }
 
         public async Task<QRCodeDto?> GetQRCodeByIdAsync(int id)
@@ -57,15 +64,28 @@ namespace backend.Services
             return ToDto(qr);
         }
 
-        private static QRCodeDto ToDto(QRCode qr) => new QRCodeDto
+        private static QRCodeDto ToDto(QRCode qr, Campaign? campaign = null)
         {
-            Id = qr.Id,
-            Code = qr.Code,
-            CampaignId = qr.CampaignId,
-            IsRedeemed = qr.IsRedeemed,
-            RedeemedAt = qr.RedeemedAt,
-            CreatedAt = qr.CreatedAt,
-            UpdatedAt = qr.UpdatedAt
-        };
+            var dto = new QRCodeDto
+            {
+                Id = qr.Id,
+                Code = qr.Code,
+                CampaignId = qr.CampaignId,
+                IsRedeemed = qr.IsRedeemed,
+                RedeemedAt = qr.RedeemedAt,
+                CreatedAt = qr.CreatedAt,
+                UpdatedAt = qr.UpdatedAt,
+                Points = campaign?.Points ?? 0,
+                StartDate = campaign?.StartDate ?? DateTime.MinValue,
+                EndDate = campaign?.EndDate ?? DateTime.MinValue,
+                RewardTiers = campaign?.RewardTiers?.Select(rt => new QRCodeRewardTierDto
+                {
+                    Id = rt.Id,
+                    Threshold = rt.Threshold,
+                    Reward = rt.Reward
+                }).ToList() ?? new List<QRCodeRewardTierDto>()
+            };
+            return dto;
+        }
     }
 }

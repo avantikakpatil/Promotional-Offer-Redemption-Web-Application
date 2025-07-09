@@ -3,8 +3,6 @@ import {
   Download, 
   QrCode, 
   Search, 
-  Filter, 
-  Eye, 
   Trash2, 
   RefreshCw,
   AlertCircle,
@@ -20,6 +18,7 @@ import {
   Edit3
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { QRCodeCanvas } from 'qrcode.react';
 
 const QRCodeManagement = () => {
   const [selectedCodes, setSelectedCodes] = useState([]);
@@ -38,6 +37,7 @@ const QRCodeManagement = () => {
   const [resellers, setResellers] = useState([]);
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedQRCode, setSelectedQRCode] = useState(null);
+  const qrDownloadRef = useRef();
   
   // Missing state variables
   const [loading, setLoading] = useState(false);
@@ -140,19 +140,33 @@ const QRCodeManagement = () => {
     try {
       const token = localStorage.getItem('token');
       const newCodes = [];
+      // Find campaign info
+      const campaign = campaigns.find(c => String(c.id) === String(selectedCampaignId));
       for (let i = 0; i < countNum; i++) {
-        const code = `QR-${selectedCampaignId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const codeString = `QR-${selectedCampaignId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // Encode campaign info in QR
+        const qrData = JSON.stringify({
+          code: codeString,
+          campaignId: selectedCampaignId,
+          campaignName: campaign ? campaign.name : '',
+          points: campaign ? campaign.points : '',
+          startDate: campaign ? campaign.startDate : '',
+          endDate: campaign ? campaign.endDate : '',
+          rewardTiers: campaign && campaign.rewardTiers ? campaign.rewardTiers : [],
+          createdAt: new Date().toISOString()
+        });
         const res = await fetch('/api/manufacturer/qrcodes', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ code, campaignId: selectedCampaignId }),
+          body: JSON.stringify({ code: codeString, campaignId: selectedCampaignId }),
         });
         if (!res.ok) throw new Error('Failed to generate QR code');
         const qr = await res.json();
-        newCodes.push(qr);
+        // Attach qrData for QR image, use codeString as unique id
+        newCodes.push({ ...qr, qrData, id: codeString });
       }
       setQrCodes(prev => [...prev, ...newCodes]);
       setCount('');
@@ -302,19 +316,19 @@ const QRCodeManagement = () => {
 
   const deleteSelectedCodes = () => {
     if (selectedCodes.length === 0) return;
-    
     if (window.confirm(`Are you sure you want to delete ${selectedCodes.length} selected QR codes?`)) {
-      setQrCodes(prev => prev.filter(code => !selectedCodes.includes(code.id)));
+      setQrCodes(prev => prev.filter(code => !selectedCodes.map(String).includes(String(code.id))));
       setSelectedCodes([]);
     }
   };
 
   const handleSelectCode = (codeId) => {
-    setSelectedCodes(prev => 
-      prev.includes(codeId) 
-        ? prev.filter(id => id !== codeId)
-        : [...prev, codeId]
-    );
+    setSelectedCodes(prev => {
+      const codeIdStr = String(codeId);
+      return prev.map(String).includes(codeIdStr)
+        ? prev.filter(id => String(id) !== codeIdStr)
+        : [...prev, codeIdStr];
+    });
   };
 
   const handleSelectAll = () => {
@@ -690,7 +704,16 @@ QR003`}
                               />
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">{code.code}</div>
+                              <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                                <button
+                                  onClick={() => handleViewQR(code)}
+                                  className="text-blue-600 hover:text-blue-800"
+                                  title="View QR Code"
+                                >
+                                  <QrCode className="h-4 w-4" />
+                                </button>
+                                {code.code}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(code.status)}`}>
@@ -972,6 +995,76 @@ QR003`}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {showQRModal && selectedQRCode && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">QR Code Preview</h3>
+              <button
+                onClick={() => {
+                  setShowQRModal(false);
+                  setSelectedQRCode(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-6 flex flex-col items-center gap-4">
+              <QRCodeCanvas
+                value={selectedQRCode.qrData || JSON.stringify({
+                  code: selectedQRCode.code,
+                  campaignId: selectedQRCode.campaignId || selectedQRCode.campaign,
+                  campaignName: (() => {
+                    if (selectedQRCode.campaign && typeof selectedQRCode.campaign === 'object' && selectedQRCode.campaign.name) return selectedQRCode.campaign.name;
+                    if (selectedQRCode.campaign && typeof selectedQRCode.campaign === 'string') {
+                      const found = campaigns.find(c => c.id === selectedQRCode.campaign || c.name === selectedQRCode.campaign);
+                      return found ? found.name : selectedQRCode.campaign;
+                    }
+                    return '-';
+                  })(),
+                  createdAt: selectedQRCode.createdAt
+                })}
+                size={220}
+                includeMargin={true}
+                ref={qrDownloadRef}
+                id="qr-download-canvas"
+              />
+              <div className="text-center">
+                <div className="font-mono text-sm text-gray-900">{selectedQRCode.code}</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Campaign: {(() => {
+                    if (selectedQRCode.campaign && typeof selectedQRCode.campaign === 'object' && selectedQRCode.campaign.name) return selectedQRCode.campaign.name;
+                    if (selectedQRCode.campaign && typeof selectedQRCode.campaign === 'string') {
+                      const found = campaigns.find(c => c.id === selectedQRCode.campaign || c.name === selectedQRCode.campaign);
+                      return found ? found.name : selectedQRCode.campaign;
+                    }
+                    return '-';
+                  })()}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  // Download QR as PNG using ref
+                  const canvas = qrDownloadRef.current;
+                  if (canvas) {
+                    const url = canvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${selectedQRCode.code}.png`;
+                    link.click();
+                  }
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 mt-2"
+              >
+                Download QR Code
               </button>
             </div>
           </div>

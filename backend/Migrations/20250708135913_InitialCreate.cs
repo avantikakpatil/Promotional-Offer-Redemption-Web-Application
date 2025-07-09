@@ -15,31 +15,30 @@ namespace backend.Migrations
             migrationBuilder.AlterDatabase()
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            // Users table creation is commented out to avoid conflicts if it already exists in the DB
-            // migrationBuilder.CreateTable(
-            //     name: "Users",
-            //     columns: table => new
-            //     {
-            //         Id = table.Column<int>(type: "int", nullable: false)
-            //             .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-            //         Name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
-            //             .Annotation("MySql:CharSet", "utf8mb4"),
-            //         Email = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
-            //             .Annotation("MySql:CharSet", "utf8mb4"),
-            //         Phone = table.Column<string>(type: "longtext", nullable: false)
-            //             .Annotation("MySql:CharSet", "utf8mb4"),
-            //         PasswordHash = table.Column<string>(type: "longtext", nullable: false)
-            //             .Annotation("MySql:CharSet", "utf8mb4"),
-            //         Role = table.Column<string>(type: "longtext", nullable: false)
-            //             .Annotation("MySql:CharSet", "utf8mb4"),
-            //         CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-            //         LastLoginAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-            //     },
-            //     constraints: table =>
-            //     {
-            //         table.PrimaryKey("PK_Users", x => x.Id);
-            //     })
-            //     .Annotation("MySql:CharSet", "utf8mb4");
+            migrationBuilder.CreateTable(
+                name: "Users",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    Name = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Email = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Phone = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    PasswordHash = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Role = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    LastLoginAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Users", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
                 name: "Campaigns",
@@ -61,8 +60,9 @@ namespace backend.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     ManufacturerId = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP(6)"),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: true)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
                 },
                 constraints: table =>
                 {
@@ -71,6 +71,32 @@ namespace backend.Migrations
                         name: "FK_Campaigns_Users_ManufacturerId",
                         column: x => x.ManufacturerId,
                         principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "QRCodes",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    Code = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CampaignId = table.Column<int>(type: "int", nullable: false),
+                    IsRedeemed = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    RedeemedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_QRCodes", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_QRCodes_Campaigns_CampaignId",
+                        column: x => x.CampaignId,
+                        principalTable: "Campaigns",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
@@ -86,7 +112,7 @@ namespace backend.Migrations
                     Threshold = table.Column<int>(type: "int", nullable: false),
                     Reward = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP(6)")
                 },
                 constraints: table =>
                 {
@@ -121,6 +147,11 @@ namespace backend.Migrations
                 column: "ProductType");
 
             migrationBuilder.CreateIndex(
+                name: "IX_QRCodes_CampaignId",
+                table: "QRCodes",
+                column: "CampaignId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_RewardTiers_CampaignId_Threshold",
                 table: "RewardTiers",
                 columns: new[] { "CampaignId", "Threshold" },
@@ -136,6 +167,9 @@ namespace backend.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "QRCodes");
+
             migrationBuilder.DropTable(
                 name: "RewardTiers");
 
