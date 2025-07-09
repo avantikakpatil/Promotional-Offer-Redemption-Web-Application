@@ -282,29 +282,7 @@ const CampaignCreate = () => {
       </div>
 
       {/* Token Debug Info */}
-      {tokenInfo && (
-        <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-          <div className="flex items-center space-x-2 mb-2">
-            <Info className="h-5 w-5 text-blue-600" />
-            <span className="font-medium text-gray-900">Token Debug Info</span>
-          </div>
-          <div className="space-y-1 text-sm">
-            <p><span className="font-medium">API URL:</span> {API_BASE_URL}</p>
-            <p><span className="font-medium">Token Present:</span> {tokenInfo.exists ? 'Yes' : 'No'}</p>
-            {tokenInfo.exists && !tokenInfo.error && (
-              <>
-                <p><span className="font-medium">User ID (UserId claim):</span> {tokenInfo.hasUserId ? '✅ Found' : '❌ Missing'}</p>
-                <p><span className="font-medium">User ID (id claim):</span> {tokenInfo.hasId ? '✅ Found' : '❌ Missing'}</p>
-                <p><span className="font-medium">Role:</span> {tokenInfo.role}</p>
-                <p><span className="font-medium">User ID Value:</span> {tokenInfo.userIdValue}</p>
-              </>
-            )}
-            {tokenInfo.error && (
-              <p className="text-red-600"><span className="font-medium">Error:</span> {tokenInfo.error}</p>
-            )}
-          </div>
-        </div>
-      )}
+      
 
       {/* Token Warning */}
       {tokenInfo && tokenInfo.exists && !tokenInfo.hasUserId && (

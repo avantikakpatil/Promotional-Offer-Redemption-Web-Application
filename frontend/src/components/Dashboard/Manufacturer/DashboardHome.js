@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ChartBarIcon,
@@ -7,55 +7,53 @@ import {
   CurrencyDollarIcon,
 } from '@heroicons/react/24/outline';
 
-const stats = [
-  {
-    name: 'Active Campaigns',
-    value: '12',
-    icon: ChartBarIcon,
-    color: 'bg-blue-500',
-  },
-  {
-    name: 'Total QR Codes',
-    value: '1,234',
-    icon: QrCodeIcon,
-    color: 'bg-green-500',
-  },
-  {
-    name: 'Active Resellers',
-    value: '8',
-    icon: UserGroupIcon,
-    color: 'bg-purple-500',
-  },
-  {
-    name: 'Total Redemptions',
-    value: '456',
-    icon: CurrencyDollarIcon,
-    color: 'bg-yellow-500',
-  },
-];
-
-const recentActivity = [
-  {
-    id: 1,
-    type: 'Campaign Created',
-    description: 'Summer Promotion 2024',
-    timestamp: '2 hours ago',
-  },
-  {
-    id: 2,
-    type: 'QR Codes Generated',
-    description: '500 codes for Winter Campaign',
-    timestamp: '5 hours ago',
-  },
-  {
-    id: 3,
-    type: 'Reseller Assigned',
-    description: 'John Doe assigned to Summer Campaign',
-    timestamp: '1 day ago',
-  },
-];
-
 const DashboardHome = () => {
+  const [stats, setStats] = useState([
+    { name: 'Active Campaigns', value: '-', icon: ChartBarIcon, color: 'bg-blue-500' },
+    { name: 'Total QR Codes', value: '-', icon: QrCodeIcon, color: 'bg-green-500' },
+    { name: 'Active Resellers', value: '-', icon: UserGroupIcon, color: 'bg-purple-500' },
+    { name: 'Total Redemptions', value: '-', icon: CurrencyDollarIcon, color: 'bg-yellow-500' },
+  ]);
+  const [recentActivity, setRecentActivity] = useState([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    // Fetch stats
+    fetch('/api/manufacturer/dashboard/stats', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(async res => {
+        if (!res.ok) throw new Error('Failed to fetch stats');
+        const text = await res.text();
+        return text ? JSON.parse(text) : {};
+      })
+      .then(data => {
+        setStats([
+          { name: 'Active Campaigns', value: data.activeCampaigns ?? 0, icon: ChartBarIcon, color: 'bg-blue-500' },
+          { name: 'Total QR Codes', value: data.totalQRCodes ?? 0, icon: QrCodeIcon, color: 'bg-green-500' },
+          { name: 'Active Resellers', value: 0, icon: UserGroupIcon, color: 'bg-purple-500' },
+          { name: 'Total Redemptions', value: 0, icon: CurrencyDollarIcon, color: 'bg-yellow-500' },
+        ]);
+      })
+      .catch(err => {
+        // Optionally handle error, e.g. setStats to default or show error
+      });
+
+    // Recent activity fetch is commented out because the endpoint does not exist
+    // fetch('/api/manufacturer/recent-activity', {
+    //   headers: { Authorization: `Bearer ${token}` }
+    // })
+    //   .then(async res => {
+    //     if (!res.ok) throw new Error('Failed to fetch activity');
+    //     const text = await res.text();
+    //     return text ? JSON.parse(text) : [];
+    //   })
+    //   .then(data => setRecentActivity(data))
+    //   .catch(err => {
+    //     // Optionally handle error, e.g. setRecentActivity([])
+    //   });
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">

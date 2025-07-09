@@ -64,6 +64,18 @@ namespace backend.Services
             return ToDto(qr);
         }
 
+       
+
+        public async Task<int> GetQRCodeCountAsync(int manufacturerId)
+{
+    var campaignIds = await _context.Campaigns
+        .Where(c => c.ManufacturerId == manufacturerId)
+        .Select(c => c.Id)
+        .ToListAsync();
+
+    return await _context.QRCodes.CountAsync(qr => campaignIds.Contains(qr.CampaignId));
+}
+
         private static QRCodeDto ToDto(QRCode qr, Campaign? campaign = null)
         {
             var dto = new QRCodeDto

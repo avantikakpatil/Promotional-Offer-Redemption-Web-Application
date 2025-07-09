@@ -1,81 +1,36 @@
-# --------------------------
-# .NET Core
-# --------------------------
-bin/
-obj/
-*.user
-*.suo
-*.userosscache
-*.sln.docstates
-
-# Build results
-[Dd]ebug/
-[Rr]elease/
-x64/
-x86/
-*.dll
-*.exe
-*.log
-*.app
-*.dbmdl
-*.pdb
-
-# Visual Studio
-.vscode/
-.vs/
-.vscode/*
-
-# ASP.NET Core secrets
-secrets.json
-
-# Entity Framework
-Migrations/
-
-# Rider IDE
-.idea/
-
-# dotnet user-specific files
-*.swp
-*.tmp
-*.bak
-
-# Dotnet publish output
-publish/
+# React/Node dependencies and build
+node_modules/
+build/
+dist/
 out/
+coverage/
 
-# --------------------------
-# React
-# --------------------------
-# dependencies
-/node_modules/
-.pnp/
-.pnp.js
-
-# testing
-/coverage/
-
-# production
-/build/
-
-# misc
-.DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# log files
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+*.log
 
-# editor
+# Environment and secrets
+.env*
+
+# Editor/IDE
+.vscode/
+.idea/
 *.sublime-project
 *.sublime-workspace
+*.swp
+*.tmp
+*.bak
 
-# eslint cache
+# Misc system files
+.DS_Store
+Thumbs.db
+
+# ESLint cache
 .eslintcache
 
 # Mac system files
+.DS_Store
 Thumbs.db

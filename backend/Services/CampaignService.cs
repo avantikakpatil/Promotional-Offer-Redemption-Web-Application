@@ -13,6 +13,7 @@ namespace backend.Services
         Task<ApiResponse<CampaignDto>> UpdateCampaignAsync(int campaignId, CreateCampaignDto updateCampaignDto, int manufacturerId);
         Task<ApiResponse<bool>> DeleteCampaignAsync(int campaignId, int manufacturerId);
         Task<ApiResponse<bool>> ToggleCampaignStatusAsync(int campaignId, int manufacturerId);
+        Task<int> GetCampaignCountAsync(int manufacturerId);
     }
 
     public class CampaignService : ICampaignService
@@ -139,6 +140,11 @@ namespace backend.Services
                 };
             }
         }
+
+        public async Task<int> GetCampaignCountAsync(int manufacturerId)
+{
+    return await _context.Campaigns.CountAsync(c => c.ManufacturerId == manufacturerId);
+}
 
         public async Task<ApiResponse<List<CampaignDto>>> GetCampaignsByManufacturerAsync(int manufacturerId)
         {

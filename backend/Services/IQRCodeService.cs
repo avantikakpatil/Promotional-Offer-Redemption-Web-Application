@@ -12,5 +12,6 @@ namespace backend.Services
         Task<QRCodeDto?> GetQRCodeByIdAsync(int id);
         Task<bool> DeleteQRCodeAsync(int id);
         Task<QRCodeDto?> RedeemQRCodeAsync(int id);
+        Task<int> GetQRCodeCountAsync(int manufacturerId);
     }
 }
