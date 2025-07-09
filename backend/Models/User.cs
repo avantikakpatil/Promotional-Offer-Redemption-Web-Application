@@ -27,5 +27,8 @@ namespace backend.Models
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? LastLoginAt { get; set; }
+        
+        // Total points redeemed by the user
+        public int Points { get; set; } = 0;
     }
 }

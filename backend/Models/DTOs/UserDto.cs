@@ -12,6 +12,7 @@ namespace backend.Models.DTOs
         public string Role { get; set; } = string.Empty; // "customer", "reseller", or "manufacturer"
         public DateTime CreatedAt { get; set; }
         public bool IsActive { get; set; }
+        public int Points { get; set; }
     }
     
     public class LoginResponseDto

@@ -15,7 +15,7 @@ const Signup = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { signup, googleSignIn } = useAuth();
+  const { signup, googleSignUp } = useAuth();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -63,7 +63,25 @@ const Signup = () => {
       try {
         setError('');
         setLoading(true);
-        await googleSignIn(response.access_token);
+        
+        // Get user info from Google
+        const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: {
+            Authorization: `Bearer ${response.access_token}`,
+          },
+        });
+        
+        const userInfo = await userInfoResponse.json();
+        
+        // Create user data for Google signup
+        const googleUserData = {
+          name: userInfo.name,
+          email: userInfo.email,
+          role: 'customer', // Always customer for Google signup
+          googleToken: response.access_token
+        };
+        
+        await googleSignUp(googleUserData);
         
         // Always redirect to customer dashboard for Google sign-up
         navigate('/customer/dashboard');
@@ -80,27 +98,27 @@ const Signup = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-6 sm:py-12 px-4 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md lg:max-w-lg">
-        <div className="bg-white py-6 px-4 shadow-lg sm:rounded-lg sm:px-8 lg:px-10">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-4 px-4 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-xs">
+        <div className="bg-white py-4 px-3 shadow-lg sm:rounded-lg sm:px-6">
           <div className="sm:mx-auto sm:w-full">
-            <h2 className="text-center text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 mb-6 sm:mb-8">
+            <h2 className="text-center text-xl font-bold tracking-tight text-gray-900 mb-4">
               Create your account
             </h2>
           </div>
 
           {error && (
-            <div className="mb-4 sm:mb-6 bg-red-50 border border-red-200 text-red-700 px-3 py-3 sm:px-4 sm:py-4 rounded-md text-sm">
+            <div className="mb-3 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md text-xs">
               {error}
             </div>
           )}
 
-          <form className="space-y-4 sm:space-y-5" onSubmit={handleSubmit}>
+          <form className="space-y-3" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900">
+              <label htmlFor="name" className="block text-xs font-medium text-gray-900">
                 Full Name
               </label>
-              <div className="mt-1 sm:mt-2">
+              <div className="mt-1">
                 <input
                   id="name"
                   name="name"
@@ -109,17 +127,17 @@ const Signup = () => {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  className="block w-full rounded-md border-0 py-2 sm:py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-sm sm:text-base sm:leading-6"
+                  className="block w-full rounded-md border-0 py-1.5 px-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-sm"
                   placeholder="Enter your full name"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900">
+              <label htmlFor="email" className="block text-xs font-medium text-gray-900">
                 Email address
               </label>
-              <div className="mt-1 sm:mt-2">
+              <div className="mt-1">
                 <input
                   id="email"
                   name="email"
@@ -128,17 +146,17 @@ const Signup = () => {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="block w-full rounded-md border-0 py-2 sm:py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-sm sm:text-base sm:leading-6"
+                  className="block w-full rounded-md border-0 py-1.5 px-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-sm"
                   placeholder="Enter your email"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium leading-6 text-gray-900">
+              <label htmlFor="phone" className="block text-xs font-medium text-gray-900">
                 Phone Number
               </label>
-              <div className="mt-1 sm:mt-2">
+              <div className="mt-1">
                 <input
                   id="phone"
                   name="phone"
@@ -147,18 +165,18 @@ const Signup = () => {
                   required
                   value={formData.phone}
                   onChange={handleChange}
-                  className="block w-full rounded-md border-0 py-2 sm:py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-sm sm:text-base sm:leading-6"
+                  className="block w-full rounded-md border-0 py-1.5 px-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-sm"
                   placeholder="Enter your phone number"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-900">
+                <label htmlFor="password" className="block text-xs font-medium text-gray-900">
                   Password
                 </label>
-                <div className="mt-1 sm:mt-2">
+                <div className="mt-1">
                   <input
                     id="password"
                     name="password"
@@ -167,17 +185,17 @@ const Signup = () => {
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    className="block w-full rounded-md border-0 py-2 sm:py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-sm sm:text-base sm:leading-6"
+                    className="block w-full rounded-md border-0 py-1.5 px-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-sm"
                     placeholder="Password"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium leading-6 text-gray-900">
+                <label htmlFor="confirmPassword" className="block text-xs font-medium text-gray-900">
                   Confirm Password
                 </label>
-                <div className="mt-1 sm:mt-2">
+                <div className="mt-1">
                   <input
                     id="confirmPassword"
                     name="confirmPassword"
@@ -186,7 +204,7 @@ const Signup = () => {
                     required
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="block w-full rounded-md border-0 py-2 sm:py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-sm sm:text-base sm:leading-6"
+                    className="block w-full rounded-md border-0 py-1.5 px-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-sm"
                     placeholder="Confirm password"
                   />
                 </div>
@@ -194,16 +212,16 @@ const Signup = () => {
             </div>
 
             <div>
-              <label htmlFor="role" className="block text-sm font-medium leading-6 text-gray-900">
+              <label htmlFor="role" className="block text-xs font-medium text-gray-900">
                 Account Type
               </label>
-              <div className="mt-1 sm:mt-2">
+              <div className="mt-1">
                 <select
                   id="role"
                   name="role"
                   value={formData.role}
                   onChange={handleChange}
-                  className="block w-full rounded-md border-0 py-2 sm:py-2.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-sm sm:text-base sm:leading-6"
+                  className="block w-full rounded-md border-0 py-1.5 px-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 text-sm"
                 >
                   <option value="customer">Customer</option>
                   <option value="reseller">Reseller</option>
@@ -212,34 +230,34 @@ const Signup = () => {
               </div>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-1">
               <button
                 type="submit"
                 disabled={loading}
-                className="flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 sm:py-2.5 text-sm sm:text-base font-semibold leading-6 text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+                className="flex w-full justify-center rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
               >
                 {loading ? 'Creating Account...' : 'Create Account'}
               </button>
             </div>
           </form>
 
-          <div className="mt-6 sm:mt-8">
+          <div className="mt-4">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300" />
               </div>
-              <div className="relative flex justify-center text-sm font-medium leading-6">
-                <span className="bg-white px-4 sm:px-6 text-gray-500">Or continue with</span>
+              <div className="relative flex justify-center text-xs font-medium">
+                <span className="bg-white px-3 text-gray-500">Or continue with</span>
               </div>
             </div>
 
-            <div className="mt-4 sm:mt-6">
+            <div className="mt-3">
               <button
                 onClick={() => googleLogin()}
                 disabled={loading}
-                className="flex w-full items-center justify-center gap-3 rounded-md bg-white px-3 py-2 sm:py-2.5 text-sm sm:text-base font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:ring-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors duration-200"
+                className="flex w-full items-center justify-center gap-2 rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:ring-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors duration-200"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24">
+                <svg className="h-4 w-4" viewBox="0 0 24 24">
                   <path
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                     fill="#4285F4"
@@ -261,6 +279,13 @@ const Signup = () => {
               </button>
             </div>
           </div>
+
+          <p className="mt-4 text-center text-xs text-gray-500">
+            Already have an account?{' '}
+            <a href="/login" className="font-semibold text-blue-600 hover:text-blue-500">
+              Sign in
+            </a>
+          </p>
         </div>
       </div>
     </div>

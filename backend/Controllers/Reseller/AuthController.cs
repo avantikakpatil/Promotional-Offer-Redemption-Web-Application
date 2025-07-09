@@ -55,7 +55,8 @@ namespace backend.Controllers
                     id = user.Id,
                     name = user.Name,
                     email = user.Email,
-                    role = user.Role
+                    role = user.Role,
+                    points = user.Points
                 }
             });
         }
@@ -83,46 +84,128 @@ namespace backend.Controllers
                     id = user.Id,
                     name = user.Name,
                     email = user.Email,
-                    role = user.Role
+                    role = user.Role,
+                    points = user.Points
                 }
             });
+        }
+
+        [HttpPost("google/signup")]
+        public async Task<IActionResult> GoogleSignUp([FromBody] GoogleAuthRequest request)
+        {
+            try
+            {
+                // Check if user already exists
+                var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+
+                if (existingUser != null)
+                {
+                    // User exists, update last login and return token
+                    existingUser.LastLoginAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+
+                    var token = GenerateJwtToken(existingUser);
+
+                    return Ok(new
+                    {
+                        token,
+                        user = new
+                        {
+                            id = existingUser.Id,
+                            name = existingUser.Name,
+                            email = existingUser.Email,
+                            role = existingUser.Role,
+                            points = existingUser.Points
+                        }
+                    });
+                }
+
+                // Create new user for Google signup
+                var newUser = new User
+                {
+                    Name = request.Name,
+                    Email = request.Email,
+                    Role = "customer", // Always customer for Google signup
+                    Phone = "", // Google doesn't provide phone
+                    PasswordHash = "GOOGLE_AUTH", // Special marker for Google-authenticated users
+                    CreatedAt = DateTime.UtcNow,
+                    LastLoginAt = DateTime.UtcNow
+                };
+
+                _context.Users.Add(newUser);
+                await _context.SaveChangesAsync();
+
+                var newToken = GenerateJwtToken(newUser);
+
+                return Ok(new
+                {
+                    token = newToken,
+                    user = new
+                    {
+                        id = newUser.Id,
+                        name = newUser.Name,
+                        email = newUser.Email,
+                        role = newUser.Role,
+                        points = newUser.Points
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Google signup failed: {ex.Message}");
+            }
         }
 
         [HttpPost("google")]
         public async Task<IActionResult> GoogleAuth([FromBody] GoogleAuthRequest request)
         {
-            // TODO: Implement Google token verification
-            // For now, we'll just create a new user or update existing one
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-
-            if (user == null)
+            try
             {
-                user = new User
+                // Check if user already exists
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+
+                if (user == null)
                 {
-                    Name = request.Name,
-                    Email = request.Email,
-                    Role = request.Role,
-                    PasswordHash = "GOOGLE_AUTH" // Special marker for Google-authenticated users
-                };
-                _context.Users.Add(user);
-            }
-
-            user.LastLoginAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            var token = GenerateJwtToken(user);
-
-            return Ok(new
-            {
-                token,
-                user = new
-                {
-                    id = user.Id,
-                    name = user.Name,
-                    email = user.Email,
-                    role = user.Role
+                    // Create new user for Google authentication
+                    user = new User
+                    {
+                        Name = request.Name,
+                        Email = request.Email,
+                        Role = "customer", // Always customer for Google auth
+                        Phone = "", // Google doesn't provide phone
+                        PasswordHash = "GOOGLE_AUTH", // Special marker for Google-authenticated users
+                        CreatedAt = DateTime.UtcNow,
+                        LastLoginAt = DateTime.UtcNow
+                    };
+                    _context.Users.Add(user);
                 }
-            });
+                else
+                {
+                    // Update existing user's last login
+                    user.LastLoginAt = DateTime.UtcNow;
+                }
+
+                await _context.SaveChangesAsync();
+
+                var token = GenerateJwtToken(user);
+
+                return Ok(new
+                {
+                    token,
+                    user = new
+                    {
+                        id = user.Id,
+                        name = user.Name,
+                        email = user.Email,
+                        role = user.Role,
+                        points = user.Points
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Google authentication failed: {ex.Message}");
+            }
         }
 
         private string GenerateJwtToken(User user)

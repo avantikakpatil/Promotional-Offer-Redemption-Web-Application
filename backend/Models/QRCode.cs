@@ -20,6 +20,9 @@ namespace backend.Models
 
         public DateTime? RedeemedAt { get; set; }
 
+        public int Points { get; set; } = 0;
+        public int? RedeemedByUserId { get; set; }
+
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
