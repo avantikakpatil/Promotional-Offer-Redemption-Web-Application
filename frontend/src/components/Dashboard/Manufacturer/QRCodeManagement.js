@@ -329,14 +329,24 @@ const QRCodeManagement = () => {
     }
   };
 
-  const deleteSelectedCodes = () => {
+  const deleteSelectedCodes = async () => {
     if (selectedCodes.length === 0) return;
-    if (window.confirm(`Are you sure you want to delete ${selectedCodes.length} selected QR codes?`)) {
-      setQrCodes(prev => prev.filter(code => !selectedCodes.map(String).includes(String(code.id))));
-      setSelectedCodes([]);
+    const token = localStorage.getItem('token');
+    // Delete each selected QR code from the backend
+    for (const id of selectedCodes) {
+      try {
+        await fetch(`/api/manufacturer/qrcodes/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (err) {
+        // Optionally handle error (e.g., show a message)
+      }
     }
+    // Remove from frontend state
+    setQrCodes(prev => prev.filter(code => !selectedCodes.map(String).includes(String(code.id))));
+    setSelectedCodes([]);
   };
-
   const handleSelectCode = (codeId) => {
     setSelectedCodes(prev => {
       const codeIdStr = String(codeId);
