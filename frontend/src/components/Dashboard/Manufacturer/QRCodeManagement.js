@@ -189,7 +189,22 @@ const QRCodeManagement = () => {
       if (!res.ok) throw new Error('Failed to fetch QR codes');
       const data = await res.json();
       console.log('Fetched QR codes:', data); // Debug log
-      setQrCodes(Array.isArray(data) ? data : []);
+      setQrCodes(Array.isArray(data) ? data.map(qr => {
+        const campaign = campaigns.find(c => String(c.id) === String(qr.campaignId || qr.campaign));
+        return {
+          ...qr,
+          qrData: JSON.stringify({
+            code: qr.code,
+            campaignId: qr.campaignId || qr.campaign,
+            campaignName: campaign ? campaign.name : '-',
+            points: campaign ? campaign.points : '',
+            startDate: campaign ? campaign.startDate : '',
+            endDate: campaign ? campaign.endDate : '',
+            rewardTiers: campaign && campaign.rewardTiers ? campaign.rewardTiers : [],
+            createdAt: qr.createdAt
+          })
+        };
+      }) : []);
     } catch (error) {
       setQrCodes([]);
       setErrors({ qrcodes: 'Error fetching QR codes' });
