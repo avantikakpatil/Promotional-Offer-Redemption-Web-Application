@@ -189,7 +189,22 @@ const QRCodeManagement = () => {
       if (!res.ok) throw new Error('Failed to fetch QR codes');
       const data = await res.json();
       console.log('Fetched QR codes:', data); // Debug log
-      setQrCodes(Array.isArray(data) ? data : []);
+      setQrCodes(Array.isArray(data) ? data.map(qr => {
+        const campaign = campaigns.find(c => String(c.id) === String(qr.campaignId || qr.campaign));
+        return {
+          ...qr,
+          qrData: JSON.stringify({
+            code: qr.code,
+            campaignId: qr.campaignId || qr.campaign,
+            campaignName: campaign ? campaign.name : '-',
+            points: campaign ? campaign.points : '',
+            startDate: campaign ? campaign.startDate : '',
+            endDate: campaign ? campaign.endDate : '',
+            rewardTiers: campaign && campaign.rewardTiers ? campaign.rewardTiers : [],
+            createdAt: qr.createdAt
+          })
+        };
+      }) : []);
     } catch (error) {
       setQrCodes([]);
       setErrors({ qrcodes: 'Error fetching QR codes' });
@@ -314,14 +329,24 @@ const QRCodeManagement = () => {
     }
   };
 
-  const deleteSelectedCodes = () => {
+  const deleteSelectedCodes = async () => {
     if (selectedCodes.length === 0) return;
-    if (window.confirm(`Are you sure you want to delete ${selectedCodes.length} selected QR codes?`)) {
-      setQrCodes(prev => prev.filter(code => !selectedCodes.map(String).includes(String(code.id))));
-      setSelectedCodes([]);
+    const token = localStorage.getItem('token');
+    // Delete each selected QR code from the backend
+    for (const id of selectedCodes) {
+      try {
+        await fetch(`/api/manufacturer/qrcodes/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (err) {
+        // Optionally handle error (e.g., show a message)
+      }
     }
+    // Remove from frontend state
+    setQrCodes(prev => prev.filter(code => !selectedCodes.map(String).includes(String(code.id))));
+    setSelectedCodes([]);
   };
-
   const handleSelectCode = (codeId) => {
     setSelectedCodes(prev => {
       const codeIdStr = String(codeId);
