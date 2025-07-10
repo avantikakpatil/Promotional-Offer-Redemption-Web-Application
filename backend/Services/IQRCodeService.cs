@@ -10,6 +10,7 @@ namespace backend.Services
         Task<QRCodeDto> CreateQRCodeAsync(QRCodeCreateDto dto);
         Task<IEnumerable<QRCodeDto>> GetQRCodesByCampaignAsync(int campaignId);
         Task<QRCodeDto?> GetQRCodeByIdAsync(int id);
+        Task<QRCodeDto?> GetQRCodeByCodeAsync(string code);
         Task<bool> DeleteQRCodeAsync(int id);
         Task<ApiResponse<string>> RedeemQRCodeAsync(int qrCodeId, int customerId, int points);
         Task<ApiResponse<string>> RedeemQRCodeByCodeAsync(string code, int customerId, int points);

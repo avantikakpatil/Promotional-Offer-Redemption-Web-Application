@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FaQrcode, FaHistory, FaGift, FaCoins, FaTrophy, FaFire, FaStar, FaBolt, FaGamepad, FaShare, FaCalendarAlt, FaChartLine, FaHeart, FaCheck, FaCrown, FaRocket } from 'react-icons/fa';
 import QRScanner from './QRScanner';
-import { fetchQRInfo, redeemCoupon } from './qrInfoFetcher';
+import { fetchQRInfo, redeemCoupon, getErrorIcon, getErrorColor } from './qrInfoFetcher';
 
 const HaldiramsDashboard = () => {
+
+
   const [points, setPoints] = useState(0);
   const [redeemedPoints, setRedeemedPoints] = useState(0);
   const [showScanner, setShowScanner] = useState(false);
@@ -21,7 +23,8 @@ const HaldiramsDashboard = () => {
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [qrRawData, setQrRawData] = useState(null);
   const [qrInfo, setQrInfo] = useState(null);
-  const [redeemStatus, setRedeemStatus] = useState(null);
+  const [redeemResult, setRedeemResult] = useState(null); // null, 'success', or 'error'
+  const [redeemMessage, setRedeemMessage] = useState('');
   // TODO: Replace with actual customerId from auth context
   const customerId = 1;
   
@@ -122,22 +125,17 @@ const HaldiramsDashboard = () => {
   const handleQRCodeDetected = (qrData) => {
     setScannedData(qrData);
     stopCamera();
-    
-    // Add points based on QR code
-    if (qrData.type === 'purchase') {
-      setPoints(prevPoints => prevPoints + qrData.points);
-      
-      // Add to history
-      const newRedemption = {
-        id: Date.now(),
-        date: new Date().toISOString().split('T')[0],
-        points: qrData.points,
-        offer: `QR Scan: ${qrData.product}`,
-        status: 'completed',
-        icon: '📱'
-      };
-      setRedemptionHistory(prev => [newRedemption, ...prev]);
-    }
+    // Do not update points here; only update after backend confirmation
+    // Add to history (optional, for immediate UI feedback, but not points)
+    const newRedemption = {
+      id: Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      points: qrData.points,
+      offer: `QR Scan: ${qrData.product}`,
+      status: 'completed',
+      icon: '📱'
+    };
+    setRedemptionHistory(prev => [newRedemption, ...prev]);
   };
 
   // Handle QR scanner toggle
@@ -153,46 +151,115 @@ const HaldiramsDashboard = () => {
     }
   };
 
+  // Updated handleQRScan function
   const handleQRScan = async (qrRawString) => {
+    console.log('QR Raw String received:', qrRawString);
     setQrRawData(qrRawString);
-    const info = await fetchQRInfo(qrRawString);
-    setQrInfo(info);
+    setRedeemResult(null);
+    setRedeemMessage('');
+    try {
+      const info = await fetchQRInfo(qrRawString);
+      console.log('QR Info from fetchQRInfo:', info);
+      if (info.error) {
+        // If already redeemed, show direct message and do not allow redeem
+        if (info.errorCode === 'ALREADY_REDEEMED') {
+          setRedeemResult('error');
+          setRedeemMessage('This QR code has already been redeemed and can only be used once.');
+          setQrInfo(null);
+          setShowQRScanner(false);
+          return;
+        }
+        setRedeemResult('error');
+        setRedeemMessage(info.message);
+        setQrInfo(null);
+      } else {
+        setQrInfo(info);
+        setRedeemResult(null); // Ready to redeem, not success yet
+        setRedeemMessage('QR code scanned successfully! Ready to redeem.');
+      }
+    } catch (error) {
+      console.error('Error in handleQRScan:', error);
+      setRedeemResult('error');
+      setRedeemMessage('Failed to process QR code. Please try again.');
+      setQrInfo(null);
+    }
     setShowQRScanner(false);
-    setRedeemStatus(null);
   };
 
+  // Updated handleRedeem function
   const handleRedeem = async () => {
-    setRedeemStatus('processing');
-    const result = await redeemCoupon(qrInfo, customerId);
-    if (result.error) {
-      setRedeemStatus('error');
-    } else {
-      setRedeemStatus('success');
-      // Refetch user points and history after redeem
-      const token = localStorage.getItem('token');
-      fetch('/api/customer/qrcodes/history', {
+    if (!qrRawData) {
+      setRedeemResult('error');
+      setRedeemMessage('No QR code data available.');
+      return;
+    }
+    setRedeemResult('processing');
+    setRedeemMessage('Processing redemption...');
+    try {
+      const result = await redeemCoupon(qrRawData, customerId);
+      console.log('Redemption result:', result);
+      if (result.error) {
+        setRedeemResult('error');
+        setRedeemMessage(result.message);
+      } else {
+        setRedeemResult('success');
+        setRedeemMessage(`QR code redeemed successfully! ${qrInfo && qrInfo.points ? qrInfo.points : ''} points have been added to your account.`);
+        await fetchUserPointsAndHistory();
+        setQrInfo(null);
+        setQrRawData(null);
+      }
+    } catch (error) {
+      console.error('Error in handleRedeem:', error);
+      setRedeemResult('error');
+      setRedeemMessage('An unexpected error occurred during redemption.');
+    }
+  };
+
+  // Updated fetchUserPointsAndHistory function
+  const fetchUserPointsAndHistory = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch('/api/customer/qrcodes/history', {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data && typeof data.points === 'number') setPoints(data.points);
-          if (data && Array.isArray(data.redemptionHistory)) setRedemptionHistory(data.redemptionHistory.map(h => ({
-            id: h.redeemedAt,
-            date: h.redeemedAt.split('T')[0],
-            points: h.points,
-            offer: `QR Scan: ${h.qrCode}`,
-            status: 'completed',
-            icon: '📱'
-          })));
-        });
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('User data fetched:', data);
+      if (data && typeof data.points === 'number') {
+        setPoints(data.points);
+        console.log('Points updated to:', data.points);
+      }
+      if (data && Array.isArray(data.redemptionHistory)) {
+        const formattedHistory = data.redemptionHistory.map(h => ({
+          id: h.id || h.redeemedAt,
+          date: new Date(h.redeemedAt).toISOString().split('T')[0],
+          points: h.points,
+          offer: `QR Scan: ${h.qrCode || h.product || 'Unknown'}`,
+          status: 'completed',
+          icon: '📱',
+          isAddition: h.points > 0
+        }));
+        setRedemptionHistory(formattedHistory);
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
     }
   };
 
+  // Add useEffect for debugging points state
+  useEffect(() => {
+    console.log('Points state updated:', points);
+  }, [points]);
+
   // Cleanup on unmount
   useEffect(() => {
+    fetchUserPointsAndHistory();
     return () => {
       stopCamera();
     };
@@ -200,41 +267,22 @@ const HaldiramsDashboard = () => {
 
   useEffect(() => {
     // Fetch user points and history on mount
-    const token = localStorage.getItem('token');
-    fetch('/api/customer/qrcodes/history', {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data && typeof data.points === 'number') setPoints(data.points);
-        if (data && Array.isArray(data.redemptionHistory)) setRedemptionHistory(data.redemptionHistory.map(h => ({
-          id: h.redeemedAt,
-          date: h.redeemedAt.split('T')[0],
-          points: h.points,
-          offer: `QR Scan: ${h.qrCode}`,
-          status: 'completed',
-          icon: '📱'
-        })));
-      });
+    fetchUserPointsAndHistory();
   }, []);
 
   const handleRedeemOffer = (offerId, pointsCost) => {
-    if (points >= pointsCost) {
-      setPoints(points - pointsCost);
-      setRedeemedPoints(redeemedPoints + pointsCost);
-      const newRedemption = {
-        id: Date.now(),
-        date: new Date().toISOString().split('T')[0],
-        points: pointsCost,
-        offer: availableOffers.find(o => o.id === offerId)?.title,
-        status: 'pending',
-        icon: availableOffers.find(o => o.id === offerId)?.icon
-      };
-      setRedemptionHistory([newRedemption, ...redemptionHistory]);
-    }
+    // Only update points after backend confirmation (simulate here by refetching)
+    fetchUserPointsAndHistory();
+    // Optionally, show pending redemption in UI
+    const newRedemption = {
+      id: Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      points: pointsCost,
+      offer: availableOffers.find(o => o.id === offerId)?.title,
+      status: 'pending',
+      icon: availableOffers.find(o => o.id === offerId)?.icon
+    };
+    setRedemptionHistory([newRedemption, ...redemptionHistory]);
   };
 
   const completeTask = (taskId) => {
@@ -245,10 +293,8 @@ const HaldiramsDashboard = () => {
           : task
       )
     );
-    const task = dailyTasks.find(t => t.id === taskId);
-    if (task && !task.completed) {
-      setPoints(points + task.points);
-    }
+    // Only update points after backend confirmation (simulate here by refetching)
+    fetchUserPointsAndHistory();
   };
 
   const getLevelColor = (level) => {
@@ -477,12 +523,13 @@ const HaldiramsDashboard = () => {
                   {cameraPermission === null && (
                     <div className="text-center p-8 bg-blue-50 border border-blue-200">
                       <FaQrcode className="text-4xl text-blue-600 mx-auto mb-4" />
-                      <p className="text-gray-700 mb-4">Click "Allow" to grant camera access</p>
+                      <p className="text-gray-700 mb-4">Ready to scan QR codes!</p>
+                      <p className="text-sm text-gray-600 mb-4">Point your camera at a valid QR code to start earning points</p>
                       <button 
                         onClick={requestCameraPermission}
                         className="px-6 py-2 bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                       >
-                        Enable Camera
+                        Start Scanning
                       </button>
                     </div>
                   )}
@@ -515,23 +562,41 @@ const HaldiramsDashboard = () => {
                       <p className="text-center text-gray-600 mt-2">
                         <span className="animate-pulse">🔍 Scanning for QR codes...</span>
                       </p>
+                      <p className="text-center text-xs text-gray-500 mt-1">
+                        Hold steady and point at the QR code
+                      </p>
                     </div>
                   )}
                   
-                  {qrInfo && (
+                  {redeemResult === 'success' && qrInfo && (
                     <div className="text-center p-6 bg-green-50 border border-green-200">
                       <div className="text-4xl text-green-600 mb-4">✅</div>
-                      <h4 className="font-bold text-green-800 mb-2">QR Code Scanned!</h4>
+                      <h4 className="font-bold text-green-800 mb-2">QR Code Scanned Successfully!</h4>
                       <p className="text-sm text-gray-700 mb-2">Product: {qrInfo.product}</p>
-                      <p className="text-sm text-gray-700 mb-2">Product ID: {qrInfo.productId}</p>
-                      <div className="bg-green-100 text-green-800 px-3 py-1 text-sm font-medium inline-block">
-                        +{qrInfo.points} points added!
+                      <p className="text-sm text-gray-700 mb-2">Campaign: {qrInfo.campaignName}</p>
+                      <div className="bg-green-100 text-green-800 px-3 py-1 text-sm font-medium inline-block mb-3">
+                        +{qrInfo.points} points available!
                       </div>
+                      <p className="text-xs text-gray-600 mb-3">{qrInfo.description}</p>
                       <button 
                         onClick={handleRedeem}
-                        className="block w-full mt-4 px-4 py-2 bg-green-500 text-white hover:bg-green-600 transition-colors"
+                        className="block w-full px-4 py-2 bg-green-500 text-white hover:bg-green-600 transition-colors"
                       >
-                        Redeem Coupon
+                        Redeem Now
+                      </button>
+                    </div>
+                  )}
+                  
+                  {redeemResult === 'error' && (
+                    <div className="text-center p-6 bg-red-50 border border-red-200">
+                      <div className="text-4xl text-red-600 mb-4">❌</div>
+                      <h4 className="font-bold text-red-800 mb-2">QR Code Error</h4>
+                      <p className="text-sm text-red-700 mb-3">{redeemMessage}</p>
+                      <button 
+                        onClick={() => { setRedeemResult(null); setRedeemMessage(''); setQrInfo(null); }}
+                        className="px-4 py-2 bg-red-500 text-white hover:bg-red-600 transition-colors"
+                      >
+                        Try Again
                       </button>
                     </div>
                   )}
@@ -641,7 +706,7 @@ const HaldiramsDashboard = () => {
                     <p className="text-sm text-gray-600">{item.date}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-gray-800">-{item.points} points</p>
+                    <p className="font-bold text-gray-800">{item.isAddition ? `+${item.points}` : item.points}</p>
                     <span className={`text-xs px-2 py-1 ${
                       item.status === 'completed' ? 'bg-green-100 text-green-700' :
                       item.status === 'active' ? 'bg-blue-100 text-blue-700' :
@@ -660,30 +725,87 @@ const HaldiramsDashboard = () => {
       {/* QR Scanner Modal/Section */}
       {showQRScanner && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg relative">
+          <div className="bg-white p-6 rounded shadow-lg relative max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold">Scan QR Code</h3>
+              <button onClick={() => setShowQRScanner(false)} className="text-gray-500 hover:text-gray-700">✖</button>
+            </div>
             <QRScanner
               onScan={handleQRScan}
               onClose={() => setShowQRScanner(false)}
             />
-            <button onClick={() => setShowQRScanner(false)} className="absolute top-2 right-2 text-gray-500">✖</button>
           </div>
         </div>
       )}
 
-      {/* QR Info and Redemption UI */}
-      {qrInfo && (
+            {/* QR Result Display - Success, Error, or Ready to Redeem */}
+      {(qrInfo && redeemResult === null) || redeemResult ? (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow-lg relative max-w-md w-full">
-            <h3 className="text-xl font-bold mb-2">QR Code Info</h3>
-            <pre className="bg-gray-100 p-2 rounded text-sm mb-4">{JSON.stringify(qrInfo, null, 2)}</pre>
-            <button onClick={handleRedeem} className="px-4 py-2 bg-green-600 text-white rounded mr-2">Redeem Coupon</button>
-            <button onClick={() => { setQrInfo(null); setQrRawData(null); setRedeemStatus(null); }} className="px-4 py-2 bg-gray-300 rounded">Cancel</button>
-            {redeemStatus === 'processing' && <div className="mt-2 text-blue-600">Processing...</div>}
-            {redeemStatus === 'success' && <div className="mt-2 text-green-600">Coupon redeemed! Points updated.</div>}
-            {redeemStatus === 'error' && <div className="mt-2 text-red-600">Redemption failed. Try again.</div>}
+            {/* Determine error code and styling */}
+            {(() => {
+              let errorCode = null;
+              if (redeemResult === 'error' && redeemMessage) {
+                // Try to extract errorCode from qrInfo or last error
+                if (qrInfo && qrInfo.errorCode) errorCode = qrInfo.errorCode;
+                else if (redeemMessage.toLowerCase().includes('already been redeemed')) errorCode = 'ALREADY_REDEEMED';
+                else if (redeemMessage.toLowerCase().includes('invalid qr code')) errorCode = 'INVALID_QR_CODE';
+                else if (redeemMessage.toLowerCase().includes('campaign')) errorCode = 'CAMPAIGN_INACTIVE';
+              }
+              const colorClass = getErrorColor(errorCode);
+              const icon = getErrorIcon(errorCode);
+              return (
+                <div className={`p-4 rounded ${redeemResult === 'error' ? colorClass : 'bg-green-50 border-green-200 text-green-800'}`}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-2xl">{redeemResult === 'error' ? icon : '✅'}</span>
+                    <span className="font-semibold">{redeemResult === 'error' ? 'Error' : 'Success'}</span>
+                  </div>
+                  <p className="text-sm">{redeemMessage}</p>
+                  {(redeemResult === null && qrInfo) && (
+                    <div className="mt-3 space-y-1 text-xs text-blue-600">
+                      <p><strong>Product:</strong> {qrInfo.product}</p>
+                      <p><strong>Campaign:</strong> {qrInfo.campaignName}</p>
+                      <p><strong>Points:</strong> +{qrInfo.points}</p>
+                    </div>
+                  )}
+                  {(redeemResult === 'success' && qrInfo) && (
+                    <div className="mt-3 space-y-1 text-xs text-green-600">
+                      <p><strong>Product:</strong> {qrInfo.product}</p>
+                      <p><strong>Campaign:</strong> {qrInfo.campaignName}</p>
+                      <p><strong>Points Added:</strong> +{qrInfo.points}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            <div className="mt-4 flex gap-2">
+              {redeemResult === 'success' ? (
+                <button 
+                  onClick={() => { setQrInfo(null); setQrRawData(null); setRedeemResult(null); setRedeemMessage(''); }}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                >
+                  Continue
+                </button>
+              ) : redeemResult === 'error' ? (
+                <button 
+                  onClick={() => { setRedeemResult(null); setRedeemMessage(''); }}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                >
+                  Close
+                </button>
+              ) : (
+                <button
+                  onClick={handleRedeem}
+                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                >
+                  Redeem
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      )}
+      ) : null}
+
     </div>
   );
 };

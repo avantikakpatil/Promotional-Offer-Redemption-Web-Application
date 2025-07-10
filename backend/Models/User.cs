@@ -30,5 +30,8 @@ namespace backend.Models
         
         // Total points redeemed by the user
         public int Points { get; set; } = 0;
+
+        // Navigation property for UserPoints
+        public virtual UserPoints UserPoints { get; set; }
     }
 }

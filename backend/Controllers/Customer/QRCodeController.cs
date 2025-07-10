@@ -1,7 +1,9 @@
 using backend.Models.DTOs;
 using backend.Services;
+using backend.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Controllers.Customer
 {
@@ -11,9 +13,12 @@ namespace backend.Controllers.Customer
     public class QRCodeController : ControllerBase
     {
         private readonly IQRCodeService _qrCodeService;
-        public QRCodeController(IQRCodeService qrCodeService)
+        private readonly ApplicationDbContext _context;
+        
+        public QRCodeController(IQRCodeService qrCodeService, ApplicationDbContext context)
         {
             _qrCodeService = qrCodeService;
+            _context = context;
         }
 
         [HttpPost("redeem")]
@@ -25,29 +30,97 @@ namespace backend.Controllers.Customer
             if (!int.TryParse(userIdClaim.Value, out int userId)) return Unauthorized();
 
             var result = await _qrCodeService.RedeemQRCodeByCodeAsync(dto.Code, userId, dto.Points);
-            if (!result.Success) return BadRequest(result.Message);
+            if (!result.Success) return BadRequest(result);
             return Ok(result);
         }
 
         [HttpPost("info")]
-        public IActionResult GetQRInfo([FromBody] QRInfoRequestDto dto)
+        public async Task<IActionResult> GetQRInfo([FromBody] QRInfoRequestDto dto)
         {
             if (string.IsNullOrEmpty(dto.qrRawString))
                 return BadRequest(new { error = "QR raw string is required." });
 
             try
             {
-                // If it's already a JSON object, just return it
+                // Extract the QR code from the raw string
+                string qrCode = dto.qrRawString;
+                
+                // If it's a JSON object, try to extract the code
                 if (dto.qrRawString.TrimStart().StartsWith("{"))
                 {
-                    var qrInfo = System.Text.Json.JsonSerializer.Deserialize<object>(dto.qrRawString);
-                    return Ok(qrInfo);
+                    try
+                    {
+                        var qrInfo = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(dto.qrRawString);
+                        if (qrInfo.ContainsKey("code"))
+                        {
+                            qrCode = qrInfo["code"].ToString();
+                        }
+                        else if (qrInfo.ContainsKey("Code"))
+                        {
+                            qrCode = qrInfo["Code"].ToString();
+                        }
+                        else if (qrInfo.ContainsKey("raw"))
+                        {
+                            qrCode = qrInfo["raw"].ToString();
+                        }
+                    }
+                    catch
+                    {
+                        // If JSON parsing fails, use the raw string
+                        qrCode = dto.qrRawString;
+                    }
                 }
-                else
+
+                // Validate the QR code exists in the database
+                var qrCodeEntity = await _qrCodeService.GetQRCodeByCodeAsync(qrCode);
+                if (qrCodeEntity == null)
                 {
-                    // If it's not a JSON string, just return the raw string
-                    return Ok(new { raw = dto.qrRawString });
+                    return BadRequest(new { 
+                        error = "Invalid QR code. This QR code does not exist in our system.",
+                        errorCode = "INVALID_QR_CODE"
+                    });
                 }
+
+                // Check if QR code is already redeemed
+                if (qrCodeEntity.IsRedeemed)
+                {
+                    return BadRequest(new { 
+                        error = "This QR code has already been redeemed.",
+                        errorCode = "ALREADY_REDEEMED"
+                    });
+                }
+
+                // Get campaign information
+                var campaign = await _context.Campaigns.FindAsync(qrCodeEntity.CampaignId);
+                if (campaign == null)
+                {
+                    return BadRequest(new { 
+                        error = "This QR code is associated with an invalid campaign.",
+                        errorCode = "INVALID_CAMPAIGN"
+                    });
+                }
+
+                // Check if campaign is active
+                var now = DateTime.UtcNow;
+                if (campaign.StartDate > now || campaign.EndDate < now)
+                {
+                    return BadRequest(new { 
+                        error = $"This campaign is not active. Campaign period: {campaign.StartDate.ToString("MMM dd, yyyy")} to {campaign.EndDate.ToString("MMM dd, yyyy")}.",
+                        errorCode = "CAMPAIGN_INACTIVE"
+                    });
+                }
+
+                // Return the QR code information
+                return Ok(new {
+                    code = qrCode,
+                    points = campaign.Points,
+                    product = campaign.ProductType,
+                    productId = $"CAMPAIGN-{campaign.Id}",
+                    campaignName = campaign.Name,
+                    description = campaign.Description,
+                    startDate = campaign.StartDate,
+                    endDate = campaign.EndDate
+                });
             }
             catch (Exception ex)
             {

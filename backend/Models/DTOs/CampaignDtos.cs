@@ -82,5 +82,6 @@ namespace backend.Models.DTOs
         public string Message { get; set; } = string.Empty;
         public T? Data { get; set; }
         public List<string> Errors { get; set; } = new List<string>();
+        public string? ErrorCode { get; set; }
     }
 }

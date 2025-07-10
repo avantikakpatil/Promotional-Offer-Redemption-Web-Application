@@ -44,6 +44,17 @@ namespace backend.Services
             return qr == null ? null : ToDto(qr);
         }
 
+        public async Task<QRCodeDto?> GetQRCodeByCodeAsync(string code)
+        {
+            var qr = await _context.QRCodes.FirstOrDefaultAsync(q => q.Code == code);
+            if (qr == null) return null;
+            
+            var campaign = await _context.Campaigns
+                .Include(c => c.RewardTiers)
+                .FirstOrDefaultAsync(c => c.Id == qr.CampaignId);
+            return ToDto(qr, campaign);
+        }
+
         public async Task<bool> DeleteQRCodeAsync(int id)
         {
             var qr = await _context.QRCodes.FindAsync(id);
@@ -79,41 +90,89 @@ namespace backend.Services
         public async Task<ApiResponse<string>> RedeemQRCodeByCodeAsync(string code, int customerId, int points)
         {
             var qr = await _context.QRCodes.FirstOrDefaultAsync(q => q.Code == code);
-            if (qr == null || qr.IsRedeemed)
-                return new ApiResponse<string> { Success = false, Message = "QR code not found or already redeemed." };
+            if (qr == null)
+            {
+                Console.WriteLine($"QR not found: {code}");
+                return new ApiResponse<string> { Success = false, Message = "Invalid QR code.", ErrorCode = "INVALID_QR_CODE" };
+            }
+
+            if (qr.IsRedeemed)
+            {
+                Console.WriteLine($"QR already redeemed: {code}");
+                return new ApiResponse<string> { Success = false, Message = "QR code already redeemed.", ErrorCode = "ALREADY_REDEEMED" };
+            }
 
             var customer = await _context.Users.FindAsync(customerId);
             if (customer == null)
-                return new ApiResponse<string> { Success = false, Message = "Customer not found." };
+            {
+                Console.WriteLine($"Customer not found: {customerId}");
+                return new ApiResponse<string> { Success = false, Message = "Customer not found.", ErrorCode = "CUSTOMER_NOT_FOUND" };
+            }
 
-            // Use UserPoints table
+            var campaign = await _context.Campaigns.FindAsync(qr.CampaignId);
+            if (campaign == null)
+            {
+                Console.WriteLine($"Campaign not found: {qr.CampaignId}");
+                return new ApiResponse<string> { Success = false, Message = "Invalid campaign.", ErrorCode = "INVALID_CAMPAIGN" };
+            }
+
+            var now = DateTime.UtcNow;
+            if (campaign.StartDate > now || campaign.EndDate < now)
+            {
+                Console.WriteLine($"Campaign not active: now={now}, start={campaign.StartDate}, end={campaign.EndDate}");
+                return new ApiResponse<string> { Success = false, Message = "Campaign not active.", ErrorCode = "CAMPAIGN_INACTIVE" };
+            }
+
+            int pointsToAdd = campaign.Points;
+            if (pointsToAdd <= 0)
+            {
+                Console.WriteLine($"Invalid points for campaign {campaign.Id}: {pointsToAdd}");
+                return new ApiResponse<string> { Success = false, Message = "Invalid points.", ErrorCode = "INVALID_POINTS" };
+            }
+
+            // Add points to User and UserPoints
+            customer.Points += pointsToAdd;
             var userPoints = await _context.UserPoints.FirstOrDefaultAsync(up => up.UserId == customerId);
             if (userPoints == null)
             {
-                userPoints = new UserPoints { UserId = customerId, Points = 0, RedeemedPoints = 0, LastUpdated = DateTime.UtcNow };
+                userPoints = new UserPoints { UserId = customerId, Points = 0, RedeemedPoints = 0, LastUpdated = now };
                 _context.UserPoints.Add(userPoints);
             }
-            userPoints.Points += points;
-            userPoints.LastUpdated = DateTime.UtcNow;
+            userPoints.Points += pointsToAdd;
+            userPoints.LastUpdated = now;
 
+            // Mark QR as redeemed
             qr.IsRedeemed = true;
-            qr.RedeemedAt = DateTime.UtcNow;
-            qr.UpdatedAt = DateTime.UtcNow;
+            qr.RedeemedAt = now;
+            qr.UpdatedAt = now;
             qr.RedeemedByUserId = customerId;
 
-            // Store redemption history
+            // Add redemption history
             var history = new RedemptionHistory
             {
                 UserId = customerId,
                 QRCode = code,
-                Points = points,
-                RedeemedAt = DateTime.UtcNow
+                Points = pointsToAdd,
+                RedeemedAt = now
             };
             _context.RedemptionHistories.Add(history);
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error saving changes: " + ex.ToString());
+                throw;
+            }
 
-            return new ApiResponse<string> { Success = true, Message = "QR code redeemed and points added." };
+            return new ApiResponse<string>
+            {
+                Success = true,
+                Message = $"QR code redeemed successfully! {pointsToAdd} points added.",
+                Data = $"Points added: {pointsToAdd}"
+            };
         }
 
         public async Task<UserHistoryDto?> GetUserWithHistoryAsync(int userId)
@@ -131,12 +190,15 @@ namespace backend.Services
                     RedeemedAt = h.RedeemedAt
                 })
                 .ToListAsync();
+            
+            Console.WriteLine($"GetUserWithHistoryAsync for user {userId}: User.Points = {user.Points}, UserPoints.Points = {userPoints?.Points ?? 0}");
+            
             return new UserHistoryDto
             {
                 Id = user.Id,
                 Name = user.Name,
                 Email = user.Email,
-                Points = userPoints?.Points ?? 0,
+                Points = userPoints?.Points ?? user.Points, // Use UserPoints table for available points
                 RedemptionHistory = history
             };
         }
