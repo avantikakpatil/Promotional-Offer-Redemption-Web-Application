@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaQrcode, FaHistory, FaGift, FaCoins, FaTrophy, FaFire, FaStar, FaBolt, FaGamepad, FaShare, FaCalendarAlt, FaChartLine, FaHeart, FaCheck, FaCrown, FaRocket } from 'react-icons/fa';
 import QRScanner from './QRScanner';
 import { fetchQRInfo, redeemCoupon, getErrorIcon, getErrorColor } from './qrInfoFetcher';
+import { QRCodeCanvas } from 'qrcode.react';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const HaldiramsDashboard = () => {
 
@@ -281,19 +283,24 @@ const HaldiramsDashboard = () => {
     fetchUserPointsAndHistory();
   }, []);
 
+  const [showRewardQRModal, setShowRewardQRModal] = useState(false);
+  const [rewardQRData, setRewardQRData] = useState(null);
+
+  const { user } = useAuth();
+
   const handleRedeemOffer = (offerId, pointsCost) => {
-    // Only update points after backend confirmation (simulate here by refetching)
-    fetchUserPointsAndHistory();
-    // Optionally, show pending redemption in UI
-    const newRedemption = {
-      id: Date.now(),
-      date: new Date().toISOString().split('T')[0],
+    // Instead of redeeming directly, show QR modal for reseller to scan
+    const reward = availableOffers.find(o => o.id === offerId);
+    const qrPayload = {
+      type: 'reward_redeem',
+      customerId: user?.id, // Use real logged-in customer id
+      rewardId: offerId,
       points: pointsCost,
-      offer: availableOffers.find(o => o.id === offerId)?.title,
-      status: 'pending',
-      icon: availableOffers.find(o => o.id === offerId)?.icon
+      rewardTitle: reward?.title,
+      timestamp: Date.now(),
     };
-    setRedemptionHistory([newRedemption, ...redemptionHistory]);
+    setRewardQRData(qrPayload);
+    setShowRewardQRModal(true);
   };
 
   const TabButton = ({ id, icon, label, isActive, onClick }) => (
@@ -379,101 +386,26 @@ const HaldiramsDashboard = () => {
                 ))}
               </div>
             </div>
-
-            {/* QR Scanner */}
-            {showScanner && (
-              <div className="bg-white shadow-md p-6 border border-gray-200">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-bold text-gray-800">📱 QR Code Scanner</h3>
+            {/* Reward QR Modal */}
+            {showRewardQRModal && rewardQRData && (
+              <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                <div className="bg-white p-6 rounded shadow-lg relative max-w-md w-full flex flex-col items-center">
+                  <h3 className="text-xl font-bold mb-4">Show this QR to the Reseller</h3>
+                  <QRCodeCanvas
+                    value={JSON.stringify(rewardQRData)}
+                    size={220}
+                    includeMargin={true}
+                  />
+                  <div className="mt-4 text-center">
+                    <div className="font-mono text-sm text-gray-900">Reward: {rewardQRData.rewardTitle}</div>
+                    <div className="text-xs text-gray-500 mt-1">Points: {rewardQRData.points}</div>
+                  </div>
                   <button
-                    onClick={handleQRScannerToggle}
-                    className="px-4 py-2 bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                    onClick={() => setShowRewardQRModal(false)}
+                    className="mt-6 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                   >
                     Close
                   </button>
-                </div>
-                
-                <div className="max-w-sm mx-auto">
-                  {cameraPermission === null && (
-                    <div className="text-center p-8 bg-blue-50 border border-blue-200">
-                      <FaQrcode className="text-4xl text-blue-600 mx-auto mb-4" />
-                      <p className="text-gray-700 mb-4">Ready to scan QR codes!</p>
-                      <p className="text-sm text-gray-600 mb-4">Point your camera at a valid QR code to start earning points</p>
-                      <button 
-                        onClick={requestCameraPermission}
-                        className="px-6 py-2 bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                      >
-                        Start Scanning
-                      </button>
-                    </div>
-                  )}
-                  
-                  {cameraPermission === 'denied' && (
-                    <div className="text-center p-8 bg-red-50 border border-red-200">
-                      <div className="text-4xl text-red-600 mb-4">❌</div>
-                      <p className="text-red-700 mb-4">{scanError}</p>
-                      <p className="text-sm text-gray-600">
-                        Please enable camera permissions in your browser settings and try again.
-                      </p>
-                    </div>
-                  )}
-                  
-                  {cameraPermission === 'granted' && scannerActive && (
-                    <div className="relative">
-                      <video 
-                        ref={videoRef} 
-                        className="w-full border-4 border-dashed border-red-300 bg-black"
-                        playsInline
-                        muted
-                      />
-                      <canvas 
-                        ref={canvasRef} 
-                        className="hidden"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="w-48 h-48 border-2 border-red-500 border-dashed animate-pulse"></div>
-                      </div>
-                      <p className="text-center text-gray-600 mt-2">
-                        <span className="animate-pulse">🔍 Scanning for QR codes...</span>
-                      </p>
-                      <p className="text-center text-xs text-gray-500 mt-1">
-                        Hold steady and point at the QR code
-                      </p>
-                    </div>
-                  )}
-                  
-                  {redeemResult === 'success' && qrInfo && (
-                    <div className="text-center p-6 bg-green-50 border border-green-200">
-                      <div className="text-4xl text-green-600 mb-4">✅</div>
-                      <h4 className="font-bold text-green-800 mb-2">QR Code Scanned Successfully!</h4>
-                      <p className="text-sm text-gray-700 mb-2">Product: {qrInfo.product}</p>
-                      <p className="text-sm text-gray-700 mb-2">Campaign: {qrInfo.campaignName}</p>
-                      <div className="bg-green-100 text-green-800 px-3 py-1 text-sm font-medium inline-block mb-3">
-                        +{qrInfo.points} points available!
-                      </div>
-                      <p className="text-xs text-gray-600 mb-3">{qrInfo.description}</p>
-                      <button 
-                        onClick={handleRedeem}
-                        className="block w-full px-4 py-2 bg-green-500 text-white hover:bg-green-600 transition-colors"
-                      >
-                        Redeem Now
-                      </button>
-                    </div>
-                  )}
-                  
-                  {redeemResult === 'error' && (
-                    <div className="text-center p-6 bg-red-50 border border-red-200">
-                      <div className="text-4xl text-red-600 mb-4">❌</div>
-                      <h4 className="font-bold text-red-800 mb-2">QR Code Error</h4>
-                      <p className="text-sm text-red-700 mb-3">{redeemMessage}</p>
-                      <button 
-                        onClick={() => { setRedeemResult(null); setRedeemMessage(''); setQrInfo(null); }}
-                        className="px-4 py-2 bg-red-500 text-white hover:bg-red-600 transition-colors"
-                      >
-                        Try Again
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -529,14 +461,13 @@ const HaldiramsDashboard = () => {
       )}
 
             {/* QR Result Display - Success, Error, or Ready to Redeem */}
-      {(qrInfo && redeemResult === null) || redeemResult ? (
+      {((qrInfo && redeemResult === null) || redeemResult) && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow-lg relative max-w-md w-full">
             {/* Determine error code and styling */}
             {(() => {
               let errorCode = null;
               if (redeemResult === 'error' && redeemMessage) {
-                // Try to extract errorCode from qrInfo or last error
                 if (qrInfo && qrInfo.errorCode) errorCode = qrInfo.errorCode;
                 else if (redeemMessage.toLowerCase().includes('already been redeemed')) errorCode = 'ALREADY_REDEEMED';
                 else if (redeemMessage.toLowerCase().includes('invalid qr code')) errorCode = 'INVALID_QR_CODE';
@@ -594,8 +525,7 @@ const HaldiramsDashboard = () => {
             </div>
           </div>
         </div>
-      ) : null}
-
+      )}
     </div>
   );
 };
