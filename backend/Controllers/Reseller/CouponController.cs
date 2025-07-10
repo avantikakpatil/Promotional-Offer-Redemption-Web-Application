@@ -19,9 +19,9 @@ namespace backend.Controllers.Reseller
         }
 
         [HttpPost("redeem")]
-        public IActionResult RedeemCoupon([FromBody] RedeemCouponDto dto)
+        public IActionResult RedeemCoupon([FromBody] RedeemQRCodeDto dto)
         {
-            var coupon = _context.QRCodes.FirstOrDefault(q => q.Code == dto.QrData);
+            var coupon = _context.QRCodes.FirstOrDefault(q => q.Code == dto.Code);
             if (coupon == null || coupon.IsRedeemed)
                 return BadRequest(new { error = "Invalid or already redeemed coupon." });
 
@@ -33,7 +33,7 @@ namespace backend.Controllers.Reseller
             coupon.RedeemedByUserId = dto.CustomerId;
             coupon.RedeemedAt = DateTime.UtcNow;
 
-            customer.Points += coupon.Points;
+            customer.Points += dto.Points;
 
             _context.SaveChanges();
 
@@ -41,12 +41,12 @@ namespace backend.Controllers.Reseller
         }
 
         [HttpPost("info")]
-        public IActionResult GetQRInfo([FromBody] RedeemCouponDto dto)
+        public IActionResult GetQRInfo([FromBody] RedeemQRCodeDto dto)
         {
-            if (string.IsNullOrEmpty(dto.QrData))
-                return BadRequest(new { error = "QR data is required." });
-            // For demo: just return the raw QR data
-            return Ok(new { raw = dto.QrData });
+            if (string.IsNullOrEmpty(dto.Code))
+                return BadRequest(new { error = "QR code is required." });
+            // For demo: just return the raw QR code
+            return Ok(new { raw = dto.Code });
         }
     }
 } 

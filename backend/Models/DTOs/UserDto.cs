@@ -20,4 +20,20 @@ namespace backend.Models.DTOs
         public string Token { get; set; } = string.Empty;
         public UserDto User { get; set; } = null!;
     }
+
+    public class UserHistoryDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public int Points { get; set; }
+        public List<RedemptionHistoryDto> RedemptionHistory { get; set; } = new();
+    }
+
+    public class RedemptionHistoryDto
+    {
+        public string QRCode { get; set; } = string.Empty;
+        public int Points { get; set; }
+        public DateTime RedeemedAt { get; set; }
+    }
 }

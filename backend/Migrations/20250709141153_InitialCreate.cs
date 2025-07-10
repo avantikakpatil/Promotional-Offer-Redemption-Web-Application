@@ -32,7 +32,8 @@ namespace backend.Migrations
                     Role = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    LastLoginAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    LastLoginAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    Points = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -87,6 +88,8 @@ namespace backend.Migrations
                     CampaignId = table.Column<int>(type: "int", nullable: false),
                     IsRedeemed = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     RedeemedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    Points = table.Column<int>(type: "int", nullable: false),
+                    RedeemedByUserId = table.Column<int>(type: "int", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
                 },

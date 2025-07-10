@@ -4,8 +4,8 @@ import QRScanner from './QRScanner';
 import { fetchQRInfo, redeemCoupon } from './qrInfoFetcher';
 
 const HaldiramsDashboard = () => {
-  const [points, setPoints] = useState(2847);
-  const [redeemedPoints, setRedeemedPoints] = useState(1250);
+  const [points, setPoints] = useState(0);
+  const [redeemedPoints, setRedeemedPoints] = useState(0);
   const [showScanner, setShowScanner] = useState(false);
   const [redemptionCode, setRedemptionCode] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
@@ -25,12 +25,7 @@ const HaldiramsDashboard = () => {
   // TODO: Replace with actual customerId from auth context
   const customerId = 1;
   
-  const [redemptionHistory, setRedemptionHistory] = useState([
-    { id: 1, date: '2024-06-12', points: 500, offer: 'Free Premium Sweets Box', status: 'completed', icon: '🍯' },
-    { id: 2, date: '2024-06-10', points: 200, offer: 'Free Home Delivery', status: 'completed', icon: '🚚' },
-    { id: 3, date: '2024-06-08', points: 150, offer: 'Festival Special Discount', status: 'completed', icon: '🎊' },
-    { id: 4, date: '2024-06-05', points: 300, offer: 'Double Points on Namkeens', status: 'active', icon: '🥨' },
-  ]);
+  const [redemptionHistory, setRedemptionHistory] = useState([]);
 
   const [availableOffers, setAvailableOffers] = useState([
     { id: 1, title: 'Premium Sweets Hamper', points: 800, description: 'Assorted traditional sweets including Gulab Jamun & Kaju Katli', color: 'bg-red-100 text-red-800 border-red-200', icon: '🍯' },
@@ -158,9 +153,9 @@ const HaldiramsDashboard = () => {
     }
   };
 
-  const handleQRScan = async (data) => {
-    setQrRawData(data);
-    const info = await fetchQRInfo(data);
+  const handleQRScan = async (qrRawString) => {
+    setQrRawData(qrRawString);
+    const info = await fetchQRInfo(qrRawString);
     setQrInfo(info);
     setShowQRScanner(false);
     setRedeemStatus(null);
@@ -168,12 +163,31 @@ const HaldiramsDashboard = () => {
 
   const handleRedeem = async () => {
     setRedeemStatus('processing');
-    const result = await redeemCoupon(qrRawData, customerId);
+    const result = await redeemCoupon(qrInfo, customerId);
     if (result.error) {
       setRedeemStatus('error');
     } else {
       setRedeemStatus('success');
-      setPoints(result.newPoints);
+      // Refetch user points and history after redeem
+      const token = localStorage.getItem('token');
+      fetch('/api/customer/qrcodes/history', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data && typeof data.points === 'number') setPoints(data.points);
+          if (data && Array.isArray(data.redemptionHistory)) setRedemptionHistory(data.redemptionHistory.map(h => ({
+            id: h.redeemedAt,
+            date: h.redeemedAt.split('T')[0],
+            points: h.points,
+            offer: `QR Scan: ${h.qrCode}`,
+            status: 'completed',
+            icon: '📱'
+          })));
+        });
     }
   };
 
@@ -182,6 +196,29 @@ const HaldiramsDashboard = () => {
     return () => {
       stopCamera();
     };
+  }, []);
+
+  useEffect(() => {
+    // Fetch user points and history on mount
+    const token = localStorage.getItem('token');
+    fetch('/api/customer/qrcodes/history', {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data.points === 'number') setPoints(data.points);
+        if (data && Array.isArray(data.redemptionHistory)) setRedemptionHistory(data.redemptionHistory.map(h => ({
+          id: h.redeemedAt,
+          date: h.redeemedAt.split('T')[0],
+          points: h.points,
+          offer: `QR Scan: ${h.qrCode}`,
+          status: 'completed',
+          icon: '📱'
+        })));
+      });
   }, []);
 
   const handleRedeemOffer = (offerId, pointsCost) => {
@@ -481,23 +518,20 @@ const HaldiramsDashboard = () => {
                     </div>
                   )}
                   
-                  {scannedData && (
+                  {qrInfo && (
                     <div className="text-center p-6 bg-green-50 border border-green-200">
                       <div className="text-4xl text-green-600 mb-4">✅</div>
                       <h4 className="font-bold text-green-800 mb-2">QR Code Scanned!</h4>
-                      <p className="text-sm text-gray-700 mb-2">Product: {scannedData.product}</p>
-                      <p className="text-sm text-gray-700 mb-2">Product ID: {scannedData.productId}</p>
+                      <p className="text-sm text-gray-700 mb-2">Product: {qrInfo.product}</p>
+                      <p className="text-sm text-gray-700 mb-2">Product ID: {qrInfo.productId}</p>
                       <div className="bg-green-100 text-green-800 px-3 py-1 text-sm font-medium inline-block">
-                        +{scannedData.points} points added!
+                        +{qrInfo.points} points added!
                       </div>
                       <button 
-                        onClick={() => {
-                          setScannedData(null);
-                          setShowScanner(false);
-                        }}
+                        onClick={handleRedeem}
                         className="block w-full mt-4 px-4 py-2 bg-green-500 text-white hover:bg-green-600 transition-colors"
                       >
-                        Continue Shopping
+                        Redeem Coupon
                       </button>
                     </div>
                   )}

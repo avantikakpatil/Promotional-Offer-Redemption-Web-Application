@@ -22,11 +22,14 @@ namespace backend.Models.DTOs
         public DateTime? RedeemedAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
-
-        // Campaign Info
         public int Points { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public List<QRCodeRewardTierDto> RewardTiers { get; set; } = new();
+    }
+
+    public class QRInfoRequestDto
+    {
+        public string? qrRawString { get; set; } = string.Empty;
     }
 }

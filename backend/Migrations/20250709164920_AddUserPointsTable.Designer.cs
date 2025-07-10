@@ -12,8 +12,8 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250708135913_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250709164920_AddUserPointsTable")]
+    partial class AddUserPointsTable
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -120,8 +120,14 @@ namespace backend.Migrations
                     b.Property<bool>("IsRedeemed")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<int>("Points")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("RedeemedAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("RedeemedByUserId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -131,6 +137,34 @@ namespace backend.Migrations
                     b.HasIndex("CampaignId");
 
                     b.ToTable("QRCodes");
+                });
+
+            modelBuilder.Entity("backend.Models.RedemptionHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Points")
+                        .HasColumnType("int");
+
+                    b.Property<string>("QRCode")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("RedeemedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RedemptionHistories");
                 });
 
             modelBuilder.Entity("backend.Models.RewardTier", b =>
@@ -198,6 +232,9 @@ namespace backend.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<int>("Points")
+                        .HasColumnType("int");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -208,6 +245,33 @@ namespace backend.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("backend.Models.UserPoints", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RedeemedPoints")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserPoints");
                 });
 
             modelBuilder.Entity("backend.Models.Campaign", b =>
@@ -232,6 +296,17 @@ namespace backend.Migrations
                     b.Navigation("Campaign");
                 });
 
+            modelBuilder.Entity("backend.Models.RedemptionHistory", b =>
+                {
+                    b.HasOne("backend.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("backend.Models.RewardTier", b =>
                 {
                     b.HasOne("backend.Models.Campaign", "Campaign")
@@ -241,6 +316,17 @@ namespace backend.Migrations
                         .IsRequired();
 
                     b.Navigation("Campaign");
+                });
+
+            modelBuilder.Entity("backend.Models.UserPoints", b =>
+                {
+                    b.HasOne("backend.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("backend.Models.Campaign", b =>

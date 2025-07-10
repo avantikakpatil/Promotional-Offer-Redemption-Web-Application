@@ -53,18 +53,93 @@ namespace backend.Services
             return true;
         }
 
-        public async Task<QRCodeDto?> RedeemQRCodeAsync(int id)
+        public async Task<ApiResponse<string>> RedeemQRCodeAsync(int qrCodeId, int customerId, int points)
         {
-            var qr = await _context.QRCodes.FindAsync(id);
-            if (qr == null || qr.IsRedeemed) return null;
+            var qr = await _context.QRCodes.FindAsync(qrCodeId);
+            if (qr == null || qr.IsRedeemed)
+                return new ApiResponse<string> { Success = false, Message = "QR code not found or already redeemed." };
+
+            var customer = await _context.Users.FindAsync(customerId);
+            if (customer == null)
+                return new ApiResponse<string> { Success = false, Message = "Customer not found." };
+
             qr.IsRedeemed = true;
             qr.RedeemedAt = DateTime.UtcNow;
             qr.UpdatedAt = DateTime.UtcNow;
+            qr.RedeemedByUserId = customerId;
+
+            // Add points from QR code info
+            customer.Points += points;
+
             await _context.SaveChangesAsync();
-            return ToDto(qr);
+
+            return new ApiResponse<string> { Success = true, Message = "QR code redeemed and points added." };
         }
 
-       
+        public async Task<ApiResponse<string>> RedeemQRCodeByCodeAsync(string code, int customerId, int points)
+        {
+            var qr = await _context.QRCodes.FirstOrDefaultAsync(q => q.Code == code);
+            if (qr == null || qr.IsRedeemed)
+                return new ApiResponse<string> { Success = false, Message = "QR code not found or already redeemed." };
+
+            var customer = await _context.Users.FindAsync(customerId);
+            if (customer == null)
+                return new ApiResponse<string> { Success = false, Message = "Customer not found." };
+
+            // Use UserPoints table
+            var userPoints = await _context.UserPoints.FirstOrDefaultAsync(up => up.UserId == customerId);
+            if (userPoints == null)
+            {
+                userPoints = new UserPoints { UserId = customerId, Points = 0, RedeemedPoints = 0, LastUpdated = DateTime.UtcNow };
+                _context.UserPoints.Add(userPoints);
+            }
+            userPoints.Points += points;
+            userPoints.LastUpdated = DateTime.UtcNow;
+
+            qr.IsRedeemed = true;
+            qr.RedeemedAt = DateTime.UtcNow;
+            qr.UpdatedAt = DateTime.UtcNow;
+            qr.RedeemedByUserId = customerId;
+
+            // Store redemption history
+            var history = new RedemptionHistory
+            {
+                UserId = customerId,
+                QRCode = code,
+                Points = points,
+                RedeemedAt = DateTime.UtcNow
+            };
+            _context.RedemptionHistories.Add(history);
+
+            await _context.SaveChangesAsync();
+
+            return new ApiResponse<string> { Success = true, Message = "QR code redeemed and points added." };
+        }
+
+        public async Task<UserHistoryDto?> GetUserWithHistoryAsync(int userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return null;
+            var userPoints = await _context.UserPoints.FirstOrDefaultAsync(up => up.UserId == userId);
+            var history = await _context.RedemptionHistories
+                .Where(h => h.UserId == userId)
+                .OrderByDescending(h => h.RedeemedAt)
+                .Select(h => new RedemptionHistoryDto
+                {
+                    QRCode = h.QRCode,
+                    Points = h.Points,
+                    RedeemedAt = h.RedeemedAt
+                })
+                .ToListAsync();
+            return new UserHistoryDto
+            {
+                Id = user.Id,
+                Name = user.Name,
+                Email = user.Email,
+                Points = userPoints?.Points ?? 0,
+                RedemptionHistory = history
+            };
+        }
 
         public async Task<int> GetQRCodeCountAsync(int manufacturerId)
 {

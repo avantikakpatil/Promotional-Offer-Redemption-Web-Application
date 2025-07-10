@@ -37,13 +37,5 @@ namespace backend.Controllers.Manufacturer
             if (!success) return NotFound();
             return NoContent();
         }
-
-        [HttpPost("{id}/redeem")]
-        public async Task<IActionResult> Redeem(int id)
-        {
-            var result = await _qrCodeService.RedeemQRCodeAsync(id);
-            if (result == null) return BadRequest("QR code not found or already redeemed.");
-            return Ok(result);
-        }
     }
 }

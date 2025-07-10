@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using backend.Data;
 
@@ -11,9 +12,11 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250709141153_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -136,34 +139,6 @@ namespace backend.Migrations
                     b.ToTable("QRCodes");
                 });
 
-            modelBuilder.Entity("backend.Models.RedemptionHistory", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("Points")
-                        .HasColumnType("int");
-
-                    b.Property<string>("QRCode")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime>("RedeemedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("RedemptionHistories");
-                });
-
             modelBuilder.Entity("backend.Models.RewardTier", b =>
                 {
                     b.Property<int>("Id")
@@ -244,33 +219,6 @@ namespace backend.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("backend.Models.UserPoints", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("LastUpdated")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("Points")
-                        .HasColumnType("int");
-
-                    b.Property<int>("RedeemedPoints")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserPoints");
-                });
-
             modelBuilder.Entity("backend.Models.Campaign", b =>
                 {
                     b.HasOne("backend.Models.User", "Manufacturer")
@@ -293,17 +241,6 @@ namespace backend.Migrations
                     b.Navigation("Campaign");
                 });
 
-            modelBuilder.Entity("backend.Models.RedemptionHistory", b =>
-                {
-                    b.HasOne("backend.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("backend.Models.RewardTier", b =>
                 {
                     b.HasOne("backend.Models.Campaign", "Campaign")
@@ -313,17 +250,6 @@ namespace backend.Migrations
                         .IsRequired();
 
                     b.Navigation("Campaign");
-                });
-
-            modelBuilder.Entity("backend.Models.UserPoints", b =>
-                {
-                    b.HasOne("backend.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("backend.Models.Campaign", b =>
