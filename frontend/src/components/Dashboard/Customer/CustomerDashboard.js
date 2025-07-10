@@ -30,27 +30,38 @@ const HaldiramsDashboard = () => {
   
   const [redemptionHistory, setRedemptionHistory] = useState([]);
 
-  const [availableOffers, setAvailableOffers] = useState([
-    { id: 1, title: 'Premium Sweets Hamper', points: 800, description: 'Assorted traditional sweets including Gulab Jamun & Kaju Katli', color: 'bg-red-100 text-red-800 border-red-200', icon: '🍯' },
-    { id: 2, title: 'Namkeen Combo Pack', points: 600, description: 'Mixed variety pack of Bhujia, Mathri & Mixture', color: 'bg-orange-100 text-orange-800 border-orange-200', icon: '🥨' },
-    { id: 3, title: 'Festival Special Box', points: 1000, description: 'Premium festival collection with 12 varieties', color: 'bg-pink-100 text-pink-800 border-pink-200', icon: '🎁' },
-    { id: 4, title: 'Free Delivery Pass', points: 400, description: 'Free delivery on all orders for 30 days', color: 'bg-green-100 text-green-800 border-green-200', icon: '🚚' },
-  ]);
+  // Remove dummy data from availableOffers and fetch real data from backend
+  const [availableOffers, setAvailableOffers] = useState([]);
 
-  const [achievements, setAchievements] = useState([
-    { id: 1, title: 'Sweet Tooth', desc: 'Ordered 10 sweet items', unlocked: true, icon: '🍯' },
-    { id: 2, title: 'Namkeen Lover', desc: 'Tried 5 different namkeens', unlocked: true, icon: '🥨' },
-    { id: 3, title: 'Festival Shopper', desc: 'Ordered during 3 festivals', unlocked: true, icon: '🎊' },
-    { id: 4, title: 'Haldiram VIP', desc: 'Reached premium customer status', unlocked: false, icon: '👑' },
-    { id: 5, title: 'Taste Explorer', desc: 'Tried 20+ different products', unlocked: false, icon: '🌟' },
-  ]);
-
-  const [dailyTasks, setDailyTasks] = useState([
-    { id: 1, task: 'Browse new arrivals', points: 10, completed: true },
-    { id: 2, task: 'Share your favorite sweet', points: 25, completed: false },
-    { id: 3, task: 'Rate a product', points: 50, completed: false },
-    { id: 4, task: 'Refer a friend to Haldiram\'s', points: 100, completed: false },
-  ]);
+  // Fetch reward tiers from backend on mount
+  useEffect(() => {
+    async function fetchRewards() {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/customer/qrcodes/rewards', {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
+        });
+        if (!response.ok) throw new Error('Failed to fetch rewards');
+        const data = await response.json();
+        // Map backend reward tier fields to offer display fields
+        const offers = data.map(rt => ({
+          id: rt.id,
+          title: rt.reward || rt.title || 'Reward',
+          points: rt.threshold || rt.points || 0,
+          description: rt.reward || '',
+          color: 'bg-yellow-100 text-yellow-800 border-yellow-200', // You can customize color logic
+          icon: '🎁', // You can customize icon logic
+        }));
+        setAvailableOffers(offers);
+      } catch (error) {
+        console.error('Error fetching rewards:', error);
+      }
+    }
+    fetchRewards();
+  }, []);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -285,25 +296,6 @@ const HaldiramsDashboard = () => {
     setRedemptionHistory([newRedemption, ...redemptionHistory]);
   };
 
-  const completeTask = (taskId) => {
-    setDailyTasks(tasks => 
-      tasks.map(task => 
-        task.id === taskId 
-          ? { ...task, completed: true }
-          : task
-      )
-    );
-    // Only update points after backend confirmation (simulate here by refetching)
-    fetchUserPointsAndHistory();
-  };
-
-  const getLevelColor = (level) => {
-    if (level >= 10) return 'bg-yellow-100 text-yellow-800';
-    if (level >= 7) return 'bg-orange-100 text-orange-800';
-    if (level >= 4) return 'bg-red-100 text-red-800';
-    return 'bg-pink-100 text-pink-800';
-  };
-
   const TabButton = ({ id, icon, label, isActive, onClick }) => (
     <button
       onClick={() => onClick(id)}
@@ -321,152 +313,34 @@ const HaldiramsDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-8 bg-red-600 flex items-center justify-center">
-                <span className="text-white font-bold text-lg">H</span>
-              </div>
-              <h1 className="text-4xl font-bold text-red-600">
-                Haldiram's Rewards
-              </h1>
-            </div>
-            <p className="text-gray-600 mt-2">Delicious Level {level} • {streak} day streak 🔥</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="w-12 h-12 bg-red-500 flex items-center justify-center text-white font-bold">
-                {notifications}
-              </div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 animate-pulse"></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
-          <TabButton id="overview" icon={<FaChartLine />} label="Dashboard" isActive={activeTab === 'overview'} onClick={setActiveTab} />
-          <TabButton id="rewards" icon={<FaGift />} label="Rewards" isActive={activeTab === 'rewards'} onClick={setActiveTab} />
-          <TabButton id="tasks" icon={<FaBolt />} label="Daily Tasks" isActive={activeTab === 'tasks'} onClick={setActiveTab} />
-          <TabButton id="achievements" icon={<FaTrophy />} label="Achievements" isActive={activeTab === 'achievements'} onClick={setActiveTab} />
-          <TabButton id="history" icon={<FaHistory />} label="History" isActive={activeTab === 'history'} onClick={setActiveTab} />
-        </div>
-
+        {/* Header */}        
+{/* Available Points */}
+<div className="flex items-center justify-between mb-8">
+  <div className="flex gap-2 overflow-x-auto pb-2">
+    <TabButton id="overview" icon={<FaChartLine />} label="Dashboard" isActive={activeTab === 'overview'} onClick={setActiveTab} />
+    <TabButton id="rewards" icon={<FaGift />} label="Rewards" isActive={activeTab === 'rewards'} onClick={setActiveTab} />
+    <TabButton id="history" icon={<FaHistory />} label="History" isActive={activeTab === 'history'} onClick={setActiveTab} />
+  </div>
+  <div className="bg-white shadow-md p-4 border border-red-200 text-red-800 flex items-center gap-4 min-w-[180px] ml-4">
+    <div>
+      <p className="text-red-600 text-xs">Available Points</p>
+      <p className="text-2xl font-bold">{points.toLocaleString()}</p>
+    </div>
+    <div className="text-3xl">🪙</div>
+  </div>
+</div>
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* Level Progress */}
-            <div className="bg-white shadow-md p-6 border border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-gray-800">Taste Level Progress</h2>
-                <div className={`px-4 py-2 ${getLevelColor(level)} font-bold`}>
-                  Level {level} - Delicious
-                </div>
-              </div>
-              <div className="relative">
-                <div className="w-full bg-gray-200 h-4 mb-2">
-                  <div 
-                    className="bg-red-500 h-4 transition-all duration-500"
-                    style={{ width: `${progress}%` }}
-                  ></div>
-                </div>
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>{points} points</span>
-                  <span>{nextLevelPoints - points} to next level</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-red-100 border border-red-200 shadow-md p-6 text-red-800">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-red-600 text-sm">Available Points</p>
-                    <p className="text-3xl font-bold">{points.toLocaleString()}</p>
-                  </div>
-                  <div className="text-4xl">🪙</div>
-                </div>
-                <div className="mt-4 flex items-center gap-2">
-                  <FaFire className="text-red-500" />
-                  <span className="text-sm">+127 this week</span>
-                </div>
-              </div>
-
-              <div className="bg-yellow-100 border border-yellow-200 shadow-md p-6 text-yellow-800">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-yellow-600 text-sm">Sweet Points</p>
-                    <p className="text-3xl font-bold">{redeemedPoints.toLocaleString()}</p>
-                  </div>
-                  <div className="text-4xl">🍯</div>
-                </div>
-                <div className="mt-4 flex items-center gap-2">
-                  <FaRocket className="text-yellow-600" />
-                  <span className="text-sm">4 rewards claimed</span>
-                </div>
-              </div>
-
-              <div className="bg-orange-100 border border-orange-200 shadow-md p-6 text-orange-800">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-orange-600 text-sm">Namkeen Streak</p>
-                    <p className="text-3xl font-bold">{streak} days</p>
-                  </div>
-                  <div className="text-4xl">🥨</div>
-                </div>
-                <div className="mt-4 flex items-center gap-2">
-                  <FaFire className="text-orange-500" />
-                  <span className="text-sm">Personal best!</span>
-                </div>
-              </div>
-
-              <div className="bg-green-100 border border-green-200 shadow-md p-6 text-green-800">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-green-600 text-sm">Weekly Goal</p>
-                    <p className="text-3xl font-bold">{weeklyProgress}%</p>
-                  </div>
-                  <div className="text-4xl">🎯</div>
-                </div>
-                <div className="mt-4">
-                  <div className="w-full bg-green-200 h-2">
-                    <div 
-                      className="bg-green-600 h-2 transition-all duration-500"
-                      style={{ width: `${weeklyProgress}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="bg-white shadow-md p-6 border border-gray-200">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Quick Actions</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <button 
-                  onClick={() => setShowQRScanner(true)}
-                  className="flex flex-col items-center gap-2 p-4 bg-red-50 hover:bg-red-100 transition-all duration-200 border border-red-200"
-                >
-                  <FaQrcode className="text-2xl text-red-600" />
-                  <span className="text-sm font-medium text-red-700">
-                    Scan QR
-                  </span>
-                </button>
-                <button className="flex flex-col items-center gap-2 p-4 bg-yellow-50 hover:bg-yellow-100 transition-all duration-200 border border-yellow-200">
-                  <FaShare className="text-2xl text-yellow-600" />
-                  <span className="text-sm font-medium text-yellow-700">Share & Earn</span>
-                </button>
-                <button className="flex flex-col items-center gap-2 p-4 bg-green-50 hover:bg-green-100 transition-all duration-200 border border-green-200">
-                  <div className="text-2xl">🍯</div>
-                  <span className="text-sm font-medium text-green-700">Order Sweets</span>
-                </button>
-                <button className="flex flex-col items-center gap-2 p-4 bg-orange-50 hover:bg-orange-100 transition-all duration-200 border border-orange-200">
-                  <div className="text-2xl">🥨</div>
-                  <span className="text-sm font-medium text-orange-700">Buy Namkeens</span>
-                </button>
-              </div>
+            <div className="bg-white shadow-md p-6 border border-gray-200 flex justify-center">
+              <button 
+                onClick={() => setShowQRScanner(true)}
+                className="flex flex-col items-center gap-3 p-8 bg-red-50 hover:bg-red-100 transition-all duration-200 border-2 border-red-300 rounded-xl shadow-lg"
+                style={{ minWidth: 220 }}
+              >
+                <FaQrcode className="text-6xl text-red-600 mb-2" />
+                <span className="text-lg font-semibold text-red-700">Scan QR</span>
+              </button>
             </div>
           </div>
         )}
@@ -603,90 +477,6 @@ const HaldiramsDashboard = () => {
                 </div>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Daily Tasks Tab */}
-        {activeTab === 'tasks' && (
-          <div className="bg-white shadow-md p-6 border border-gray-200">
-            <div className="flex items-center gap-3 mb-6">
-              <FaBolt className="text-2xl text-orange-500" />
-              <h2 className="text-2xl font-bold text-gray-800">Daily Tasks</h2>
-              <div className="bg-orange-100 text-orange-800 px-3 py-1 text-sm font-medium">
-                +{dailyTasks.reduce((acc, task) => acc + (task.completed ? 0 : task.points), 0)} points available
-              </div>
-            </div>
-            <div className="space-y-4">
-              {dailyTasks.map((task) => (
-                <div key={task.id} className={`p-4 border-2 transition-all duration-200 ${
-                  task.completed 
-                    ? 'bg-green-50 border-green-200' 
-                    : 'bg-gray-50 border-gray-200 hover:border-red-300'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-6 h-6 border-2 flex items-center justify-center ${
-                        task.completed 
-                          ? 'bg-green-500 border-green-500' 
-                          : 'border-gray-300'
-                      }`}>
-                        {task.completed && <FaCheck className="text-white text-sm" />}
-                      </div>
-                      <div>
-                        <p className={`font-medium ${task.completed ? 'text-green-700 line-through' : 'text-gray-800'}`}>
-                          {task.task}
-                        </p>
-                        <p className="text-sm text-gray-600">+{task.points} points</p>
-                      </div>
-                    </div>
-                    {!task.completed && (
-                      <button
-                        onClick={() => completeTask(task.id)}
-                        className="px-4 py-2 bg-red-500 text-white hover:bg-red-600 transition-colors"
-                      >
-                        Complete
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Achievements Tab */}
-        {activeTab === 'achievements' && (
-          <div className="bg-white shadow-md p-6 border border-gray-200">
-            <div className="flex items-center gap-3 mb-6">
-              <FaTrophy className="text-2xl text-yellow-500" />
-              <h2 className="text-2xl font-bold text-gray-800">Achievements</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {achievements.map((achievement) => (
-                <div key={achievement.id} className={`p-4 border-2 transition-all duration-200 ${
-                  achievement.unlocked 
-                    ? 'bg-yellow-50 border-yellow-200' 
-                    : 'bg-gray-50 border-gray-200'
-                }`}>
-                  <div className="text-center">
-                    <div className={`text-4xl mb-2 ${achievement.unlocked ? 'grayscale-0' : 'grayscale opacity-50'}`}>
-                      {achievement.icon}
-                    </div>
-                    <h3 className={`font-bold mb-1 ${achievement.unlocked ? 'text-orange-700' : 'text-gray-500'}`}>
-                      {achievement.title}
-                    </h3>
-                    <p className="text-sm text-gray-600">{achievement.desc}</p>
-                    {achievement.unlocked && (
-                      <div className="mt-2">
-                        <span className="bg-yellow-100 text-yellow-800 px-2 py-1 text-xs font-medium">
-                          Unlocked! 🎉
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 

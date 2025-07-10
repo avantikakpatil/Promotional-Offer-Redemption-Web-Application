@@ -141,5 +141,12 @@ namespace backend.Controllers.Customer
             if (user == null) return NotFound();
             return Ok(user);
         }
+
+        [HttpGet("rewards")]
+        public async Task<IActionResult> GetAllRewardTiers()
+        {
+            var rewardTiers = await _context.RewardTiers.ToListAsync();
+            return Ok(rewardTiers);
+        }
     }
 } 
