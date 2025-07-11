@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaQrcode, FaHistory, FaGift, FaChartLine } from 'react-icons/fa';
 import QRScanner from '../Customer/QRScanner';
 import { fetchQRInfo, redeemCoupon, getErrorIcon, getErrorColor } from '../Customer/qrInfoFetcher';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const ResellerDashboard = () => {
   // --- All state and logic from CustomerDashboard.js ---
@@ -19,14 +20,16 @@ const ResellerDashboard = () => {
   const [qrInfo, setQrInfo] = useState(null);
   const [redeemResult, setRedeemResult] = useState(null); // null, 'success', or 'error'
   const [redeemMessage, setRedeemMessage] = useState('');
-  // TODO: Replace with actual resellerId from auth context
-  const resellerId = 1;
   const [redemptionHistory, setRedemptionHistory] = useState([]);
   const [availableOffers, setAvailableOffers] = useState([]);
   // Add state for reward transfer
   const [rewardTransferResult, setRewardTransferResult] = useState(null); // {success, message}
   const [rewardTransferModal, setRewardTransferModal] = useState(false);
 
+  const { user } = useAuth();
+  const resellerId = user?.id || 1; // Use actual reseller ID from auth context
+
+  // Fetch reward tiers from backend on mount
   useEffect(() => {
     async function fetchRewards() {
       try {
@@ -39,6 +42,7 @@ const ResellerDashboard = () => {
         });
         if (!response.ok) throw new Error('Failed to fetch rewards');
         const data = await response.json();
+        // Map backend reward tier fields to offer display fields
         const offers = data.map(rt => ({
           id: rt.id,
           title: rt.reward || rt.title || 'Reward',
@@ -141,6 +145,7 @@ const ResellerDashboard = () => {
   };
 
   const handleQRScan = async (qrRawString) => {
+    console.log('QR Raw String received:', qrRawString);
     setQrRawData(qrRawString);
     setRedeemResult(null);
     setRedeemMessage('');
@@ -190,6 +195,7 @@ const ResellerDashboard = () => {
         setRedeemMessage('QR code scanned successfully! Ready to redeem.');
       }
     } catch (error) {
+      console.error('Error in handleQRScan:', error);
       setRedeemResult('error');
       setRedeemMessage('Failed to process QR code. Please try again.');
       setQrInfo(null);
@@ -207,6 +213,7 @@ const ResellerDashboard = () => {
     setRedeemMessage('Processing redemption...');
     try {
       const result = await redeemCoupon(qrRawData, resellerId);
+      console.log('Redemption result:', result);
       if (result.error) {
         setRedeemResult('error');
         setRedeemMessage(result.message);
@@ -218,11 +225,13 @@ const ResellerDashboard = () => {
         setQrRawData(null);
       }
     } catch (error) {
+      console.error('Error in handleRedeem:', error);
       setRedeemResult('error');
       setRedeemMessage('An unexpected error occurred during redemption.');
     }
   };
 
+  // Updated fetchUserPointsAndHistory function to match customer dashboard
   const fetchUserPointsAndHistory = async () => {
     const token = localStorage.getItem('token');
     try {
@@ -237,26 +246,32 @@ const ResellerDashboard = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
+      console.log('Reseller data fetched:', data);
       if (data && typeof data.points === 'number') {
         setPoints(data.points);
+        console.log('Reseller points updated to:', data.points);
       }
       if (data && Array.isArray(data.redemptionHistory)) {
         const formattedHistory = data.redemptionHistory.map(h => ({
-          id: h.id || h.RedeemedAt,
-          date: new Date(h.RedeemedAt).toISOString().split('T')[0],
-          points: h.Points,
-          offer: `QR Scan: ${h.QRCode || h.product || 'Unknown'}`,
+          id: h.id || h.redeemedAt,
+          date: new Date(h.redeemedAt).toISOString().split('T')[0],
+          points: h.points,
+          offer: `QR Scan: ${h.qrCode || h.product || 'Unknown'}`,
           status: 'completed',
           icon: '📱',
-          isAddition: h.Points > 0
+          isAddition: h.points > 0
         }));
         setRedemptionHistory(formattedHistory);
       }
     } catch (error) {
-      // eslint-disable-next-line
-      console.error('Error fetching user data:', error);
+      console.error('Error fetching reseller data:', error);
     }
   };
+
+  // Add useEffect for debugging points state
+  useEffect(() => {
+    console.log('Reseller points state updated:', points);
+  }, [points]);
 
   useEffect(() => {
     fetchUserPointsAndHistory();
@@ -265,17 +280,17 @@ const ResellerDashboard = () => {
     };
   }, []);
 
-  const handleRedeemOffer = (offerId, pointsCost) => {
+  useEffect(() => {
+    // Fetch user points and history on mount
     fetchUserPointsAndHistory();
-    const newRedemption = {
-      id: Date.now(),
-      date: new Date().toISOString().split('T')[0],
-      points: pointsCost,
-      offer: availableOffers.find(o => o.id === offerId)?.title,
-      status: 'pending',
-      icon: availableOffers.find(o => o.id === offerId)?.icon
-    };
-    setRedemptionHistory([newRedemption, ...redemptionHistory]);
+  }, []);
+
+  const handleRedeemOffer = (offerId, pointsCost) => {
+    // For resellers, this should trigger a reward redemption process
+    // that involves customer interaction
+    console.log('Reseller attempting to redeem offer:', offerId, 'for', pointsCost, 'points');
+    // You might want to show a modal asking for customer details or QR scan
+    // For now, just log the action
   };
 
   const TabButton = ({ id, icon, label, isActive, onClick }) => (
@@ -365,44 +380,26 @@ const ResellerDashboard = () => {
               <FaHistory className="text-2xl text-gray-600" />
               <h2 className="text-2xl font-bold text-gray-800">Redemption History</h2>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Points</th>
-                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-100">
-                  {redemptionHistory.map((item, idx) => {
-                    // Parse reward info if present
-                    let description = item.offer;
-                    if (item.offer && item.offer.startsWith('QR Scan: Reward:')) {
-                      description = 'Reward Redemption';
-                    } else if (item.offer && item.offer.startsWith('QR Scan:')) {
-                      description = item.offer.replace('QR Scan: ', '');
-                    }
-                    return (
-                      <tr key={item.id || idx}>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{item.date}</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{description}</td>
-                        <td className={`px-4 py-2 whitespace-nowrap text-sm text-right font-bold ${item.points > 0 ? 'text-green-700' : 'text-red-700'}`}>{item.points > 0 ? `+${item.points}` : item.points}</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-center">
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            item.status === 'completed' ? 'bg-green-100 text-green-700' :
-                            item.status === 'active' ? 'bg-blue-100 text-blue-700' :
-                            'bg-yellow-100 text-yellow-700'
-                          }`}>
-                            {item.status === 'completed' ? 'Completed' : item.status === 'active' ? 'Active' : 'Pending'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="space-y-4">
+              {redemptionHistory.map((item) => (
+                <div key={item.id} className="flex items-center gap-4 p-4 bg-red-50 border border-red-100">
+                  <div className="text-2xl">{item.icon}</div>
+                  <div className="flex-1">
+                    <h3 className="font-medium text-gray-800">{item.offer}</h3>
+                    <p className="text-sm text-gray-600">{item.date}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-gray-800">{item.isAddition ? `+${item.points}` : item.points}</p>
+                    <span className={`text-xs px-2 py-1 ${
+                      item.status === 'completed' ? 'bg-green-100 text-green-700' :
+                      item.status === 'active' ? 'bg-blue-100 text-blue-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {item.status === 'completed' ? 'Completed' : item.status === 'active' ? 'Active' : 'Pending'}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

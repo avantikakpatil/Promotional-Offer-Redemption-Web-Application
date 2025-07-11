@@ -11,7 +11,8 @@ using Microsoft.EntityFrameworkCore;
 namespace backend.Controllers.Reseller
 {
     [ApiController]
-    [Route("api/coupons")]
+    [Route("api/reseller")]
+    [Authorize(Roles = "reseller")]
     public class CouponController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -21,7 +22,7 @@ namespace backend.Controllers.Reseller
             _context = context;
         }
 
-        [HttpPost("redeem")]
+        [HttpPost("coupons/redeem")]
         public IActionResult RedeemCoupon([FromBody] RedeemQRCodeDto dto)
         {
             var coupon = _context.QRCodes.FirstOrDefault(q => q.Code == dto.Code);
@@ -43,7 +44,7 @@ namespace backend.Controllers.Reseller
             return Ok(new { message = "Coupon redeemed!", newPoints = customer.Points });
         }
 
-        [HttpPost("info")]
+        [HttpPost("coupons/info")]
         public IActionResult GetQRInfo([FromBody] RedeemQRCodeDto dto)
         {
             if (string.IsNullOrEmpty(dto.Code))
@@ -52,9 +53,7 @@ namespace backend.Controllers.Reseller
             return Ok(new { raw = dto.Code });
         }
 
-        [HttpPost("redeem-from-customer")]
-        [Route("/api/reseller/rewards/redeem-from-customer")]
-        [Authorize(Roles = "reseller")]
+        [HttpPost("rewards/redeem-from-customer")]
         public async Task<IActionResult> RedeemRewardFromCustomer([FromBody] RedeemRewardFromCustomerDto dto)
         {
             // Validate input
@@ -103,16 +102,14 @@ namespace backend.Controllers.Reseller
             return Ok(new { success = true, message = $"{dto.Points} points transferred from customer to reseller." });
         }
 
-        [HttpGet("/api/reseller/rewards")]
-        [Authorize(Roles = "reseller")]
+        [HttpGet("rewards")]
         public async Task<IActionResult> GetResellerRewards()
         {
             var rewards = await _context.RewardTiers.ToListAsync();
             return Ok(rewards);
         }
 
-        [HttpGet("/api/reseller/history")]
-        [Authorize(Roles = "reseller")]
+        [HttpGet("history")]
         public async Task<IActionResult> GetResellerHistory()
         {
             // Get reseller id from token/claims
@@ -121,21 +118,27 @@ namespace backend.Controllers.Reseller
             if (!int.TryParse(userIdClaim.Value, out int resellerId)) return Unauthorized();
 
             var user = await _context.Users.FindAsync(resellerId);
+            if (user == null) return NotFound();
+            
             var userPoints = await _context.UserPoints.FirstOrDefaultAsync(up => up.UserId == resellerId);
             var history = await _context.RedemptionHistories
                 .Where(h => h.UserId == resellerId)
                 .OrderByDescending(h => h.RedeemedAt)
                 .Select(h => new {
-                    h.QRCode,
-                    h.Points,
-                    h.RedeemedAt
+                    id = h.Id,
+                    qrCode = h.QRCode,
+                    points = h.Points,
+                    redeemedAt = h.RedeemedAt
                 })
                 .ToListAsync();
+            
+            Console.WriteLine($"GetResellerHistory for user {resellerId}: User.Points = {user.Points}, UserPoints.Points = {userPoints?.Points ?? 0}");
+            
             return Ok(new {
-                id = user?.Id,
-                name = user?.Name,
-                email = user?.Email,
-                points = userPoints?.Points ?? user?.Points ?? 0,
+                id = user.Id,
+                name = user.Name,
+                email = user.Email,
+                points = userPoints?.Points ?? user.Points, // Use UserPoints table for available points, fallback to User.Points
                 redemptionHistory = history
             });
         }
