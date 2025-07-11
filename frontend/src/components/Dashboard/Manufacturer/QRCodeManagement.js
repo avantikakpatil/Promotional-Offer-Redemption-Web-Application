@@ -84,15 +84,21 @@ const QRCodeManagement = () => {
     
     // Apply search filter
     if (searchTerm) {
-      filtered = filtered.filter(code => 
-        code.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        code.assignedTo.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      filtered = filtered.filter(code => {
+        // Only filter by code (string) for real data
+        const codeStr = code.code || '';
+        return codeStr.toLowerCase().includes(searchTerm.toLowerCase());
+      });
     }
     
     // Apply status filter
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(code => code.status.toLowerCase() === statusFilter);
+      filtered = filtered.filter(code => {
+        // Use isRedeemed for status
+        if (statusFilter === 'used') return code.isRedeemed === true;
+        if (statusFilter === 'available') return code.isRedeemed === false;
+        return true;
+      });
     }
     
     setFilteredCodes(filtered);
@@ -634,12 +640,14 @@ QR003`}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      disabled={!selectedCampaignId}
                     />
                   </div>
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={!selectedCampaignId}
                   >
                     <option value="all">All Status</option>
                     <option value="available">Available</option>
@@ -661,6 +669,7 @@ QR003`}
                   <button
                     onClick={exportToCSV}
                     className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 flex items-center gap-2"
+                    disabled={!selectedCampaignId || filteredCodes.length === 0}
                   >
                     <Download className="h-4 w-4" />
                     Export
@@ -668,10 +677,22 @@ QR003`}
                 </div>
               </div>
 
-              
+              {/* Empty state for no campaign selected */}
+              {!selectedCampaignId && (
+                <div className="text-center text-gray-500 py-16">
+                  <p className="text-lg">Please select a campaign to view QR codes.</p>
+                </div>
+              )}
+
+              {/* Empty state for no QR codes */}
+              {selectedCampaignId && filteredCodes.length === 0 && !loading && (
+                <div className="text-center text-gray-500 py-16">
+                  <p className="text-lg">No QR codes found for this campaign.</p>
+                </div>
+              )}
 
               {/* Table */}
-              {filteredCodes.length > 0 ? (
+              {selectedCampaignId && filteredCodes.length > 0 && (
                 <>
                   <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -691,30 +712,11 @@ QR003`}
                               Code
                             </div>
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4" />
-                              Assigned To
-                            </div>
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Campaign
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4" />
-                              Created
-                            </div>
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Scans
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Redeemed At</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Points</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -741,29 +743,11 @@ QR003`}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(code.status)}`}>
-                                {code.status}
-                              </span>
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(code.isRedeemed ? 'used' : 'available')}`}>{code.isRedeemed ? 'Used' : 'Available'}</span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {code.assignedTo}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {(() => {
-                                if (code.campaign && typeof code.campaign === 'object' && code.campaign.name) return code.campaign.name;
-                                if (code.campaign && typeof code.campaign === 'string') {
-                                  const found = campaigns.find(c => c.id === code.campaign || c.name === code.campaign);
-                                  return found ? found.name : code.campaign;
-                                }
-                                return '-';
-                              })()}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {code.createdAt}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {code.scans}
-                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{code.redeemedAt ? new Date(code.redeemedAt).toLocaleString() : '-'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{code.createdAt ? new Date(code.createdAt).toLocaleString() : '-'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{code.points}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               <button
                                 onClick={() => handleEditCode(code)}
@@ -777,7 +761,7 @@ QR003`}
                       </tbody>
                     </table>
                   </div>
-
+                  {/* Pagination remains unchanged */}
                   {totalPages > 1 && (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm text-gray-700">
@@ -805,17 +789,12 @@ QR003`}
                             } else {
                               pageNum = currentPage - 2 + i;
                             }
-                            
-                            
+                            if (pageNum < 1 || pageNum > totalPages) return null;
                             return (
                               <button
                                 key={pageNum}
                                 onClick={() => setCurrentPage(pageNum)}
-                                className={`px-3 py-1 text-sm rounded ${
-                                  currentPage === pageNum
-                                    ? 'bg-blue-600 text-white'
-                                    : 'text-gray-700 hover:bg-gray-100'
-                                }`}
+                                className={`px-3 py-1 rounded ${currentPage === pageNum ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                               >
                                 {pageNum}
                               </button>
@@ -833,35 +812,6 @@ QR003`}
                     </div>
                   )}
                 </>
-              ) : (
-                <div className="text-center py-12">
-                  <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No QR codes found</h3>
-                  <p className="text-gray-500 mb-4">
-                    {searchTerm || statusFilter !== 'all' 
-                      ? 'Try adjusting your search or filters' 
-                      : 'Upload CSV or generate codes to get started'
-                    }
-                  </p>
-                  {!searchTerm && statusFilter === 'all' && (
-                    <div className="flex gap-2 justify-center">
-                      <button
-                        onClick={() => setActiveTab('upload')}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
-                      >
-                        <Upload className="h-4 w-4" />
-                        Upload CSV
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('generate')}
-                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Generate Codes
-                      </button>
-                    </div>
-                  )}
-                </div>
               )}
             </div>
           )}
