@@ -6,7 +6,7 @@ namespace backend.Models.DTOs
     public class RedeemQRCodeDto
     {
         [JsonPropertyName("code")]
-        public string Code { get; set; }
+        public string Code { get; set; } = string.Empty;
         public int CustomerId { get; set; }
         public int Points { get; set; }
     }

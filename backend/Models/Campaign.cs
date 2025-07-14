@@ -40,15 +40,45 @@ namespace backend.Models
         [Required]
         public int ManufacturerId { get; set; }
 
-        // Remove the DatabaseGenerated attribute and default value
-        // Let the database handle the default value
-        public DateTime CreatedAt { get; set; }
+        // B2B Specific Fields
+        [StringLength(500)]
+        public string? EligibleProducts { get; set; } // JSON array of product IDs or names
+        
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? MinimumOrderValue { get; set; }
+        
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? MaximumOrderValue { get; set; }
+        
+        public int? MaxResellersAllowed { get; set; }
+        
+        public bool RequiresApproval { get; set; } = false;
+        
+        [StringLength(100)]
+        public string? SchemeType { get; set; } // "volume_based", "time_based", "product_specific"
 
+        // Voucher Generation Settings
+        public bool EnableAutoVoucherGeneration { get; set; } = false;
+        
+        public int? VoucherGenerationThreshold { get; set; } // Points required to generate voucher
+        
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? VoucherValue { get; set; } // Value of generated voucher
+        
+        public int? VoucherValidityDays { get; set; } = 90; // Default 90 days
+        
+        [StringLength(500)]
+        public string? VoucherEligibleProducts { get; set; } // JSON array of product IDs for voucher
+        
+        public bool VoucherPointsEqualsMoney { get; set; } = true; // 1 point = ₹1
+        
+        public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
         // Navigation properties
         public virtual User? Manufacturer { get; set; }
         public virtual ICollection<RewardTier> RewardTiers { get; set; } = new List<RewardTier>();
+        public virtual ICollection<CampaignReseller> CampaignResellers { get; set; } = new List<CampaignReseller>();
 
         public Campaign()
         {

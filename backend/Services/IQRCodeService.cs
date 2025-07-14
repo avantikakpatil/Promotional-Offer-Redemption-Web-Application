@@ -14,6 +14,7 @@ namespace backend.Services
         Task<bool> DeleteQRCodeAsync(int id);
         Task<ApiResponse<string>> RedeemQRCodeAsync(int qrCodeId, int customerId, int points);
         Task<ApiResponse<string>> RedeemQRCodeByCodeAsync(string code, int customerId, int points);
+        Task<ApiResponse<string>> RedeemQRCodeByResellerAsync(string code, int resellerId, int? customerId = null);
         Task<int> GetQRCodeCountAsync(int manufacturerId);
         Task<UserHistoryDto?> GetUserWithHistoryAsync(int userId);
     }

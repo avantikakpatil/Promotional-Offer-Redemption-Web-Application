@@ -22,14 +22,14 @@ namespace backend.Controllers.Reseller
         }
 
         [HttpPost("redeem")]
-        public async Task<IActionResult> Redeem([FromBody] RedeemQRCodeDto dto)
+        public async Task<IActionResult> Redeem([FromBody] RedeemQRCodeByResellerDto dto)
         {
             // Get reseller ID from claims
             var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "id" || c.Type.EndsWith("/nameidentifier"));
             if (userIdClaim == null) return Unauthorized();
             if (!int.TryParse(userIdClaim.Value, out int resellerId)) return Unauthorized();
 
-            var result = await _qrCodeService.RedeemQRCodeByCodeAsync(dto.Code, resellerId, dto.Points);
+            var result = await _qrCodeService.RedeemQRCodeByResellerAsync(dto.Code ?? "", resellerId, dto.CustomerId);
             if (!result.Success) return BadRequest(result);
             return Ok(result);
         }
@@ -43,25 +43,25 @@ namespace backend.Controllers.Reseller
             try
             {
                 // Extract the QR code from the raw string
-                string qrCode = dto.qrRawString;
+                string qrCode = dto.qrRawString ?? "";
                 
                 // If it's a JSON object, try to extract the code
-                if (dto.qrRawString.TrimStart().StartsWith("{"))
+                if ((dto.qrRawString ?? "").TrimStart().StartsWith("{"))
                 {
                     try
                     {
-                        var qrInfo = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(dto.qrRawString);
+                        var qrInfo = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(dto.qrRawString ?? "");
                         if (qrInfo.ContainsKey("code"))
                         {
-                            qrCode = qrInfo["code"].ToString();
+                            qrCode = qrInfo["code"]?.ToString() ?? "";
                         }
                         else if (qrInfo.ContainsKey("Code"))
                         {
-                            qrCode = qrInfo["Code"].ToString();
+                            qrCode = qrInfo["Code"]?.ToString() ?? "";
                         }
                         else if (qrInfo.ContainsKey("raw"))
                         {
-                            qrCode = qrInfo["raw"].ToString();
+                            qrCode = qrInfo["raw"]?.ToString() ?? "";
                         }
                     }
                     catch
@@ -110,6 +110,28 @@ namespace backend.Controllers.Reseller
                     });
                 }
 
+                // Try to extract customer information from QR code if it's a JSON object
+                string? customerName = null;
+                int? customerId = null;
+                
+                if ((dto.qrRawString ?? "").TrimStart().StartsWith("{"))
+                {
+                    try
+                    {
+                        var qrInfo = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(dto.qrRawString ?? "");
+                        if (qrInfo.ContainsKey("customerId") && int.TryParse(qrInfo["customerId"]?.ToString(), out int extractedCustomerId))
+                        {
+                            customerId = extractedCustomerId;
+                            var customer = await _context.Users.FindAsync(customerId);
+                            customerName = customer?.Name;
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore parsing errors
+                    }
+                }
+
                 // Return the QR code information
                 return Ok(new {
                     code = qrCode,
@@ -119,13 +141,92 @@ namespace backend.Controllers.Reseller
                     campaignName = campaign.Name,
                     description = campaign.Description,
                     startDate = campaign.StartDate,
-                    endDate = campaign.EndDate
+                    endDate = campaign.EndDate,
+                    customerId = customerId,
+                    customerName = customerName
                 });
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Server error in GetQRInfo: {ex.Message}");
                 return StatusCode(500, new { error = "Server error: " + ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetQRCodes()
+        {
+            // Get reseller ID from claims
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "id" || c.Type.EndsWith("/nameidentifier"));
+            if (userIdClaim == null) return Unauthorized();
+            if (!int.TryParse(userIdClaim.Value, out int resellerId)) return Unauthorized();
+
+            try
+            {
+                var qrCodes = await _context.QRCodes
+                    .Where(q => q.ResellerId == resellerId)
+                    .Include(q => q.Voucher)
+                    .Include(q => q.Campaign)
+                    .OrderByDescending(q => q.CreatedAt)
+                    .Select(q => new
+                    {
+                        id = q.Id,
+                        code = q.Code,
+                        points = q.Points,
+                        isRedeemed = q.IsRedeemed,
+                        createdAt = q.CreatedAt,
+                        redeemedAt = q.RedeemedAt,
+                        expiryDate = q.ExpiryDate,
+                        voucherId = q.VoucherId,
+                        campaignId = q.CampaignId,
+                        campaignName = q.Campaign.Name,
+                        voucherCode = q.Voucher.VoucherCode
+                    })
+                    .ToListAsync();
+
+                return Ok(qrCodes);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching QR codes: {ex.Message}");
+                return StatusCode(500, new { error = "Failed to fetch QR codes." });
+            }
+        }
+
+        [HttpGet("history")]
+        public async Task<IActionResult> GetRedemptionHistory()
+        {
+            // Get reseller ID from claims
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "id" || c.Type.EndsWith("/nameidentifier"));
+            if (userIdClaim == null) return Unauthorized();
+            if (!int.TryParse(userIdClaim.Value, out int resellerId)) return Unauthorized();
+
+            try
+            {
+                var history = await _context.RedemptionHistories
+                    .Where(h => h.ResellerId == resellerId)
+                    .Include(h => h.User)
+                    .Include(h => h.Campaign)
+                    .OrderByDescending(h => h.RedeemedAt)
+                    .Select(h => new
+                    {
+                        id = h.Id,
+                        customerName = h.User.Name,
+                        customerEmail = h.User.Email,
+                        qrCode = h.QRCode,
+                        points = h.Points,
+                        redeemedAt = h.RedeemedAt,
+                        campaignName = h.Campaign.Name,
+                        redemptionType = h.RedemptionType
+                    })
+                    .ToListAsync();
+
+                return Ok(new { redemptionHistory = history });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching redemption history: {ex.Message}");
+                return StatusCode(500, new { error = "Failed to fetch redemption history." });
             }
         }
     }

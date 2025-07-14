@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Line, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,7 +11,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
-import { Line, Bar } from 'react-chartjs-2';
+import api from '../../../services/api';
 
 ChartJS.register(
   CategoryScale,
@@ -30,25 +31,62 @@ const Analytics = () => {
     endDate: '',
     reseller: '',
   });
+  const [campaigns, setCampaigns] = useState([]);
+  const [resellers, setResellers] = useState([]);
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Mock data - replace with actual API calls
-  const campaigns = [
-    { id: 1, name: 'Summer Promotion 2024' },
-    { id: 2, name: 'Winter Campaign 2024' },
-  ];
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
 
-  const resellers = [
-    { id: 1, name: 'John Doe' },
-    { id: 2, name: 'Jane Smith' },
-  ];
+  useEffect(() => {
+    if (campaigns.length > 0 || resellers.length > 0) {
+      fetchAnalyticsData();
+    }
+  }, [filters, campaigns.length, resellers.length]);
 
-  // Mock chart data
+  const fetchInitialData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch campaigns
+      const campaignsResponse = await api.get('/manufacturer/campaigns');
+      setCampaigns(campaignsResponse.data);
+
+      // Fetch resellers
+      const resellersResponse = await api.get('/manufacturer/resellers');
+      setResellers(resellersResponse.data);
+    } catch (err) {
+      setError('Failed to fetch initial data');
+      console.error('Error fetching initial data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAnalyticsData = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.campaign) params.append('campaignId', filters.campaign);
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+      if (filters.reseller) params.append('resellerId', filters.reseller);
+
+      const response = await api.get(`/manufacturer/analytics?${params.toString()}`);
+      setAnalyticsData(response.data);
+    } catch (err) {
+      console.error('Error fetching analytics data:', err);
+    }
+  };
+
   const scanData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    labels: analyticsData?.scanData?.labels || ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
     datasets: [
       {
         label: 'QR Code Scans',
-        data: [65, 59, 80, 81, 56, 55],
+        data: analyticsData?.scanData?.data || [0, 0, 0, 0, 0, 0],
         fill: false,
         borderColor: 'rgb(75, 192, 192)',
         tension: 0.1,
@@ -57,11 +95,11 @@ const Analytics = () => {
   };
 
   const redemptionData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    labels: analyticsData?.redemptionData?.labels || ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
     datasets: [
       {
         label: 'Redemptions',
-        data: [12, 19, 3, 5, 2, 3],
+        data: analyticsData?.redemptionData?.data || [0, 0, 0, 0, 0, 0],
         backgroundColor: 'rgba(54, 162, 235, 0.5)',
       },
     ],
@@ -75,10 +113,46 @@ const Analytics = () => {
     }));
   };
 
-  const handleExport = () => {
-    // TODO: Implement CSV export
-    console.log('Exporting data with filters:', filters);
+  const handleExport = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.campaign) params.append('campaignId', filters.campaign);
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+      if (filters.reseller) params.append('resellerId', filters.reseller);
+
+      const response = await api.get(`/manufacturer/analytics/export?${params.toString()}`, {
+        responseType: 'blob'
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'analytics-report.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Error exporting data:', err);
+      alert('Failed to export data');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-xl text-gray-600">Loading analytics...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -177,6 +251,83 @@ const Analytics = () => {
         </div>
       </div>
 
+      {/* Summary Stats */}
+      {analyticsData?.summary && (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">📊</span>
+                  </div>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Total Scans</dt>
+                    <dd className="text-lg font-medium text-gray-900">{analyticsData.summary.totalScans}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">✅</span>
+                  </div>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Total Redemptions</dt>
+                    <dd className="text-lg font-medium text-gray-900">{analyticsData.summary.totalRedemptions}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">💰</span>
+                  </div>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Total Value</dt>
+                    <dd className="text-lg font-medium text-gray-900">₹{analyticsData.summary.totalValue}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">📈</span>
+                  </div>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Conversion Rate</dt>
+                    <dd className="text-lg font-medium text-gray-900">{analyticsData.summary.conversionRate}%</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Charts */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 mb-6">
         <div className="bg-white shadow rounded-lg p-6">
@@ -240,33 +391,39 @@ const Analytics = () => {
                     scope="col"
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
-                    Conversion Rate
+                    Value
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {/* Mock data - replace with actual data */}
-                <tr>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    2024-03-15
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    Summer Promotion 2024
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    John Doe
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    150
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    45
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    30%
-                  </td>
-                </tr>
-                {/* Add more rows as needed */}
+                {analyticsData?.detailedData?.map((row, index) => (
+                  <tr key={index}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {new Date(row.date).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {row.campaignName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {row.resellerName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {row.scans}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {row.redemptions}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      ₹{row.value}
+                    </td>
+                  </tr>
+                )) || (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">
+                      No data available
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

@@ -26,6 +26,9 @@ const Login = () => {
         case 'reseller':
           navigate('/reseller/dashboard');
           break;
+        case 'shopkeeper':
+          navigate('/shopkeeper/dashboard');
+          break;
         case 'customer':
           navigate('/customer/dashboard');
           break;

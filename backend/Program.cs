@@ -153,8 +153,62 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICampaignService, CampaignService>();
 builder.Services.AddScoped<IQRCodeService, QRCodeService>();
+builder.Services.AddScoped<IVoucherGenerationService, VoucherGenerationService>();
+
+// Register background services
+builder.Services.AddHostedService<VoucherGenerationBackgroundService>();
 
 var app = builder.Build();
+
+// --- ONE-TIME USER POINTS SYNC BLOCK ---
+// This will sync UserPoints with RedemptionHistory for all users.
+// Remove or comment out after running once!
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var syncService = new backend.Services.UserPointsSyncService(dbContext);
+    var updated = syncService.SyncUserPointsWithRedemptionHistoryAsync().GetAwaiter().GetResult();
+    Console.WriteLine($"[SYNC] UserPoints sync complete. Updated {updated} users.");
+}
+// --- END ONE-TIME USER POINTS SYNC BLOCK ---
+
+// --- ONE-TIME CAMPAIGN RESELLER SYNC BLOCK ---
+// This will add missing CampaignReseller entries for resellers.
+// Remove or comment out after running once!
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var campaignResellerSyncService = new backend.Services.CampaignResellerSyncService(dbContext);
+    
+    // Add specific entry for dealer@email.com in campaign 9
+    var specificAdded = campaignResellerSyncService.AddCampaignResellerForEmailAsync("dealer@email.com", 9, true).GetAwaiter().GetResult();
+    Console.WriteLine($"[SYNC] Added {specificAdded} specific CampaignReseller entries.");
+    
+    // Add any other missing CampaignReseller entries
+    var generalAdded = campaignResellerSyncService.AddMissingCampaignResellersAsync().GetAwaiter().GetResult();
+    Console.WriteLine($"[SYNC] Added {generalAdded} general CampaignReseller entries.");
+}
+// --- END ONE-TIME CAMPAIGN RESELLER SYNC BLOCK ---
+
+// --- ONE-TIME DATABASE CLEANUP BLOCK ---
+// This will remove all dummy/test data from the database.
+// Remove or comment out after running once!
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var cleanupService = new backend.Services.DatabaseCleanupService(dbContext);
+    var cleanupResult = cleanupService.CleanupDummyDataAsync().GetAwaiter().GetResult();
+    
+    if (cleanupResult.Success)
+    {
+        Console.WriteLine($"[CLEANUP] Database cleanup completed successfully!");
+    }
+    else
+    {
+        Console.WriteLine($"[CLEANUP] Database cleanup failed: {cleanupResult.ErrorMessage}");
+    }
+}
+// --- END ONE-TIME DATABASE CLEANUP BLOCK ---
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -245,6 +299,8 @@ using (var scope = app.Services.CreateScope())
         
         // Uncomment the line below if you want to automatically apply migrations
         // await context.Database.MigrateAsync();
+        
+        // Database seeding removed - using only real data
     }
     catch (Exception ex)
     {

@@ -29,7 +29,7 @@ namespace backend.Controllers.Customer
             if (userIdClaim == null) return Unauthorized();
             if (!int.TryParse(userIdClaim.Value, out int userId)) return Unauthorized();
 
-            var result = await _qrCodeService.RedeemQRCodeByCodeAsync(dto.Code, userId, dto.Points);
+            var result = await _qrCodeService.RedeemQRCodeByCodeAsync(dto.Code ?? "", userId, dto.Points);
             if (!result.Success) return BadRequest(result);
             return Ok(result);
         }
@@ -43,25 +43,25 @@ namespace backend.Controllers.Customer
             try
             {
                 // Extract the QR code from the raw string
-                string qrCode = dto.qrRawString;
+                string qrCode = dto.qrRawString ?? "";
                 
                 // If it's a JSON object, try to extract the code
-                if (dto.qrRawString.TrimStart().StartsWith("{"))
+                if ((dto.qrRawString ?? "").TrimStart().StartsWith("{"))
                 {
                     try
                     {
-                        var qrInfo = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(dto.qrRawString);
+                        var qrInfo = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(dto.qrRawString ?? "");
                         if (qrInfo.ContainsKey("code"))
                         {
-                            qrCode = qrInfo["code"].ToString();
+                            qrCode = qrInfo["code"]?.ToString() ?? "";
                         }
                         else if (qrInfo.ContainsKey("Code"))
                         {
-                            qrCode = qrInfo["Code"].ToString();
+                            qrCode = qrInfo["Code"]?.ToString() ?? "";
                         }
                         else if (qrInfo.ContainsKey("raw"))
                         {
-                            qrCode = qrInfo["raw"].ToString();
+                            qrCode = qrInfo["raw"]?.ToString() ?? "";
                         }
                     }
                     catch

@@ -45,6 +45,9 @@ const Signup = () => {
         case 'reseller':
           navigate('/reseller/dashboard');
           break;
+        case 'shopkeeper':
+          navigate('/shopkeeper/dashboard');
+          break;
         case 'customer':
           navigate('/customer/dashboard');
           break;
@@ -226,6 +229,7 @@ const Signup = () => {
                   <option value="customer">Customer</option>
                   <option value="reseller">Reseller</option>
                   <option value="manufacturer">Manufacturer</option>
+                  <option value="shopkeeper">Shopkeeper</option>
                 </select>
               </div>
             </div>

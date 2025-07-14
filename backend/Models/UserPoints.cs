@@ -12,7 +12,7 @@ namespace backend.Models
         [Required]
         public int UserId { get; set; }
         [ForeignKey("UserId")]
-        public User User { get; set; }
+        public User User { get; set; } = null!;
 
         public int Points { get; set; }
         public int RedeemedPoints { get; set; }

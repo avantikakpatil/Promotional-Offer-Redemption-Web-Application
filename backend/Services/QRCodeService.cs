@@ -2,15 +2,18 @@ using backend.Models;
 using backend.Models.DTOs;
 using backend.Data;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
 
 namespace backend.Services
 {
     public class QRCodeService : IQRCodeService
     {
         private readonly ApplicationDbContext _context;
-        public QRCodeService(ApplicationDbContext context)
+        private readonly IVoucherGenerationService _voucherGenerationService;
+        public QRCodeService(ApplicationDbContext context, IVoucherGenerationService voucherGenerationService)
         {
             _context = context;
+            _voucherGenerationService = voucherGenerationService;
         }
 
         public async Task<QRCodeDto> CreateQRCodeAsync(QRCodeCreateDto dto)
@@ -172,6 +175,125 @@ namespace backend.Services
                 Success = true,
                 Message = $"QR code redeemed successfully! {pointsToAdd} points added.",
                 Data = $"Points added: {pointsToAdd}"
+            };
+        }
+
+        public async Task<ApiResponse<string>> RedeemQRCodeByResellerAsync(string code, int resellerId, int? customerId = null)
+        {
+            var qr = await _context.QRCodes.FirstOrDefaultAsync(q => q.Code == code);
+            if (qr == null)
+            {
+                Console.WriteLine($"QR not found: {code}");
+                return new ApiResponse<string> { Success = false, Message = "Invalid QR code.", ErrorCode = "INVALID_QR_CODE" };
+            }
+
+            if (qr.IsRedeemed)
+            {
+                Console.WriteLine($"QR already redeemed: {code}");
+                return new ApiResponse<string> { Success = false, Message = "QR code already redeemed.", ErrorCode = "ALREADY_REDEEMED" };
+            }
+
+            // Verify reseller exists
+            var reseller = await _context.Users.FindAsync(resellerId);
+            if (reseller == null || reseller.Role != "reseller")
+            {
+                Console.WriteLine($"Reseller not found or invalid role: {resellerId}");
+                return new ApiResponse<string> { Success = false, Message = "Reseller not found.", ErrorCode = "RESELLER_NOT_FOUND" };
+            }
+
+            var campaign = await _context.Campaigns.FindAsync(qr.CampaignId);
+            if (campaign == null)
+            {
+                Console.WriteLine($"Campaign not found: {qr.CampaignId}");
+                return new ApiResponse<string> { Success = false, Message = "Invalid campaign.", ErrorCode = "INVALID_CAMPAIGN" };
+            }
+
+            var now = DateTime.UtcNow;
+            if (campaign.StartDate > now || campaign.EndDate < now)
+            {
+                Console.WriteLine($"Campaign not active: now={now}, start={campaign.StartDate}, end={campaign.EndDate}");
+                return new ApiResponse<string> { Success = false, Message = "Campaign not active.", ErrorCode = "CAMPAIGN_INACTIVE" };
+            }
+
+            int pointsToAdd = campaign.Points;
+            if (pointsToAdd <= 0)
+            {
+                Console.WriteLine($"Invalid points for campaign {campaign.Id}: {pointsToAdd}");
+                return new ApiResponse<string> { Success = false, Message = "Invalid points.", ErrorCode = "INVALID_POINTS" };
+            }
+
+            // If customerId is provided, add points to customer, otherwise add to reseller
+            int targetUserId = customerId ?? resellerId;
+            var targetUser = await _context.Users.FindAsync(targetUserId);
+            if (targetUser == null)
+            {
+                Console.WriteLine($"Target user not found: {targetUserId}");
+                return new ApiResponse<string> { Success = false, Message = "Target user not found.", ErrorCode = "USER_NOT_FOUND" };
+            }
+
+            // Add points to User and UserPoints
+            targetUser.Points += pointsToAdd;
+            var userPoints = await _context.UserPoints.FirstOrDefaultAsync(up => up.UserId == targetUserId);
+            if (userPoints == null)
+            {
+                userPoints = new UserPoints { UserId = targetUserId, Points = 0, RedeemedPoints = 0, LastUpdated = now };
+                _context.UserPoints.Add(userPoints);
+            }
+            userPoints.Points += pointsToAdd;
+            userPoints.LastUpdated = now;
+
+            // Mark QR as redeemed
+            qr.IsRedeemed = true;
+            qr.RedeemedAt = now;
+            qr.UpdatedAt = now;
+            qr.RedeemedByUserId = targetUserId;
+
+            // Add redemption history with reseller information
+            var history = new RedemptionHistory
+            {
+                UserId = targetUserId,
+                QRCode = code,
+                Points = pointsToAdd,
+                RedeemedAt = now,
+                ResellerId = resellerId,
+                CampaignId = campaign.Id,
+                RedemptionType = "qr_code"
+            };
+            _context.RedemptionHistories.Add(history);
+
+            // Update CampaignReseller.TotalPointsEarned
+            var campaignReseller = await _context.CampaignResellers.FirstOrDefaultAsync(cr => cr.CampaignId == campaign.Id && cr.ResellerId == resellerId);
+            if (campaignReseller != null)
+            {
+                campaignReseller.TotalPointsEarned += pointsToAdd;
+                campaignReseller.UpdatedAt = now;
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error saving changes: " + ex.ToString());
+                throw;
+            }
+
+            // Trigger voucher generation for this reseller and campaign
+            if (campaignReseller != null)
+            {
+                await _voucherGenerationService.GenerateVouchersForResellerAsync(resellerId, campaign.Id);
+            }
+
+            string message = customerId.HasValue 
+                ? $"QR code redeemed successfully! {pointsToAdd} points added to customer account."
+                : $"QR code redeemed successfully! {pointsToAdd} points added to your account.";
+
+            return new ApiResponse<string>
+            {
+                Success = true,
+                Message = message,
+                Data = $"Points added: {pointsToAdd}, User: {targetUser.Name}"
             };
         }
 

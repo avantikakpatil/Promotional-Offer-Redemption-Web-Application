@@ -56,4 +56,32 @@ export const offersAPI = {
   getMyRedemptions: () => api.get('/offer/my-redemptions'),
 };
 
+// Campaign API
+export const campaignAPI = {
+  // Reseller endpoints
+  getAvailableCampaigns: () => api.get('/reseller/order/available-campaigns'),
+  getCampaignProducts: (campaignId) => api.get(`/reseller/order/campaign/${campaignId}/products`),
+
+  // Manufacturer endpoints
+  getManufacturerCampaigns: () => api.get('/manufacturer/campaigns'),
+  getCampaignById: (id) => api.get(`/manufacturer/campaigns/${id}`),
+  createCampaign: (campaignData) => api.post('/manufacturer/campaigns', campaignData),
+  updateCampaign: (id, campaignData) => api.put(`/manufacturer/campaigns/${id}`, campaignData),
+  deleteCampaign: (id) => api.delete(`/manufacturer/campaigns/${id}`),
+  toggleCampaignStatus: (id) => api.patch(`/manufacturer/campaigns/${id}/toggle-status`),
+  assignReseller: (campaignId, assignData) => api.post(`/manufacturer/campaigns/${campaignId}/assign-reseller`, assignData),
+  getCampaignResellers: (campaignId) => api.get(`/manufacturer/campaigns/${campaignId}/resellers`),
+  getCampaignAnalytics: (campaignId) => api.get(`/manufacturer/campaigns/${campaignId}/analytics`),
+  getAvailableResellers: () => api.get('/manufacturer/campaigns/available-resellers'),
+
+  // Public endpoint for all campaigns (for reseller dashboard)
+  getAllCampaigns: () => api.get('/campaigns'),
+
+  // Reseller participate in campaign
+  participateInCampaign: (campaignId) => api.post(`/reseller/campaigns/${campaignId}/participate`),
+
+  // Reseller vouchers
+  getResellerVouchers: () => api.get('/reseller/vouchers'),
+};
+
 export default api;

@@ -10,10 +10,10 @@ using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 
-namespace backend.Controllers
+namespace backend.Controllers.Reseller
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/reseller/[controller]")]
     public class AuthController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -23,6 +23,39 @@ namespace backend.Controllers
         {
             _context = context;
             _configuration = configuration;
+        }
+
+        [HttpGet("health")]
+        public async Task<IActionResult> HealthCheck()
+        {
+            try
+            {
+                // Test database connection
+                var userCount = await _context.Users.CountAsync();
+                
+                // Test JWT configuration
+                var jwtKey = _configuration["Jwt:Key"];
+                var jwtIssuer = _configuration["Jwt:Issuer"];
+                var jwtAudience = _configuration["Jwt:Audience"];
+                
+                return Ok(new
+                {
+                    status = "healthy",
+                    database = "connected",
+                    userCount = userCount,
+                    jwtConfigured = !string.IsNullOrEmpty(jwtKey) && !string.IsNullOrEmpty(jwtIssuer) && !string.IsNullOrEmpty(jwtAudience),
+                    timestamp = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    status = "unhealthy",
+                    error = ex.Message,
+                    timestamp = DateTime.UtcNow
+                });
+            }
         }
 
         [HttpPost("signup")]
@@ -64,30 +97,55 @@ namespace backend.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-
-            if (user == null || !VerifyPassword(request.Password, user.PasswordHash))
+            try
             {
-                return Unauthorized("Invalid email or password");
-            }
-
-            user.LastLoginAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            var token = GenerateJwtToken(user);
-
-            return Ok(new
-            {
-                token,
-                user = new
+                if (request == null)
                 {
-                    id = user.Id,
-                    name = user.Name,
-                    email = user.Email,
-                    role = user.Role,
-                    points = user.Points
+                    return BadRequest("Request body is null");
                 }
-            });
+
+                if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
+                {
+                    return BadRequest("Email and password are required");
+                }
+
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+
+                if (user == null)
+                {
+                    return Unauthorized("Invalid email or password");
+                }
+
+                if (!VerifyPassword(request.Password, user.PasswordHash))
+                {
+                    return Unauthorized("Invalid email or password");
+                }
+
+                user.LastLoginAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                var token = GenerateJwtToken(user);
+
+                return Ok(new
+                {
+                    token,
+                    user = new
+                    {
+                        id = user.Id,
+                        name = user.Name,
+                        email = user.Email,
+                        role = user.Role,
+                        points = user.Points
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                // Log the exception details
+                Console.WriteLine($"Login error: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                return StatusCode(500, new { error = "Internal server error during login", details = ex.Message });
+            }
         }
 
         [HttpPost("google/signup")]
@@ -210,25 +268,52 @@ namespace backend.Controllers
 
         private string GenerateJwtToken(User user)
         {
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var claims = new[]
+            try
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role)
-            };
+                var jwtKey = _configuration["Jwt:Key"];
+                var jwtIssuer = _configuration["Jwt:Issuer"];
+                var jwtAudience = _configuration["Jwt:Audience"];
 
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddDays(7),
-                signingCredentials: credentials
-            );
+                if (string.IsNullOrEmpty(jwtKey))
+                {
+                    throw new InvalidOperationException("JWT Key is not configured");
+                }
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+                if (string.IsNullOrEmpty(jwtIssuer))
+                {
+                    throw new InvalidOperationException("JWT Issuer is not configured");
+                }
+
+                if (string.IsNullOrEmpty(jwtAudience))
+                {
+                    throw new InvalidOperationException("JWT Audience is not configured");
+                }
+
+                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+                var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+                var claims = new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new Claim(ClaimTypes.Email, user.Email),
+                    new Claim(ClaimTypes.Role, user.Role)
+                };
+
+                var token = new JwtSecurityToken(
+                    issuer: jwtIssuer,
+                    audience: jwtAudience,
+                    claims: claims,
+                    expires: DateTime.UtcNow.AddDays(7),
+                    signingCredentials: credentials
+                );
+
+                return new JwtSecurityTokenHandler().WriteToken(token);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"JWT Token generation error: {ex.Message}");
+                throw;
+            }
         }
 
         private string HashPassword(string password)
