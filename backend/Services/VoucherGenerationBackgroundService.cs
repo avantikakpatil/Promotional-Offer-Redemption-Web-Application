@@ -20,21 +20,21 @@ namespace backend.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Voucher Generation Background Service started");
+            // _logger.LogInformation("Voucher Generation Background Service started");
 
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                try
-                {
-                    await CheckAndGenerateVouchersAsync();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error in voucher generation background service");
-                }
+            // while (!stoppingToken.IsCancellationRequested)
+            // {
+            //     try
+            //     {
+            //         await CheckAndGenerateVouchersAsync();
+            //     }
+            //     catch (Exception ex)
+            //     {
+            //         _logger.LogError(ex, "Error in voucher generation background service");
+            //     }
 
-                await Task.Delay(_checkInterval, stoppingToken);
-            }
+            //     await Task.Delay(_checkInterval, stoppingToken);
+            // }
         }
 
         private async Task CheckAndGenerateVouchersAsync()

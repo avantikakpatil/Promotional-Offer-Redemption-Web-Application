@@ -7,8 +7,6 @@ const Campaigns = () => {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [participating, setParticipating] = useState({}); // { [campaignId]: true/false }
-  const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
     fetchCampaigns();
@@ -45,33 +43,6 @@ const Campaigns = () => {
       setCampaigns([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleParticipate = async (campaignId) => {
-    setParticipating((prev) => ({ ...prev, [campaignId]: true }));
-    setSuccessMsg('');
-    setError('');
-    try {
-      const response = await campaignAPI.participateInCampaign(campaignId);
-      if (response.data && response.data.success) {
-        setSuccessMsg(response.data.message || 'Participation successful!');
-        // Optionally, refresh campaigns or update UI to reflect participation
-      } else {
-        setError(response.data?.message || 'Failed to participate.');
-      }
-    } catch (err) {
-      let errorMessage = 'Failed to participate.';
-      if (err.response) {
-        errorMessage = err.response.data?.message || `Server error: ${err.response.status}`;
-      } else if (err.request) {
-        errorMessage = 'Network error: Unable to connect to server.';
-      } else {
-        errorMessage = err.message;
-      }
-      setError(errorMessage);
-    } finally {
-      setParticipating((prev) => ({ ...prev, [campaignId]: false }));
     }
   };
 
@@ -390,20 +361,7 @@ const Campaigns = () => {
       )}
 
       {/* Success State */}
-      {successMsg && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-green-800">{successMsg}</h3>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* The successMsg state and its usage were removed, so this block is no longer needed. */}
     </div>
   );
 };

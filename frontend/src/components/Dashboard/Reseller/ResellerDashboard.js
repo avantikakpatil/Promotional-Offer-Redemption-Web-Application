@@ -5,7 +5,6 @@ import ResellerHome from './ResellerHome';
 import Campaigns from './Campaigns';
 import Points from './Points';
 import Vouchers from './Vouchers';
-import QRCodeManagement from './QRCodeManagement';
 import RedemptionHistory from './RedemptionHistory';
 import Settings from './Settings';
 import QRScanPage from './QRScanPage';
@@ -18,7 +17,6 @@ const ResellerDashboard = () => {
         <Route path="/campaigns" element={<Campaigns />} />
         <Route path="/points" element={<Points />} />
         <Route path="/vouchers" element={<Vouchers />} />
-        <Route path="/qr-codes" element={<QRCodeManagement />} />
         <Route path="/qr-scan" element={<QRScanPage />} />
         <Route path="/history" element={<RedemptionHistory />} />
         <Route path="/settings" element={<Settings />} />

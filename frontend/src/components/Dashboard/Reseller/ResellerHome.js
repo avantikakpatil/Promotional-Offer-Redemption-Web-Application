@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { FaQrcode } from 'react-icons/fa';
 import { campaignAPI } from '../../../services/api';
@@ -31,11 +31,7 @@ const ResellerHome = () => {
   const { user } = useAuth();
   const resellerId = user?.id || 1;
 
-  useEffect(() => {
-    fetchAllData();
-  }, []);
-
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -53,7 +49,11 @@ const ResellerHome = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
 
   const fetchCampaigns = async () => {
     try {
@@ -63,12 +63,12 @@ const ResellerHome = () => {
       // Take only the first 3 campaigns for the recent section
       setCampaigns(campaignsData.slice(0, 3));
       
-      // Update active campaigns count (only approved and active campaigns)
+      // Update active campaigns count (all active campaigns, no approval needed)
       const now = new Date();
       const activeCampaignsCount = campaignsData.filter(campaign => {
         const startDate = new Date(campaign.startDate);
         const endDate = new Date(campaign.endDate);
-        return campaign.isActive && startDate <= now && endDate >= now && campaign.assignment?.isApproved;
+        return campaign.isActive && startDate <= now && endDate >= now;
       }).length;
       
       setStats(prevStats => ({
@@ -128,23 +128,13 @@ const ResellerHome = () => {
 
   const fetchVouchers = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/reseller/vouchers', {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const vouchers = data.vouchers || [];
-        setRecentVouchers(vouchers.slice(0, 3)); // Get first 3 vouchers
-        setStats(prevStats => ({
-          ...prevStats,
-          availableVouchers: vouchers.filter(v => v.isRedeemed === false).length
-        }));
-      }
+      const response = await campaignAPI.getResellerVouchers();
+      const vouchers = response.data || [];
+      setRecentVouchers(vouchers.slice(0, 3)); // Get first 3 vouchers
+      setStats(prevStats => ({
+        ...prevStats,
+        availableVouchers: vouchers.filter(v => v.isRedeemed === false).length
+      }));
     } catch (err) {
       console.error('Error fetching vouchers:', err);
     }

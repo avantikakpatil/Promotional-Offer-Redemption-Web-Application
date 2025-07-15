@@ -5,9 +5,10 @@ import api from '../../../services/api';
 const ShopkeeperHome = () => {
   const [stats, setStats] = useState({
     totalRedemptions: 0,
-    totalValueRedeemed: 0,
+    totalValue: 0,
     todayRedemptions: 0,
-    averageOrderValue: 0
+    todayValue: 0,
+    averageValue: 0
   });
   const [recentRedemptions, setRecentRedemptions] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
@@ -23,12 +24,18 @@ const ShopkeeperHome = () => {
       setLoading(true);
       
       // Fetch shopkeeper statistics
-      const statsResponse = await api.get('/shopkeeper/statistics');
-      setStats(statsResponse.data);
+      const statsResponse = await api.get('/shopkeeper/redemption/statistics');
+      setStats({
+        totalRedemptions: statsResponse.data.totalRedemptions,
+        totalValue: statsResponse.data.totalValue,
+        todayRedemptions: statsResponse.data.todayRedemptions,
+        todayValue: statsResponse.data.todayValue,
+        averageValue: statsResponse.data.averageValue
+      });
 
       // Fetch recent redemptions
-      const redemptionsResponse = await api.get('/shopkeeper/redemption-history?limit=5');
-      setRecentRedemptions(redemptionsResponse.data);
+      const redemptionsResponse = await api.get('/shopkeeper/redemption/history');
+      setRecentRedemptions(redemptionsResponse.data.slice(0, 5));
 
       // Fetch top products
       const productsResponse = await api.get('/shopkeeper/top-products');
@@ -86,7 +93,7 @@ const ShopkeeperHome = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Value Redeemed</p>
-              <p className="text-2xl font-bold text-gray-900">₹{stats.totalValueRedeemed}</p>
+              <p className="text-2xl font-bold text-gray-900">₹{stats.totalValue}</p>
             </div>
           </div>
         </div>
@@ -110,7 +117,7 @@ const ShopkeeperHome = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Avg. Order Value</p>
-              <p className="text-2xl font-bold text-gray-900">₹{stats.averageOrderValue}</p>
+              <p className="text-2xl font-bold text-gray-900">₹{stats.averageValue}</p>
             </div>
           </div>
         </div>
@@ -121,7 +128,7 @@ const ShopkeeperHome = () => {
         <h2 className="text-xl font-semibold text-gray-800 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
-            to="/shopkeeper/scanner"
+            to="/shopkeeper/dashboard/scanner"
             className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <span className="text-2xl mr-3">📱</span>
@@ -132,7 +139,7 @@ const ShopkeeperHome = () => {
           </Link>
 
           <Link
-            to="/shopkeeper/products"
+            to="/shopkeeper/dashboard/products"
             className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <span className="text-2xl mr-3">🛍️</span>
@@ -143,7 +150,7 @@ const ShopkeeperHome = () => {
           </Link>
 
           <Link
-            to="/shopkeeper/history"
+            to="/shopkeeper/dashboard/history"
             className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <span className="text-2xl mr-3">📋</span>
@@ -161,7 +168,7 @@ const ShopkeeperHome = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-800">Recent Redemptions</h2>
-            <Link to="/shopkeeper/history" className="text-blue-600 hover:text-blue-800 text-sm">
+            <Link to="/shopkeeper/dashboard/history" className="text-blue-600 hover:text-blue-800 text-sm">
               View all
             </Link>
           </div>
@@ -191,7 +198,7 @@ const ShopkeeperHome = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-800">Top Products</h2>
-            <Link to="/shopkeeper/products" className="text-blue-600 hover:text-blue-800 text-sm">
+            <Link to="/shopkeeper/dashboard/products" className="text-blue-600 hover:text-blue-800 text-sm">
               View all
             </Link>
           </div>

@@ -131,6 +131,7 @@ namespace backend.Controllers.Reseller
             if (reseller != null)
             {
                 reseller.Points += totalPoints;
+                // Remove UserPoints table update
             }
 
             // Update campaign reseller totals

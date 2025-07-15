@@ -2,179 +2,158 @@ import React, { useState, useEffect } from 'react';
 import api from '../../../services/api';
 
 const EligibleProducts = () => {
-  const [filter, setFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [campaigns, setCampaigns] = useState([]);
+  const [selectedCampaignId, setSelectedCampaignId] = useState('');
+  const [eligibleProducts, setEligibleProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    fetchEligibleProducts();
+    fetchCampaigns();
+    // Fetch all products for shopkeeper
+    const fetchAllProducts = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/shopkeeper/products', {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setAllProducts(data);
+        } else {
+          setError('Failed to fetch products');
+        }
+      } catch (err) {
+        setError('Failed to fetch products');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAllProducts();
   }, []);
 
-  const fetchEligibleProducts = async () => {
+  useEffect(() => {
+    if (selectedCampaignId) {
+      fetchEligibleProducts(selectedCampaignId);
+    }
+  }, [selectedCampaignId]);
+
+  const fetchCampaigns = async () => {
     try {
-      setLoading(true);
-      const response = await api.get('/shopkeeper/eligible-products');
-      setProducts(response.data);
-    } catch (err) {
+      const res = await api.get('/campaigns');
+      // If response is { data: [...] }, use res.data.data
+      setCampaigns(Array.isArray(res.data) ? res.data : res.data.data || []);
+    } catch {
+      setError('Failed to fetch campaigns');
+    }
+  };
+
+  const fetchAllProducts = async () => {
+    try {
+      const res = await api.get('/products');
+      setAllProducts(res.data);
+    } catch {
+      setError('Failed to fetch products');
+    }
+  };
+
+  const fetchEligibleProducts = async (campaignId) => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.get(`/shopkeeper/campaigns/${campaignId}/eligible-products`);
+      setEligibleProducts(res.data);
+      setSelectedProductIds(res.data.map(p => p.id));
+    } catch {
       setError('Failed to fetch eligible products');
-      console.error('Error fetching eligible products:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const categories = ['all', ...new Set(products.map(product => product.category))];
-
-  const filteredProducts = products.filter(product => {
-    const matchesCategory = filter === 'all' || product.category.toLowerCase() === filter.toLowerCase();
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.brand.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
-
-  const getCategoryColor = (category) => {
-    switch (category) {
-      case 'Smartphones':
-        return 'bg-blue-100 text-blue-800';
-      case 'Laptops':
-        return 'bg-purple-100 text-purple-800';
-      case 'Tablets':
-        return 'bg-green-100 text-green-800';
-      case 'Accessories':
-        return 'bg-orange-100 text-orange-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  const handleAssignProducts = async () => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await api.post(`/shopkeeper/campaigns/${selectedCampaignId}/eligible-products`, selectedProductIds);
+      setSuccess('Eligible products updated!');
+      fetchEligibleProducts(selectedCampaignId);
+    } catch {
+      setError('Failed to update eligible products');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStockColor = (stock) => {
-    if (stock > 10) return 'text-green-600';
-    if (stock > 5) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-xl text-gray-600">Loading eligible products...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-        {error}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h1 className="text-3xl font-bold text-gray-800">Eligible Products</h1>
-        <p className="text-gray-600 mt-2">Browse products that can be purchased using reseller vouchers</p>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="flex gap-2">
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setFilter(category)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  filter === category 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {category.charAt(0).toUpperCase() + category.slice(1)}
-              </button>
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">Eligible Products by Campaign</h1>
+        <div className="mb-4">
+          <label className="block mb-1 font-medium">Select Campaign:</label>
+          <select
+            className="border px-3 py-2 rounded w-full"
+            value={selectedCampaignId}
+            onChange={e => setSelectedCampaignId(e.target.value)}
+          >
+            <option value="">-- Select Campaign --</option>
+            {campaigns.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
-          </div>
+          </select>
         </div>
-      </div>
-
-      {/* Products Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProducts.map((product) => (
-          <div key={product.id} className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center">
-                  <span className="text-4xl mr-3">📱</span>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800">{product.name}</h3>
-                    <p className="text-sm text-gray-600">{product.brand}</p>
-                  </div>
-                </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(product.category)}`}>
-                  {product.category}
-                </span>
-              </div>
-
-              <p className="text-gray-700 mb-4 line-clamp-2">{product.description}</p>
-
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Price:</span>
-                  <span className="text-xl font-bold text-gray-900">₹{product.retailPrice.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Stock:</span>
-                  <span className={`font-medium ${getStockColor(product.stock || 0)}`}>
-                    {product.stock || 0} units
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Min Voucher:</span>
-                  <span className="font-medium text-green-600">₹{product.minVoucherValue || 0}</span>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2 mb-4">
-                {product.tags && product.tags.map((tag, index) => (
-                  <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                    {tag}
-                  </span>
+        {selectedCampaignId && (
+          <>
+            <div className="mb-4">
+              <label className="block mb-1 font-medium">Assign Eligible Products:</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-y-auto border rounded p-2">
+                {allProducts.map(product => (
+                  <label key={product.id} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedProductIds.includes(product.id)}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          setSelectedProductIds(ids => [...ids, product.id]);
+                        } else {
+                          setSelectedProductIds(ids => ids.filter(id => id !== product.id));
+                        }
+                      }}
+                    />
+                    <span>{product.name} ({product.brand})</span>
+                  </label>
                 ))}
               </div>
-
-              <div className="flex gap-2">
-                <button className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium">
-                  View Details
-                </button>
-                <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                  Add to Cart
-                </button>
-              </div>
+              <button
+                className="mt-3 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                onClick={handleAssignProducts}
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : 'Save Eligible Products'}
+              </button>
+              {success && <div className="mt-2 text-green-600">{success}</div>}
+              {error && <div className="mt-2 text-red-600">{error}</div>}
             </div>
-          </div>
-        ))}
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Currently Eligible Products</h2>
+              <ul className="list-disc ml-6">
+                {eligibleProducts.map(p => (
+                  <li key={p.id}>{p.name} ({p.brand})</li>
+                ))}
+              </ul>
+            </div>
+          </>
+        )}
       </div>
-
-      {filteredProducts.length === 0 && (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <div className="text-6xl mb-4">🛍️</div>
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">No products found</h3>
-          <p className="text-gray-600">There are no products matching your current search and filter criteria.</p>
-        </div>
-      )}
     </div>
   );
 };
