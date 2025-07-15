@@ -5,11 +5,12 @@ const ShopkeeperSidebar = () => {
   const location = useLocation();
 
   const menuItems = [
-    { name: 'Dashboard', path: '/shopkeeper', icon: '📊' },
-    { name: 'QR Scanner', path: '/shopkeeper/scanner', icon: '📱' },
-    { name: 'Redemption History', path: '/shopkeeper/history', icon: '📋' },
-    { name: 'Eligible Products', path: '/shopkeeper/products', icon: '🛍️' },
-    { name: 'Settings', path: '/shopkeeper/settings', icon: '⚙️' },
+    { name: 'Dashboard', path: '/shopkeeper/dashboard', icon: '📊' },
+    { name: 'QR Scanner', path: '/shopkeeper/dashboard/scanner', icon: '📱' },
+    { name: 'Redemption History', path: '/shopkeeper/dashboard/history', icon: '📋' },
+    { name: 'Eligible Products', path: '/shopkeeper/dashboard/products', icon: '��️' },
+    { name: 'Add Product', path: '/shopkeeper/dashboard/add-product', icon: '➕' },
+    { name: 'Settings', path: '/shopkeeper/dashboard/settings', icon: '⚙️' },
   ];
 
   return (

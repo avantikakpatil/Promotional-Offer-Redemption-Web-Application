@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { campaignAPI } from '../../../services/api';
+import { QRCodeCanvas } from 'qrcode.react';
+import html2canvas from 'html2canvas';
 
 const Vouchers = () => {
   const [vouchers, setVouchers] = useState([]);
@@ -7,18 +9,26 @@ const Vouchers = () => {
   const [error, setError] = useState('');
   const [genLoading, setGenLoading] = useState(false);
   const [genMsg, setGenMsg] = useState('');
+  const [autoGenAttempted, setAutoGenAttempted] = useState(false); // Prevent repeated auto-generation
 
   useEffect(() => {
     fetchVouchers();
     // eslint-disable-next-line
   }, []);
 
+  // Modified fetchVouchers to auto-generate if none exist
   const fetchVouchers = async () => {
     setLoading(true);
     setError('');
     try {
       const response = await campaignAPI.getResellerVouchers();
-      setVouchers(response.data || []);
+      const fetchedVouchers = response.data || [];
+      setVouchers(fetchedVouchers);
+      // Auto-generate vouchers if none exist and not already attempted
+      if (fetchedVouchers.length === 0 && !autoGenAttempted) {
+        setAutoGenAttempted(true);
+        await handleGenerateVouchers(true); // Pass flag to indicate auto-generation
+      }
     } catch (err) {
       setError('Failed to fetch vouchers.');
     } finally {
@@ -26,9 +36,10 @@ const Vouchers = () => {
     }
   };
 
-  const handleGenerateVouchers = async () => {
+  // Accept an optional flag to suppress messages for auto-generation
+  const handleGenerateVouchers = async (isAuto = false) => {
     setGenLoading(true);
-    setGenMsg('');
+    if (!isAuto) setGenMsg('');
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('/api/reseller/generate-vouchers', {
@@ -40,13 +51,13 @@ const Vouchers = () => {
       });
       const data = await response.json();
       if (response.ok && data.success) {
-        setGenMsg(data.message || 'Vouchers generated successfully!');
+        if (!isAuto) setGenMsg(data.message || 'Vouchers generated successfully!');
         await fetchVouchers();
       } else {
-        setGenMsg(data.message || 'Failed to generate vouchers.');
+        if (!isAuto) setGenMsg(data.message || 'Failed to generate vouchers.');
       }
     } catch (err) {
-      setGenMsg('Error generating vouchers.');
+      if (!isAuto) setGenMsg('Error generating vouchers.');
     } finally {
       setGenLoading(false);
     }
@@ -87,37 +98,54 @@ const Vouchers = () => {
         </div>
       )}
       {!loading && vouchers.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white rounded-lg shadow">
-            <thead>
-              <tr>
-                <th className="px-4 py-2 text-left">Voucher Code</th>
-                <th className="px-4 py-2 text-left">Campaign</th>
-                <th className="px-4 py-2 text-left">Value</th>
-                <th className="px-4 py-2 text-left">Points Required</th>
-                <th className="px-4 py-2 text-left">Expiry</th>
-                <th className="px-4 py-2 text-left">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vouchers.map(voucher => (
-                <tr key={voucher.id} className="border-b last:border-b-0">
-                  <td className="px-4 py-2 font-mono">{voucher.voucherCode}</td>
-                  <td className="px-4 py-2">{voucher.campaign?.name || voucher.campaignName || '-'}</td>
-                  <td className="px-4 py-2 font-semibold text-green-700">₹{voucher.value}</td>
-                  <td className="px-4 py-2">{voucher.pointsRequired}</td>
-                  <td className="px-4 py-2">{voucher.expiryDate ? new Date(voucher.expiryDate).toLocaleDateString() : '-'}</td>
-                  <td className="px-4 py-2">
-                    {voucher.isRedeemed ? (
-                      <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded-full text-xs">Redeemed</span>
-                    ) : (
-                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">Active</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {vouchers.map(voucher => {
+            const handleDownload = async () => {
+              const card = document.getElementById(`voucher-card-${voucher.id}`);
+              if (card) {
+                const canvas = await html2canvas(card);
+                const url = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${voucher.voucherCode}_voucher.png`;
+                link.click();
+              }
+            };
+            return (
+              <div key={voucher.id} id={`voucher-card-${voucher.id}`} className="bg-white rounded-lg shadow p-6 flex flex-col justify-between h-full border border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-mono text-lg font-bold text-blue-700">{voucher.voucherCode}</span>
+                  {voucher.isRedeemed ? (
+                    <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">Redeemed</span>
+                  ) : (
+                    <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">Not Redeemed</span>
+                  )}
+                </div>
+                {/* QR Code Display */}
+                <div className="flex flex-col items-center my-4">
+                  {voucher.qrCode ? (
+                    <QRCodeCanvas id={`qr-canvas-${voucher.id}`} value={voucher.qrCode} size={128} />
+                  ) : (
+                    <span className="text-gray-400">No QR code</span>
+                  )}
+                </div>
+                <div className="mt-2">
+                  <div className="text-sm text-gray-600 mb-1">Campaign: <span className="font-semibold text-gray-800">{voucher.campaignName}</span></div>
+                  <div className="text-sm text-gray-600 mb-1">Value: <span className="font-semibold text-gray-800">₹{voucher.value}</span></div>
+                  <div className="text-sm text-gray-600 mb-1">Points Required: <span className="font-semibold text-gray-800">{voucher.pointsRequired}</span></div>
+                  <div className="text-sm text-gray-600 mb-1">Expiry: <span className="font-semibold text-gray-800">{new Date(voucher.expiryDate).toLocaleDateString()}</span></div>
+                </div>
+                {voucher.qrCode && (
+                  <button
+                    onClick={handleDownload}
+                    className="mt-4 bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 text-sm"
+                  >
+                    Download Voucher
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

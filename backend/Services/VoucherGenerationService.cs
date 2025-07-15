@@ -17,68 +17,8 @@ namespace backend.Services
 
         public async Task<bool> CheckAndGenerateVouchersAsync()
         {
-            try
-            {
-                Console.WriteLine("=== VOUCHER GENERATION STARTED ===");
-                _logger.LogInformation("Starting automatic voucher generation check");
-
-                // Diagnostic: Check all campaigns and their voucher generation settings
-                var allCampaigns = await _context.Campaigns.ToListAsync();
-                Console.WriteLine($"[VoucherGen] Total campaigns in database: {allCampaigns.Count}");
-                
-                foreach (var campaign in allCampaigns)
-                {
-                    Console.WriteLine($"[VoucherGen] Campaign: {campaign.Name} (ID: {campaign.Id})");
-                    Console.WriteLine($"[VoucherGen] - IsActive: {campaign.IsActive}");
-                    Console.WriteLine($"[VoucherGen] - EnableAutoVoucherGeneration: {campaign.EnableAutoVoucherGeneration}");
-                    Console.WriteLine($"[VoucherGen] - VoucherGenerationThreshold: {campaign.VoucherGenerationThreshold}");
-                    Console.WriteLine($"[VoucherGen] - VoucherValue: {campaign.VoucherValue}");
-                    Console.WriteLine($"[VoucherGen] - StartDate: {campaign.StartDate}, EndDate: {campaign.EndDate}");
-                    Console.WriteLine($"[VoucherGen] - Current Time: {DateTime.UtcNow}");
-                    Console.WriteLine($"[VoucherGen] - Date Range Valid: {campaign.StartDate <= DateTime.UtcNow && campaign.EndDate >= DateTime.UtcNow}");
-                    Console.WriteLine("---");
-                }
-
-                // Get all active campaigns with auto voucher generation enabled
-                var campaignsWithAutoVoucher = await _context.Campaigns
-                    .Where(c => c.IsActive && 
-                               c.EnableAutoVoucherGeneration && 
-                               c.VoucherGenerationThreshold.HasValue &&
-                               c.VoucherValue.HasValue &&
-                               c.StartDate <= DateTime.UtcNow &&
-                               c.EndDate >= DateTime.UtcNow)
-                    .ToListAsync();
-
-                Console.WriteLine($"[VoucherGen] Found {campaignsWithAutoVoucher.Count} campaigns eligible for voucher generation");
-                
-                int totalVouchersCreated = 0;
-                foreach (var campaign in campaignsWithAutoVoucher)
-                {
-                    Console.WriteLine($"[VoucherGen] Processing campaign: {campaign.Name} (ID: {campaign.Id})");
-                    Console.WriteLine($"[VoucherGen] - EnableAutoVoucherGeneration: {campaign.EnableAutoVoucherGeneration}");
-                    Console.WriteLine($"[VoucherGen] - VoucherGenerationThreshold: {campaign.VoucherGenerationThreshold}");
-                    Console.WriteLine($"[VoucherGen] - VoucherValue: {campaign.VoucherValue}");
-                    Console.WriteLine($"[VoucherGen] - StartDate: {campaign.StartDate}, EndDate: {campaign.EndDate}");
-                    Console.WriteLine($"[VoucherGen] - IsActive: {campaign.IsActive}");
-                    
-                    var vouchersCreated = await GenerateVouchersForCampaignAsync(campaign.Id);
-                    if (vouchersCreated)
-                    {
-                        totalVouchersCreated++;
-                    }
-                }
-
-                Console.WriteLine($"[VoucherGen] SUMMARY: Created vouchers for {totalVouchersCreated} campaigns");
-                Console.WriteLine("=== VOUCHER GENERATION COMPLETED ===");
-                _logger.LogInformation($"Processed {campaignsWithAutoVoucher.Count} campaigns for voucher generation");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"=== VOUCHER GENERATION ERROR: {ex.Message} ===");
-                _logger.LogError(ex, "Error in CheckAndGenerateVouchersAsync");
-                return false;
-            }
+            // Auto voucher generation is disabled. This method is now obsolete.
+            return false;
         }
 
         public async Task<bool> GenerateVouchersForCampaignAsync(int campaignId)
@@ -86,18 +26,18 @@ namespace backend.Services
             try
             {
                 var campaign = await _context.Campaigns
-                    .FirstOrDefaultAsync(c => c.Id == campaignId && c.EnableAutoVoucherGeneration);
+                    .FirstOrDefaultAsync(c => c.Id == campaignId);
 
                 if (campaign == null || !campaign.VoucherGenerationThreshold.HasValue || !campaign.VoucherValue.HasValue)
                 {
-                    _logger.LogWarning($"Campaign {campaignId} not configured for auto voucher generation");
+                    _logger.LogWarning($"Campaign {campaignId} not configured for voucher generation");
                     return false;
                 }
 
-                // Get all approved resellers for this campaign
+                // Get all resellers for this campaign (remove IsApproved check)
                 var campaignResellers = await _context.CampaignResellers
                     .Include(cr => cr.Reseller)
-                    .Where(cr => cr.CampaignId == campaignId && cr.IsApproved)
+                    .Where(cr => cr.CampaignId == campaignId) // removed cr.IsApproved
                     .ToListAsync();
 
                 Console.WriteLine($"[VoucherGen] Campaign {campaignId} has {campaignResellers.Count} approved resellers");
@@ -136,13 +76,7 @@ namespace backend.Services
                     return false;
                 }
 
-                if (!campaign.EnableAutoVoucherGeneration)
-                {
-                    Console.WriteLine($"[VoucherGen] Campaign {campaignId} does not have auto voucher generation enabled");
-                    _logger.LogWarning($"[VoucherGen] Campaign {campaignId} does not have auto voucher generation enabled");
-                    return false;
-                }
-
+                // Removed EnableAutoVoucherGeneration check
                 if (!campaign.IsActive || campaign.StartDate > DateTime.UtcNow || campaign.EndDate < DateTime.UtcNow)
                 {
                     Console.WriteLine($"[VoucherGen] Campaign {campaignId} is not active or not in date range");
@@ -150,15 +84,16 @@ namespace backend.Services
                     return false;
                 }
 
-                var campaignReseller = await _context.CampaignResellers
-                    .FirstOrDefaultAsync(cr => cr.CampaignId == campaignId && cr.ResellerId == resellerId);
-
-                if (campaignReseller == null)
-                {
-                    Console.WriteLine($"[VoucherGen] No CampaignReseller found for reseller {resellerId} in campaign {campaignId}");
-                    _logger.LogWarning($"[VoucherGen] No CampaignReseller found for reseller {resellerId} in campaign {campaignId}");
-                    return false;
-                }
+                // REMOVE CampaignReseller check: allow all resellers for all campaigns
+                // var campaignReseller = await _context.CampaignResellers
+                //     .FirstOrDefaultAsync(cr => cr.CampaignId == campaignId && cr.ResellerId == resellerId);
+                //
+                // if (campaignReseller == null)
+                // {
+                //     Console.WriteLine($"[VoucherGen] No CampaignReseller found for reseller {resellerId} in campaign {campaignId}");
+                //     _logger.LogWarning($"[VoucherGen] No CampaignReseller found for reseller {resellerId} in campaign {campaignId}");
+                //     return false;
+                // }
 
                 var rewardTiers = campaign.RewardTiers.OrderBy(rt => rt.Threshold).ToList();
                 if (rewardTiers.Count == 0)
@@ -168,8 +103,9 @@ namespace backend.Services
                     return false;
                 }
 
-                var userPoints = await _context.UserPoints.FirstOrDefaultAsync(up => up.UserId == resellerId);
-                int availableUserPoints = userPoints?.Points ?? 0;
+                // Use Users.Points instead of UserPoints.Points
+                var resellerUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == resellerId);
+                int availableUserPoints = resellerUser?.Points ?? 0;
                 Console.WriteLine($"[VoucherGen] Reseller {resellerId} has {availableUserPoints} points for campaign {campaignId}");
                 Console.WriteLine($"[VoucherGen] Reward tiers for campaign {campaignId}: {string.Join(", ", rewardTiers.Select(rt => $"{rt.Threshold}:{rt.Reward}"))}");
 
@@ -205,17 +141,33 @@ namespace backend.Services
                                 CreatedAt = DateTime.UtcNow
                             };
                             _context.Vouchers.Add(voucher);
-
-                            if (userPoints != null)
+                            // Deduct points from reseller
+                            if (resellerUser != null)
                             {
-                                userPoints.Points = Math.Max(0, userPoints.Points - tier.Threshold);
-                                userPoints.LastUpdated = DateTime.UtcNow;
-                                availableUserPoints = userPoints.Points;
+                                resellerUser.Points -= tier.Threshold;
+                                availableUserPoints -= tier.Threshold;
                             }
-                            campaignReseller.PointsUsedForVouchers += tier.Threshold;
-                            campaignReseller.TotalVouchersGenerated += 1;
-                            campaignReseller.TotalVoucherValueGenerated += value;
-                            campaignReseller.LastVoucherGeneratedAt = DateTime.UtcNow;
+                            await _context.SaveChangesAsync(); // Save to get voucher.Id
+
+                            // Automatically generate a QR code for this voucher
+                            var qrCode = new QRCode
+                            {
+                                Code = $"QR-{voucher.VoucherCode}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}",
+                                CampaignId = voucher.CampaignId,
+                                ResellerId = voucher.ResellerId,
+                                VoucherId = voucher.Id,
+                                Points = voucher.PointsRequired,
+                                ExpiryDate = voucher.ExpiryDate,
+                                IsRedeemed = false,
+                                CreatedAt = DateTime.UtcNow,
+                                UpdatedAt = DateTime.UtcNow,
+                                // Navigation properties (optional, for EF tracking)
+                                Voucher = voucher,
+                                Campaign = campaign
+                            };
+                            _context.QRCodes.Add(qrCode);
+                            await _context.SaveChangesAsync();
+
                             Console.WriteLine($"[VoucherGen] Voucher created for reseller {resellerId}, campaign {campaignId}, tier {tier.Threshold}, value {value}");
                             Console.WriteLine($"[VoucherGen] Voucher Code: {voucherCode}");
                             Console.WriteLine($"[VoucherGen] Expiry Date: {voucher.ExpiryDate}");

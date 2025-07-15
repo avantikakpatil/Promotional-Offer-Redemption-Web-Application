@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../contexts/AuthContext';
 
 const Points = () => {
   const [filter, setFilter] = useState('all');
@@ -14,9 +13,8 @@ const Points = () => {
     pendingPoints: 0
   });
   const [pointsHistory, setPointsHistory] = useState([]);
+  const [orderStats, setOrderStats] = useState({ totalOrders: 0, totalOrderValue: 0 });
   
-  const { user } = useAuth();
-
   useEffect(() => {
     fetchPointsData();
   }, []);
@@ -25,27 +23,42 @@ const Points = () => {
     try {
       setLoading(true);
       setError('');
-      
       const token = localStorage.getItem('token');
-      
-      // Fetch points data
-      const pointsResponse = await fetch('/api/reseller/order/points', {
+
+      // Fetch points summary
+      const pointsResponse = await fetch('/api/reseller/points', {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
       });
-      
+      let currentPoints = 0;
       if (pointsResponse.ok) {
         const pointsResult = await pointsResponse.json();
-        setPointsData({
-          totalPoints: pointsResult.CurrentPoints || 0,
-          availablePoints: pointsResult.CurrentPoints || 0,
-          usedPoints: 0, // This would need to be calculated from history
-          pendingPoints: 0 // This would need to be calculated from pending orders
+        currentPoints = pointsResult.points || 0;
+        setPointsData(prev => ({
+          ...prev,
+          totalPoints: currentPoints,
+          availablePoints: currentPoints,
+          usedPoints: pointsResult.usedPoints || 0
+        }));
+      }
+
+      // Fetch order stats
+      const orderStatsResponse = await fetch('/api/reseller/order/points', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
+      if (orderStatsResponse.ok) {
+        const stats = await orderStatsResponse.json();
+        setOrderStats({
+          totalOrders: stats.TotalOrders || stats.totalOrders || 0,
+          totalOrderValue: stats.TotalOrderValue || stats.totalOrderValue || 0
         });
       }
-      
+
       // Fetch redemption history
       const historyResponse = await fetch('/api/reseller/qrcodes/history', {
         headers: {
@@ -53,11 +66,9 @@ const Points = () => {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
       });
-      
       if (historyResponse.ok) {
         const historyResult = await historyResponse.json();
         const history = historyResult.redemptionHistory || [];
-        
         // Transform history data to match the expected format
         const transformedHistory = history.map((item, index) => ({
           id: item.id || index + 1,
@@ -70,8 +81,10 @@ const Points = () => {
           qrCode: item.qrCode,
           customerName: item.customerName
         }));
-        
         setPointsHistory(transformedHistory);
+        // Optionally, calculate used points from history
+        const usedPoints = transformedHistory.filter(h => h.type === 'Used').reduce((sum, h) => sum + Math.abs(h.amount), 0);
+        setPointsData(prev => ({ ...prev, usedPoints }));
       }
     } catch (err) {
       console.error('Error fetching points data:', err);
@@ -195,6 +208,31 @@ const Points = () => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Used Points</p>
                   <p className="text-2xl font-bold text-gray-900">{pointsData.usedPoints}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Order Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-purple-100 text-purple-600">
+                  <span className="text-2xl">🛒</span>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Orders</p>
+                  <p className="text-2xl font-bold text-gray-900">{orderStats.totalOrders}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                  <span className="text-2xl">💰</span>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Total Order Value</p>
+                  <p className="text-2xl font-bold text-gray-900">₹{orderStats.totalOrderValue}</p>
                 </div>
               </div>
             </div>

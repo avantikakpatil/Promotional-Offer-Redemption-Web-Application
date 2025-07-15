@@ -39,7 +39,7 @@ namespace backend.Models
         public bool IsActive { get; set; } = true;
 
         [Required]
-        public int ManufacturerId { get; set; }
+        public int? ManufacturerId { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         

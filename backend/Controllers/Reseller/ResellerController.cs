@@ -29,15 +29,21 @@ namespace backend.Controllers.Reseller
             if (reseller == null)
                 return NotFound();
 
+            // Calculate used points (sum of PointsRequired for all vouchers)
+            var usedPoints = await _context.Vouchers
+                .Where(v => v.ResellerId == resellerId)
+                .SumAsync(v => v.PointsRequired);
+
             return Ok(new
             {
-                points = reseller.Points
+                points = reseller.Points, // available points
+                usedPoints = usedPoints
             });
         }
 
         // GET: api/reseller/vouchers
         [HttpGet("vouchers")]
-        public async Task<ActionResult<IEnumerable<Voucher>>> GetVouchers()
+        public async Task<ActionResult<IEnumerable<object>>> GetVouchers()
         {
             var resellerId = GetCurrentUserId();
             if (resellerId == null)
@@ -50,7 +56,30 @@ namespace backend.Controllers.Reseller
                 .OrderByDescending(v => v.CreatedAt)
                 .ToListAsync();
 
-            return Ok(vouchers);
+            // Fetch QR codes for these vouchers
+            var voucherIds = vouchers.Select(v => v.Id).ToList();
+            var qrCodes = await _context.QRCodes
+                .Where(qr => qr.VoucherId != null && voucherIds.Contains(qr.VoucherId.Value))
+                .ToListAsync();
+
+            var result = vouchers.Select(v => {
+                var qr = qrCodes.FirstOrDefault(q => q.VoucherId == v.Id);
+                return new {
+                    id = v.Id,
+                    voucherCode = v.VoucherCode,
+                    value = v.Value,
+                    campaignName = v.Campaign?.Name,
+                    campaignId = v.CampaignId,
+                    pointsRequired = v.PointsRequired,
+                    isRedeemed = v.IsRedeemed,
+                    createdAt = v.CreatedAt,
+                    expiryDate = v.ExpiryDate,
+                    eligibleProducts = v.EligibleProducts,
+                    qrCode = qr?.Code // Add QR code value
+                };
+            });
+
+            return Ok(result);
         }
 
         // GET: api/reseller/redemption-history

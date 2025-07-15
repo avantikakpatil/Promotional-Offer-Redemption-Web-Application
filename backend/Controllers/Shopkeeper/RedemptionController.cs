@@ -277,10 +277,61 @@ namespace backend.Controllers.Shopkeeper
             });
         }
 
+        // GET: api/shopkeeper/top-products
+        [HttpGet("/api/shopkeeper/top-products")]
+        public async Task<ActionResult<IEnumerable<object>>> GetTopProducts()
+        {
+            var shopkeeperId = GetCurrentUserId();
+            if (shopkeeperId == null)
+                return Unauthorized();
+
+            var histories = await _context.RedemptionHistories
+                .Where(rh => rh.ShopkeeperId == shopkeeperId && rh.RedeemedProducts != null)
+                .Select(rh => rh.RedeemedProducts)
+                .ToListAsync();
+
+            var allProducts = new List<ProductInfo>();
+            foreach (var json in histories)
+            {
+                if (!string.IsNullOrEmpty(json))
+                {
+                    try
+                    {
+                        var products = JsonSerializer.Deserialize<List<ProductInfo>>(json);
+                        if (products != null)
+                            allProducts.AddRange(products);
+                    }
+                    catch { }
+                }
+            }
+
+            var topProducts = allProducts
+                .GroupBy(p => p.Id)
+                .Select(g => new
+                {
+                    Name = g.First().Name ?? string.Empty,
+                    Id = g.Key,
+                    Redemptions = g.Count(),
+                    Value = g.Sum(p => p.RetailPrice)
+                })
+                .OrderByDescending(x => x.Redemptions)
+                .Take(5)
+                .ToList();
+
+            return Ok(topProducts);
+        }
+
         private int? GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             return userIdClaim != null ? int.Parse(userIdClaim) : null;
+        }
+
+        private class ProductInfo
+        {
+            public int Id { get; set; }
+            public string Name { get; set; } = string.Empty;
+            public decimal RetailPrice { get; set; }
         }
     }
 } 

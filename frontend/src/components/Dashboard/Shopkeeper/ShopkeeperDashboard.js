@@ -6,6 +6,7 @@ import QRScanner from './QRScanner';
 import RedemptionHistory from './RedemptionHistory';
 import EligibleProducts from './EligibleProducts';
 import Settings from './Settings';
+import ShopkeeperAddProduct from './ShopkeeperAddProduct';
 
 const ShopkeeperDashboard = () => {
   return (
@@ -16,6 +17,7 @@ const ShopkeeperDashboard = () => {
         <Route path="/history" element={<RedemptionHistory />} />
         <Route path="/products" element={<EligibleProducts />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/add-product" element={<ShopkeeperAddProduct />} />
       </Routes>
     </ShopkeeperLayout>
   );
