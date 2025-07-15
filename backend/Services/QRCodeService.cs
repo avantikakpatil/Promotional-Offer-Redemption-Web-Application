@@ -222,7 +222,7 @@ namespace backend.Services
                 return new ApiResponse<string> { Success = false, Message = "Invalid points.", ErrorCode = "INVALID_POINTS" };
             }
 
-            // If customerId is provided, add points to customer, otherwise add to reseller
+            // Add points to User and UserPoints
             int targetUserId = customerId ?? resellerId;
             var targetUser = await _context.Users.FindAsync(targetUserId);
             if (targetUser == null)
@@ -261,12 +261,27 @@ namespace backend.Services
             };
             _context.RedemptionHistories.Add(history);
 
-            // Update CampaignReseller.TotalPointsEarned
+            // Update CampaignReseller.TotalPointsEarned and PointsUsedForVouchers (campaign-specific)
             var campaignReseller = await _context.CampaignResellers.FirstOrDefaultAsync(cr => cr.CampaignId == campaign.Id && cr.ResellerId == resellerId);
             if (campaignReseller != null)
             {
                 campaignReseller.TotalPointsEarned += pointsToAdd;
                 campaignReseller.UpdatedAt = now;
+            }
+            else
+            {
+                // If not found, create a new CampaignReseller record
+                campaignReseller = new CampaignReseller
+                {
+                    CampaignId = campaign.Id,
+                    ResellerId = resellerId,
+                    TotalPointsEarned = pointsToAdd,
+                    PointsUsedForVouchers = 0,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    IsApproved = true
+                };
+                _context.CampaignResellers.Add(campaignReseller);
             }
 
             try

@@ -104,6 +104,21 @@ namespace backend.Services
                     });
                 }
 
+                // Add eligible products
+                if (createCampaignDto.EligibleProducts != null)
+                {
+                    foreach (var ep in createCampaignDto.EligibleProducts)
+                    {
+                        campaign.EligibleProducts.Add(new CampaignEligibleProduct
+                        {
+                            ProductId = ep.ProductId,
+                            PointCost = ep.PointCost,
+                            RedemptionLimit = ep.RedemptionLimit,
+                            IsActive = ep.IsActive
+                        });
+                    }
+                }
+
                 _context.Campaigns.Add(campaign);
                 await _context.SaveChangesAsync();
 
@@ -269,6 +284,28 @@ namespace backend.Services
                     });
                 }
 
+                // Update eligible products
+                if (updateCampaignDto.EligibleProducts != null)
+                {
+                    // Remove old eligible products
+                    var oldEligibleProducts = campaign.EligibleProducts.ToList();
+                    foreach (var oldEp in oldEligibleProducts)
+                    {
+                        _context.CampaignEligibleProducts.Remove(oldEp);
+                    }
+                    // Add new eligible products
+                    foreach (var ep in updateCampaignDto.EligibleProducts)
+                    {
+                        campaign.EligibleProducts.Add(new CampaignEligibleProduct
+                        {
+                            ProductId = ep.ProductId,
+                            PointCost = ep.PointCost,
+                            RedemptionLimit = ep.RedemptionLimit,
+                            IsActive = ep.IsActive
+                        });
+                    }
+                }
+
                 await _context.SaveChangesAsync();
 
                 var updatedCampaign = await _context.Campaigns
@@ -376,7 +413,7 @@ namespace backend.Services
 
         private static CampaignDto MapToDto(Campaign campaign)
         {
-            return new CampaignDto
+            var dto = new CampaignDto
             {
                 Id = campaign.Id,
                 Name = campaign.Name,
@@ -391,15 +428,24 @@ namespace backend.Services
                 ManufacturerId = campaign.ManufacturerId,
                 CreatedAt = campaign.CreatedAt,
                 UpdatedAt = campaign.UpdatedAt,
-                RewardTiers = campaign.RewardTiers.Select(tier => new RewardTierDto
+                RewardTiers = campaign.RewardTiers.Select(rt => new RewardTierDto
                 {
-                    Id = tier.Id,
-                    CampaignId = tier.CampaignId,
-                    Threshold = tier.Threshold,
-                    Reward = tier.Reward,
-                    CreatedAt = tier.CreatedAt
-                }).OrderBy(t => t.Threshold).ToList()
+                    Id = rt.Id,
+                    CampaignId = rt.CampaignId,
+                    Threshold = rt.Threshold,
+                    Reward = rt.Reward,
+                    CreatedAt = rt.CreatedAt
+                }).ToList(),
+                EligibleProducts = campaign.EligibleProducts.Select(ep => new EligibleProductDto
+                {
+                    ProductId = ep.ProductId,
+                    ProductName = ep.Product != null ? ep.Product.Name : string.Empty,
+                    PointCost = ep.PointCost,
+                    RedemptionLimit = ep.RedemptionLimit,
+                    IsActive = ep.IsActive
+                }).ToList()
             };
+            return dto;
         }
     }
 }

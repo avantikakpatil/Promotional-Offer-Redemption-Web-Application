@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using backend.Models.DTOs;
 
 namespace backend.Controllers.Shopkeeper
 {
@@ -21,40 +22,52 @@ namespace backend.Controllers.Shopkeeper
 
         // POST: api/shopkeeper/campaigns/{campaignId}/eligible-products
         [HttpPost("{campaignId}/eligible-products")]
-        public async Task<IActionResult> SetEligibleProducts(int campaignId, [FromBody] List<int> productIds)
+        public async Task<IActionResult> SetEligibleProducts(int campaignId, [FromBody] List<EligibleProductDto> eligibleProducts)
         {
-            var campaign = await _context.Campaigns.FindAsync(campaignId);
+            var campaign = await _context.Campaigns
+                .Include(c => c.EligibleProducts)
+                .FirstOrDefaultAsync(c => c.Id == campaignId);
             if (campaign == null)
                 return NotFound("Campaign not found");
 
-            campaign.EligibleProducts = JsonSerializer.Serialize(productIds);
+            // Remove old eligible products
+            _context.CampaignEligibleProducts.RemoveRange(campaign.EligibleProducts);
+
+            // Add new eligible products
+            foreach (var ep in eligibleProducts)
+            {
+                campaign.EligibleProducts.Add(new CampaignEligibleProduct
+                {
+                    ProductId = ep.ProductId,
+                    PointCost = ep.PointCost,
+                    RedemptionLimit = ep.RedemptionLimit,
+                    IsActive = ep.IsActive
+                });
+            }
+
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Eligible products updated", eligibleProducts = productIds });
+            return Ok(new { message = "Eligible products updated", eligibleProducts });
         }
 
         // GET: api/shopkeeper/campaigns/{campaignId}/eligible-products
         [HttpGet("{campaignId}/eligible-products")]
         public async Task<IActionResult> GetEligibleProducts(int campaignId)
         {
-            var campaign = await _context.Campaigns.FindAsync(campaignId);
-            if (campaign == null)
-                return NotFound("Campaign not found");
-
-            List<int> productIds = new List<int>();
-            if (!string.IsNullOrEmpty(campaign.EligibleProducts))
-            {
-                try
-                {
-                    productIds = JsonSerializer.Deserialize<List<int>>(campaign.EligibleProducts);
-                }
-                catch { }
-            }
-
-            var products = await _context.Products
-                .Where(p => productIds.Contains(p.Id) && p.IsActive)
+            var eligibleProducts = await _context.CampaignEligibleProducts
+                .Include(ep => ep.Product)
+                .Where(ep => ep.CampaignId == campaignId && ep.IsActive)
                 .ToListAsync();
 
-            return Ok(products);
+            var result = eligibleProducts.Select(ep => new
+            {
+                ep.ProductId,
+                ProductName = ep.Product != null ? ep.Product.Name : string.Empty,
+                ep.PointCost,
+                ep.RedemptionLimit,
+                ep.IsActive
+            });
+
+            return Ok(result);
         }
 
         // GET: api/shopkeeper/products

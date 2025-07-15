@@ -114,6 +114,11 @@ const ShopkeeperQRScanner = () => {
     return selectedProducts.reduce((sum, product) => sum + product.retailPrice, 0);
   };
 
+  // Replace the product selection UI with a card/grid layout and add point logic
+  const getTotalPointsUsed = () => {
+    return selectedProducts.reduce((sum, product) => sum + (product.PointCost || 0), 0);
+  };
+
   // Removed: handleAddProduct
 
   return (
@@ -235,24 +240,41 @@ const ShopkeeperQRScanner = () => {
           <div className="mb-6">
             <h3 className="font-semibold text-gray-800 mb-3">Select Products for Redemption</h3>
             {availableProducts && availableProducts.length > 0 ? (
-              <select
-                multiple
-                className="border rounded w-full p-2 mb-2"
-                value={selectedProducts.map(p => p.id)}
-                onChange={e => {
-                  const selectedIds = Array.from(e.target.selectedOptions, option => parseInt(option.value));
-                  setSelectedProducts(availableProducts.filter(p => selectedIds.includes(p.id)));
-                }}
-              >
-                {availableProducts.map(product => (
-                  <option key={product.id} value={product.id}>
-                    {product.name} ({product.brand}) - ₹{product.retailPrice}
-                  </option>
-                ))}
-              </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {availableProducts.map(product => {
+                  const isSelected = selectedProducts.find(p => p.ProductId === product.ProductId);
+                  const disabled = !isSelected && (getTotalPointsUsed() + (product.PointCost || 0) > (scannedVoucher.pointsRequired || scannedVoucher.voucherValue));
+                  return (
+                    <div
+                      key={product.ProductId}
+                      className={`border rounded p-4 cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 border-blue-400' : 'bg-white'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      onClick={() => {
+                        if (!disabled) handleProductSelection(product);
+                      }}
+                    >
+                      <div className="font-semibold">{product.ProductName}</div>
+                      <div className="text-sm text-gray-600">Points: {product.PointCost}</div>
+                      {product.RedemptionLimit && <div className="text-xs text-gray-400">Limit: {product.RedemptionLimit}</div>}
+                      {isSelected && <div className="text-xs text-blue-600 font-semibold mt-2">Selected</div>}
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
-              <div className="text-gray-500 text-sm">No eligible products available for this campaign.</div>
+              <div className="text-gray-500">No eligible products available for this voucher.</div>
             )}
+            {/* Show total points used and remaining */}
+            <div className="mt-4 text-sm text-gray-700">
+              Total Points Used: <span className="font-bold">{getTotalPointsUsed()}</span> / <span className="font-bold">{scannedVoucher.pointsRequired || scannedVoucher.voucherValue}</span>
+            </div>
+            {/* Confirm button */}
+            <button
+              className="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+              onClick={handleRedeemVoucher}
+              disabled={selectedProducts.length === 0 || getTotalPointsUsed() > (scannedVoucher.pointsRequired || scannedVoucher.voucherValue) || isProcessing}
+            >
+              Confirm Redemption
+            </button>
           </div>
 
           {/* Redemption Summary */}

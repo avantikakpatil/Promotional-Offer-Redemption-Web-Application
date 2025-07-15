@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Calendar, Package, Target, Info, AlertCircle } from 'lucide-react';
+import { productAPI } from '../../../services/api';
 
 const CampaignCreate = () => {
   const navigate = useNavigate();
@@ -20,6 +21,8 @@ const CampaignCreate = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [tokenInfo, setTokenInfo] = useState(null);
+  const [eligibleProducts, setEligibleProducts] = useState([]);
+  const [selectedEligibleProducts, setSelectedEligibleProducts] = useState([]);
 
   // Configuration for API base URL
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5162';
@@ -54,6 +57,19 @@ const CampaignCreate = () => {
     } else {
       setTokenInfo({ exists: false });
     }
+  }, []);
+
+  // Fetch products for eligible product selection
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const res = await productAPI.getManufacturerProducts();
+        setEligibleProducts(res.data);
+      } catch (err) {
+        setEligibleProducts([]);
+      }
+    }
+    fetchProducts();
   }, []);
 
   const validateForm = () => {
@@ -153,6 +169,24 @@ const CampaignCreate = () => {
     setErrors(newErrors);
   };
 
+  const handleEligibleProductChange = (productId, field, value) => {
+    setSelectedEligibleProducts((prev) =>
+      prev.map((ep) =>
+        ep.productId === productId ? { ...ep, [field]: value } : ep
+      )
+    );
+  };
+  const handleEligibleProductSelect = (product, checked) => {
+    if (checked) {
+      setSelectedEligibleProducts((prev) => [
+        ...prev,
+        { productId: product.id, productName: product.name, pointCost: '', redemptionLimit: '', isActive: true },
+      ]);
+    } else {
+      setSelectedEligibleProducts((prev) => prev.filter((ep) => ep.productId !== product.id));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) {
@@ -188,6 +222,12 @@ const CampaignCreate = () => {
         rewardTiers: formData.rewardTiers.map(tier => ({
           threshold: parseInt(tier.threshold),
           reward: tier.reward
+        })),
+        eligibleProducts: selectedEligibleProducts.map(ep => ({
+          productId: ep.productId,
+          pointCost: parseInt(ep.pointCost),
+          redemptionLimit: ep.redemptionLimit ? parseInt(ep.redemptionLimit) : null,
+          isActive: ep.isActive
         }))
       };
       console.log('Sending campaign data:', campaignData);
@@ -557,6 +597,71 @@ const CampaignCreate = () => {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Eligible Products for Redemption */}
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold mb-2">Eligible Products for Redemption</h3>
+          <div className="border rounded p-4 bg-gray-50">
+            {eligibleProducts.length === 0 ? (
+              <div className="text-gray-500">No products found. Add products first.</div>
+            ) : (
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="px-2 py-1">Select</th>
+                    <th className="px-2 py-1">Product Name</th>
+                    <th className="px-2 py-1">Point Cost</th>
+                    <th className="px-2 py-1">Redemption Limit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eligibleProducts.map((product) => {
+                    const selected = selectedEligibleProducts.find((ep) => ep.productId === product.id);
+                    return (
+                      <tr key={product.id}>
+                        <td className="px-2 py-1 text-center">
+                          <input
+                            type="checkbox"
+                            checked={!!selected}
+                            onChange={(e) => handleEligibleProductSelect(product, e.target.checked)}
+                          />
+                        </td>
+                        <td className="px-2 py-1">{product.name}</td>
+                        <td className="px-2 py-1">
+                          {selected ? (
+                            <input
+                              type="number"
+                              min="1"
+                              value={selected.pointCost}
+                              onChange={(e) => handleEligibleProductChange(product.id, 'pointCost', e.target.value)}
+                              className="w-20 border rounded px-2 py-1"
+                              required
+                            />
+                          ) : (
+                            '-'
+                          )}
+                        </td>
+                        <td className="px-2 py-1">
+                          {selected ? (
+                            <input
+                              type="number"
+                              min="1"
+                              value={selected.redemptionLimit}
+                              onChange={(e) => handleEligibleProductChange(product.id, 'redemptionLimit', e.target.value)}
+                              className="w-20 border rounded px-2 py-1"
+                            />
+                          ) : (
+                            '-'
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 

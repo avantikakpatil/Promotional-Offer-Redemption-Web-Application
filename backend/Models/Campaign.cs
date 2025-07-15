@@ -41,8 +41,7 @@ namespace backend.Models
         public int ManufacturerId { get; set; }
 
         // B2B Specific Fields
-        [StringLength(500)]
-        public string? EligibleProducts { get; set; } // JSON array of product IDs or names
+        public virtual ICollection<CampaignEligibleProduct> EligibleProducts { get; set; } = new List<CampaignEligibleProduct>();
         
         [Column(TypeName = "decimal(18,2)")]
         public decimal? MinimumOrderValue { get; set; }

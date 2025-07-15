@@ -10,6 +10,7 @@ import {
   CogIcon,
   QuestionMarkCircleIcon,
   QueueListIcon,
+  ArchiveBoxIcon,
 } from '@heroicons/react/24/outline';
 
 const Sidebar = () => {
@@ -19,6 +20,7 @@ const Sidebar = () => {
     { name: 'Dashboard', href: '/manufacturer/dashboard', icon: HomeIcon },
     { name: 'Create Campaign', href: '/manufacturer/campaign/create', icon: PlusCircleIcon },
     { name: 'View Campaigns', href: '/manufacturer/campaigns', icon: QueueListIcon },
+    { name: 'Manage Products', href: '/manufacturer/products', icon: ArchiveBoxIcon },
     { name: 'QR Codes', href: '/manufacturer/qr-codes', icon: QrCodeIcon },
     { name: 'Assign Reseller', href: '/manufacturer/assign-reseller', icon: UserGroupIcon },
     { name: 'Analytics', href: '/manufacturer/analytics', icon: ChartBarIcon },

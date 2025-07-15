@@ -25,6 +25,7 @@ namespace backend.Data
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Voucher> Vouchers { get; set; }
         public DbSet<CampaignReseller> CampaignResellers { get; set; }
+        public DbSet<CampaignEligibleProduct> CampaignEligibleProducts { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

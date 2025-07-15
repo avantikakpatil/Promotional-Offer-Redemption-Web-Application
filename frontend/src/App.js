@@ -20,6 +20,7 @@ import Settings from './components/Dashboard/Manufacturer/Settings';
 import Help from './components/Dashboard/Manufacturer/Help';
 import Navbar from './components/Common/Navbar';
 import Vouchers from './components/Dashboard/Reseller/Vouchers';
+import ProductManage from './components/Dashboard/Manufacturer/ProductManage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -139,6 +140,7 @@ function App() {
                 <Route path="resellers" element={<ResellerManage />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="help" element={<Help />} />
+                <Route path="products" element={<ProductManage />} />
               </Route>
 
               {/* Redirect root to login */}

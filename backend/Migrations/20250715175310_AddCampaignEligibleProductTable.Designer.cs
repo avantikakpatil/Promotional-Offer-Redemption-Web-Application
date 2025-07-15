@@ -12,8 +12,8 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250715073351_MakeProductFieldsOptionalOrDefault")]
-    partial class MakeProductFieldsOptionalOrDefault
+    [Migration("20250715175310_AddCampaignEligibleProductTable")]
+    partial class AddCampaignEligibleProductTable
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -45,10 +45,6 @@ namespace backend.Migrations
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("varchar(1000)");
-
-                    b.Property<string>("EligibleProducts")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
 
                     b.Property<bool>("EnableAutoVoucherGeneration")
                         .HasColumnType("tinyint(1)");
@@ -135,6 +131,38 @@ namespace backend.Migrations
                         .HasDatabaseName("IX_Campaigns_DateRange");
 
                     b.ToTable("Campaigns");
+                });
+
+            modelBuilder.Entity("backend.Models.CampaignEligibleProduct", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("PointCost")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RedemptionLimit")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("CampaignEligibleProducts");
                 });
 
             modelBuilder.Entity("backend.Models.CampaignReseller", b =>
@@ -702,6 +730,25 @@ namespace backend.Migrations
                     b.Navigation("Manufacturer");
                 });
 
+            modelBuilder.Entity("backend.Models.CampaignEligibleProduct", b =>
+                {
+                    b.HasOne("backend.Models.Campaign", "Campaign")
+                        .WithMany("EligibleProducts")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("Product");
+                });
+
             modelBuilder.Entity("backend.Models.CampaignReseller", b =>
                 {
                     b.HasOne("backend.Models.User", "ApprovedBy")
@@ -922,6 +969,8 @@ namespace backend.Migrations
             modelBuilder.Entity("backend.Models.Campaign", b =>
                 {
                     b.Navigation("CampaignResellers");
+
+                    b.Navigation("EligibleProducts");
 
                     b.Navigation("RewardTiers");
                 });

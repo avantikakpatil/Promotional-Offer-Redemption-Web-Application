@@ -103,10 +103,17 @@ namespace backend.Services
                     return false;
                 }
 
-                // Use Users.Points instead of UserPoints.Points
-                var resellerUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == resellerId);
-                int availableUserPoints = resellerUser?.Points ?? 0;
-                Console.WriteLine($"[VoucherGen] Reseller {resellerId} has {availableUserPoints} points for campaign {campaignId}");
+                // Use campaign-specific points from CampaignReseller
+                var campaignReseller = await _context.CampaignResellers.FirstOrDefaultAsync(cr => cr.CampaignId == campaignId && cr.ResellerId == resellerId);
+                if (campaignReseller == null)
+                {
+                    Console.WriteLine($"[VoucherGen] No CampaignReseller found for reseller {resellerId} in campaign {campaignId}");
+                    _logger.LogWarning($"[VoucherGen] No CampaignReseller found for reseller {resellerId} in campaign {campaignId}");
+                    return false;
+                }
+
+                int availableUserPoints = campaignReseller.TotalPointsEarned - campaignReseller.PointsUsedForVouchers;
+                Console.WriteLine($"[VoucherGen] Reseller {resellerId} has {availableUserPoints} campaign-specific points for campaign {campaignId}");
                 Console.WriteLine($"[VoucherGen] Reward tiers for campaign {campaignId}: {string.Join(", ", rewardTiers.Select(rt => $"{rt.Threshold}:{rt.Reward}"))}");
 
                 foreach (var tier in rewardTiers)
@@ -128,6 +135,14 @@ namespace backend.Services
 
                             var voucherCode = $"TIER-VCH-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
 
+                            // Get eligible product IDs for this campaign
+                            var eligibleProductIds = await _context.CampaignEligibleProducts
+                                .Where(ep => ep.CampaignId == campaignId && ep.IsActive)
+                                .Select(ep => ep.ProductId)
+                                .ToListAsync();
+                            // Serialize to JSON array
+                            var eligibleProductsJson = System.Text.Json.JsonSerializer.Serialize(eligibleProductIds);
+
                             var voucher = new Voucher
                             {
                                 VoucherCode = voucherCode,
@@ -135,18 +150,15 @@ namespace backend.Services
                                 CampaignId = campaignId,
                                 Value = value,
                                 PointsRequired = tier.Threshold,
-                                EligibleProducts = campaign.VoucherEligibleProducts,
+                                EligibleProducts = eligibleProductsJson, // <-- Set as JSON array
                                 ExpiryDate = DateTime.UtcNow.AddDays(campaign.VoucherValidityDays ?? 90),
                                 IsRedeemed = false,
                                 CreatedAt = DateTime.UtcNow
                             };
                             _context.Vouchers.Add(voucher);
-                            // Deduct points from reseller
-                            if (resellerUser != null)
-                            {
-                                resellerUser.Points -= tier.Threshold;
-                                availableUserPoints -= tier.Threshold;
-                            }
+                            // Deduct points from campaignReseller
+                            campaignReseller.PointsUsedForVouchers += tier.Threshold;
+                            availableUserPoints -= tier.Threshold;
                             await _context.SaveChangesAsync(); // Save to get voucher.Id
 
                             // Automatically generate a QR code for this voucher

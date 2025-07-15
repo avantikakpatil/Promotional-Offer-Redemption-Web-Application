@@ -63,14 +63,6 @@ namespace backend.Controllers.Reseller
             if (resellerId == null)
                 return Unauthorized();
 
-            // Check if reseller has enough points
-            var reseller = await _context.Users.FindAsync(resellerId!.Value);
-            if (reseller == null)
-                return NotFound();
-
-            if (reseller.Points < createVoucherDto.PointsRequired)
-                return BadRequest("Insufficient points to create voucher");
-
             // Validate campaign exists and reseller is assigned
             var campaignReseller = await _context.CampaignResellers
                 .FirstOrDefaultAsync(cr => cr.CampaignId == createVoucherDto.CampaignId && 
@@ -79,6 +71,11 @@ namespace backend.Controllers.Reseller
 
             if (campaignReseller == null)
                 return BadRequest("Campaign not found or not approved for this reseller");
+
+            // Check campaign-specific points
+            int availablePoints = campaignReseller.TotalPointsEarned - campaignReseller.PointsUsedForVouchers;
+            if (availablePoints < createVoucherDto.PointsRequired)
+                return BadRequest("Insufficient campaign points to create voucher");
 
             // Generate voucher code
             var voucherCode = $"VCH-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
@@ -97,8 +94,8 @@ namespace backend.Controllers.Reseller
 
             _context.Vouchers.Add(voucher);
 
-            // Deduct points from reseller
-            reseller.Points -= createVoucherDto.PointsRequired;
+            // Deduct points from campaignReseller
+            campaignReseller.PointsUsedForVouchers += createVoucherDto.PointsRequired;
 
             await _context.SaveChangesAsync();
 

@@ -84,4 +84,11 @@ export const campaignAPI = {
   getResellerVouchers: () => api.get('/reseller/vouchers'),
 };
 
+// Manufacturer Product API
+export const productAPI = {
+  getManufacturerProducts: () => api.get('/manufacturer/product'),
+  createProduct: (productData) => api.post('/manufacturer/product', productData),
+  updateProduct: (id, productData) => api.put(`/manufacturer/product/${id}`, productData),
+};
+
 export default api;

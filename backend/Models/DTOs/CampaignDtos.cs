@@ -36,6 +36,9 @@ namespace backend.Models.DTOs
 
         [Required]
         public List<CreateRewardTierDto> RewardTiers { get; set; } = new List<CreateRewardTierDto>();
+
+        // Add eligible products for redemption
+        public List<EligibleProductDto>? EligibleProducts { get; set; }
     }
 
     public class CreateRewardTierDto
@@ -65,6 +68,7 @@ namespace backend.Models.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public List<RewardTierDto> RewardTiers { get; set; } = new List<RewardTierDto>();
+        public List<EligibleProductDto>? EligibleProducts { get; set; }
     }
 
     public class RewardTierDto
@@ -74,6 +78,15 @@ namespace backend.Models.DTOs
         public int Threshold { get; set; }
         public string Reward { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
+    }
+
+    public class EligibleProductDto
+    {
+        public int ProductId { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public int PointCost { get; set; }
+        public int? RedemptionLimit { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 
     public class ApiResponse<T>
