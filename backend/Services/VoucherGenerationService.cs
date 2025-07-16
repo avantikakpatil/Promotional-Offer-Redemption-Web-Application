@@ -15,6 +15,7 @@ namespace backend.Services
             _logger = logger;
         }
 
+        [Obsolete("Auto voucher generation is disabled. This method is obsolete.")]
         public async Task<bool> CheckAndGenerateVouchersAsync()
         {
             // Auto voucher generation is disabled. This method is now obsolete.
@@ -71,54 +72,30 @@ namespace backend.Services
         {
             try
             {
-                var campaign = await _context.Campaigns
-                    .FirstOrDefaultAsync(c => c.Id == campaignId);
+                var now = DateTime.UtcNow;
+                var points = pointsEarned > 0 ? pointsEarned : 1;
+                var voucherValue = 100m; // Default value
+                var voucherExpiry = now.AddDays(90); // Default 90 days
 
-                if (campaign == null)
-                {
-                    _logger.LogWarning($"[VoucherGen] Campaign {campaignId} not found");
-                    return false;
-                }
-
-                if (!campaign.IsActive || campaign.StartDate > DateTime.UtcNow || campaign.EndDate < DateTime.UtcNow)
-                {
-                    _logger.LogWarning($"[VoucherGen] Campaign {campaignId} is not active or not in date range");
-                    return false;
-                }
-
-                // Use campaign-specific points from CampaignReseller
-                var campaignReseller = await _context.CampaignResellers.FirstOrDefaultAsync(cr => cr.CampaignId == campaignId && cr.ResellerId == resellerId);
-                if (campaignReseller == null)
-                {
-                    _logger.LogWarning($"[VoucherGen] No CampaignReseller found for reseller {resellerId} in campaign {campaignId}");
-                    return false;
-                }
-
-                // Get eligible product IDs for this campaign
-                var eligibleProductIds = await _context.CampaignEligibleProducts
-                    .Where(ep => ep.CampaignId == campaignId && ep.IsActive)
-                    .Select(ep => ep.ProductId)
-                    .ToListAsync();
-                var eligibleProductsJson = System.Text.Json.JsonSerializer.Serialize(eligibleProductIds);
-
-                // Generate a voucher for this scan (pointsEarned)
-                var voucherCode = $"QR-VCH-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
+                var voucherCode = $"QR-VCH-{now:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
                 var voucher = new Voucher
                 {
                     VoucherCode = voucherCode,
                     ResellerId = resellerId,
                     CampaignId = campaignId,
-                    Value = campaign.VoucherValue ?? 100, // fallback value
-                    PointsRequired = pointsEarned > 0 ? pointsEarned : campaign.Points,
-                    EligibleProducts = eligibleProductsJson,
-                    ExpiryDate = DateTime.UtcNow.AddDays(campaign.VoucherValidityDays ?? 90),
+                    Value = voucherValue,
+                    PointsRequired = points,
+                    EligibleProducts = null,
+                    ExpiryDate = voucherExpiry,
                     IsRedeemed = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = now
                 };
+                _logger.LogInformation($"[VoucherGen] Creating voucher: {System.Text.Json.JsonSerializer.Serialize(voucher)}");
                 _context.Vouchers.Add(voucher);
                 await _context.SaveChangesAsync();
+                _logger.LogInformation($"[VoucherGen] Voucher saved with ID: {voucher.Id}");
 
-                // Optionally, generate a QR code for this voucher
+                // Create and link QR code
                 var qrCode = new QRCode
                 {
                     Code = $"QR-{voucher.VoucherCode}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}",
@@ -128,13 +105,14 @@ namespace backend.Services
                     Points = voucher.PointsRequired,
                     ExpiryDate = voucher.ExpiryDate,
                     IsRedeemed = false,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                    Voucher = voucher,
-                    Campaign = campaign
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    Voucher = voucher
                 };
+                _logger.LogInformation($"[VoucherGen] Creating QRCode: {System.Text.Json.JsonSerializer.Serialize(qrCode)}");
                 _context.QRCodes.Add(qrCode);
                 await _context.SaveChangesAsync();
+                _logger.LogInformation($"[VoucherGen] QRCode saved with ID: {qrCode.Id}");
 
                 _logger.LogInformation($"[VoucherGen] Voucher created for reseller {resellerId}, campaign {campaignId}, points {voucher.PointsRequired}");
                 return true;
@@ -148,63 +126,8 @@ namespace backend.Services
 
         public async Task<bool> GenerateOrUpdateVoucherForResellerAsync(int resellerId, int campaignId, int pointsEarned)
         {
-            try
-            {
-                var campaign = await _context.Campaigns.FirstOrDefaultAsync(c => c.Id == campaignId);
-                if (campaign == null)
-                {
-                    _logger.LogWarning($"[VoucherGen] Campaign {campaignId} not found");
-                    return false;
-                }
-                if (!campaign.IsActive || campaign.StartDate > DateTime.UtcNow || campaign.EndDate < DateTime.UtcNow)
-                {
-                    _logger.LogWarning($"[VoucherGen] Campaign {campaignId} is not active or not in date range");
-                    return false;
-                }
-                // Find existing active voucher for this reseller and campaign
-                var now = DateTime.UtcNow;
-                var voucher = await _context.Vouchers.FirstOrDefaultAsync(v => v.ResellerId == resellerId && v.CampaignId == campaignId && !v.IsRedeemed && v.ExpiryDate > now);
-                if (voucher != null)
-                {
-                    // Accumulate points
-                    voucher.PointsRequired += pointsEarned;
-                    voucher.UpdatedAt = now;
-                    _context.Vouchers.Update(voucher);
-                    _logger.LogInformation($"[VoucherGen] Updated voucher {voucher.VoucherCode} for reseller {resellerId}, campaign {campaignId}, new points: {voucher.PointsRequired}");
-                }
-                else
-                {
-                    // Get eligible product IDs for this campaign
-                    var eligibleProductIds = await _context.CampaignEligibleProducts
-                        .Where(ep => ep.CampaignId == campaignId && ep.IsActive)
-                        .Select(ep => ep.ProductId)
-                        .ToListAsync();
-                    var eligibleProductsJson = System.Text.Json.JsonSerializer.Serialize(eligibleProductIds);
-                    var voucherCode = $"QR-VCH-{now:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
-                    voucher = new Voucher
-                    {
-                        VoucherCode = voucherCode,
-                        ResellerId = resellerId,
-                        CampaignId = campaignId,
-                        Value = campaign.VoucherValue ?? 100,
-                        PointsRequired = pointsEarned,
-                        EligibleProducts = eligibleProductsJson,
-                        ExpiryDate = now.AddDays(campaign.VoucherValidityDays ?? 90),
-                        IsRedeemed = false,
-                        CreatedAt = now,
-                        UpdatedAt = now
-                    };
-                    _context.Vouchers.Add(voucher);
-                    _logger.LogInformation($"[VoucherGen] Created new voucher {voucher.VoucherCode} for reseller {resellerId}, campaign {campaignId}, points: {voucher.PointsRequired}");
-                }
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"[VoucherGen] Error generating/updating voucher for reseller {resellerId} in campaign {campaignId}");
-                return false;
-            }
+            // Always create a new voucher with the given points
+            return await GenerateVouchersForResellerAsync(resellerId, campaignId, pointsEarned);
         }
 
         public async Task<object> GetVoucherGenerationStatsAsync(int campaignId)

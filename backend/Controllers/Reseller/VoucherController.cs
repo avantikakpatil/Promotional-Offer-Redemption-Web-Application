@@ -18,89 +18,71 @@ namespace backend.Controllers.Reseller
             _context = context;
         }
 
-        // GET: api/reseller/voucher
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Voucher>>> GetVouchers()
-        {
-            var resellerId = GetCurrentUserId();
-            if (resellerId == null)
-                return Unauthorized();
-
-            var vouchers = await _context.Vouchers
-                .Include(v => v.Campaign)
-                .Include(v => v.RedeemedByShopkeeper)
-                .Where(v => v.ResellerId == resellerId)
-                .OrderByDescending(v => v.CreatedAt)
-                .ToListAsync();
-
-            return Ok(vouchers);
-        }
-
         // GET: api/reseller/voucher/{id}
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Voucher>> GetVoucher(int id)
-        {
-            var resellerId = GetCurrentUserId();
-            if (resellerId == null)
-                return Unauthorized();
-
-            var voucher = await _context.Vouchers
-                .Include(v => v.Campaign)
-                .Include(v => v.RedeemedByShopkeeper)
-                .FirstOrDefaultAsync(v => v.Id == id && v.ResellerId == resellerId);
-
-            if (voucher == null)
-                return NotFound();
-
-            return Ok(voucher);
-        }
+        //[HttpGet("{id}")]
+        //public async Task<ActionResult<Voucher>> GetVoucher(int id)
+        //{
+        //    var resellerId = GetCurrentUserId();
+        //    if (resellerId == null)
+        //        return Unauthorized();
+        //
+        //    var voucher = await _context.Vouchers
+        //        .Include(v => v.Campaign)
+        //        .Include(v => v.RedeemedByShopkeeper)
+        //        .FirstOrDefaultAsync(v => v.Id == id && v.ResellerId == resellerId);
+        //
+        //    if (voucher == null)
+        //        return NotFound();
+        //
+        //    return Ok(voucher);
+        //}
 
         // POST: api/reseller/voucher
-        [HttpPost]
-        public async Task<ActionResult<Voucher>> CreateVoucher(CreateVoucherDto createVoucherDto)
-        {
-            var resellerId = GetCurrentUserId();
-            if (resellerId == null)
-                return Unauthorized();
-
-            // Validate campaign exists and reseller is assigned
-            var campaignReseller = await _context.CampaignResellers
-                .FirstOrDefaultAsync(cr => cr.CampaignId == createVoucherDto.CampaignId && 
-                                         cr.ResellerId == resellerId && 
-                                         cr.IsApproved);
-
-            if (campaignReseller == null)
-                return BadRequest("Campaign not found or not approved for this reseller");
-
-            // Check campaign-specific points
-            int availablePoints = campaignReseller.TotalPointsEarned - campaignReseller.PointsUsedForVouchers;
-            if (availablePoints < createVoucherDto.PointsRequired)
-                return BadRequest("Insufficient campaign points to create voucher");
-
-            // Generate voucher code
-            var voucherCode = $"VCH-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
-
-            var voucher = new Voucher
-            {
-                VoucherCode = voucherCode,
-                ResellerId = resellerId!.Value,
-                CampaignId = createVoucherDto.CampaignId,
-                Value = createVoucherDto.Value,
-                PointsRequired = createVoucherDto.PointsRequired,
-                EligibleProducts = createVoucherDto.EligibleProducts,
-                ExpiryDate = createVoucherDto.ExpiryDate,
-                IsRedeemed = false
-            };
-
-            _context.Vouchers.Add(voucher);
-
-            // Deduct points from campaignReseller
-            campaignReseller.PointsUsedForVouchers += createVoucherDto.PointsRequired;
-
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetVoucher), new { id = voucher.Id }, voucher);
-        }
+        //[HttpPost]
+        //public async Task<ActionResult<Voucher>> CreateVoucher(CreateVoucherDto createVoucherDto)
+        //{
+        //    var resellerId = GetCurrentUserId();
+        //    if (resellerId == null)
+        //        return Unauthorized();
+        //
+        //    // Validate campaign exists and reseller is assigned
+        //    var campaignReseller = await _context.CampaignResellers
+        //        .FirstOrDefaultAsync(cr => cr.CampaignId == createVoucherDto.CampaignId && 
+        //                                 cr.ResellerId == resellerId && 
+        //                                 cr.IsApproved);
+        //
+        //    if (campaignReseller == null)
+        //        return BadRequest("Campaign not found or not approved for this reseller");
+        //
+        //    // Check campaign-specific points
+        //    int availablePoints = campaignReseller.TotalPointsEarned - campaignReseller.PointsUsedForVouchers;
+        //    if (availablePoints < createVoucherDto.PointsRequired)
+        //        return BadRequest("Insufficient campaign points to create voucher");
+        //
+        //    // Generate voucher code
+        //    var voucherCode = $"VCH-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
+        //
+        //    var voucher = new Voucher
+        //    {
+        //        VoucherCode = voucherCode,
+        //        ResellerId = resellerId!.Value,
+        //        CampaignId = createVoucherDto.CampaignId,
+        //        Value = createVoucherDto.Value,
+        //        PointsRequired = createVoucherDto.PointsRequired,
+        //        EligibleProducts = createVoucherDto.EligibleProducts,
+        //        ExpiryDate = createVoucherDto.ExpiryDate,
+        //        IsRedeemed = false
+        //    };
+        //
+        //    _context.Vouchers.Add(voucher);
+        //
+        //    // Deduct points from campaignReseller
+        //    campaignReseller.PointsUsedForVouchers += createVoucherDto.PointsRequired;
+        //
+        //    await _context.SaveChangesAsync();
+        //
+        //    return CreatedAtAction(nameof(GetVoucher), new { id = voucher.Id }, voucher);
+        //}
 
         // POST: api/reseller/voucher/{id}/generate-qr
         [HttpPost("{id}/generate-qr")]
@@ -262,6 +244,42 @@ namespace backend.Controllers.Reseller
                 TotalVoucherValueGenerated = campaignReseller.TotalVoucherValueGenerated,
                 LastVoucherGeneratedAt = campaignReseller.LastVoucherGeneratedAt
             });
+        }
+
+        // GET: api/reseller/vouchers
+        [HttpGet("vouchers")]
+        public async Task<IActionResult> GetVouchers()
+        {
+            var resellerId = GetCurrentUserId();
+            if (resellerId == null)
+                return Unauthorized();
+
+            try
+            {
+                var vouchers = await _context.Vouchers
+                    .Include(v => v.Campaign)
+                    .Where(v => v.ResellerId == resellerId)
+                    .OrderByDescending(v => v.CreatedAt)
+                    .Select(v => new
+                    {
+                        VoucherCode = v.VoucherCode,
+                        Value = v.Value,
+                        CampaignName = v.Campaign != null ? v.Campaign.Name : null,
+                        CampaignId = v.CampaignId,
+                        PointsRequired = v.PointsRequired,
+                        IsRedeemed = v.IsRedeemed,
+                        CreatedAt = v.CreatedAt,
+                        ExpiryDate = v.ExpiryDate,
+                        EligibleProducts = v.EligibleProducts
+                    })
+                    .ToListAsync();
+
+                return Ok(vouchers);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = ex.Message });
+            }
         }
 
         [HttpGet("reseller/{resellerId}/all-vouchers")]

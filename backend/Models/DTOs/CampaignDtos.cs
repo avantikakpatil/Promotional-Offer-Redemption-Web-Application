@@ -39,6 +39,10 @@ namespace backend.Models.DTOs
 
         // Add eligible products for redemption
         public List<EligibleProductDto>? EligibleProducts { get; set; }
+
+        public decimal? VoucherValue { get; set; }
+        public int? VoucherGenerationThreshold { get; set; }
+        public int? VoucherValidityDays { get; set; }
     }
 
     public class CreateRewardTierDto

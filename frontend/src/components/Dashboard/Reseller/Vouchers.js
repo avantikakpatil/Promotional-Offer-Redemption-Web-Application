@@ -56,7 +56,11 @@ const Vouchers = () => {
         if (!isAuto) setGenMsg(data.message || 'Vouchers generated successfully!');
         await fetchVouchers();
       } else {
-        if (!isAuto) setGenMsg(data.message || 'Failed to generate vouchers.');
+        let errorMsg = data.message || 'Failed to generate vouchers.';
+        if (data.errors && Array.isArray(data.errors)) {
+          errorMsg += '\n' + data.errors.join('\n');
+        }
+        if (!isAuto) setGenMsg(errorMsg);
       }
     } catch (err) {
       if (!isAuto) setGenMsg('Error generating vouchers.');

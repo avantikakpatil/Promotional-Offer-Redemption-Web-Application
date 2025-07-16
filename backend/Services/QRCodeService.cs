@@ -209,17 +209,11 @@ namespace backend.Services
             }
 
             var now = DateTime.UtcNow;
-            if (campaign.StartDate > now || campaign.EndDate < now)
-            {
-                Console.WriteLine($"Campaign not active: now={now}, start={campaign.StartDate}, end={campaign.EndDate}");
-                return new ApiResponse<string> { Success = false, Message = "Campaign not active.", ErrorCode = "CAMPAIGN_INACTIVE" };
-            }
-
-            int pointsToAdd = campaign.Points;
+            // Always use the campaign points (or 1 if not set)
+            int pointsToAdd = campaign.Points > 0 ? campaign.Points : 1;
             if (pointsToAdd <= 0)
             {
-                Console.WriteLine($"Invalid points for campaign {campaign.Id}: {pointsToAdd}");
-                return new ApiResponse<string> { Success = false, Message = "Invalid points.", ErrorCode = "INVALID_POINTS" };
+                pointsToAdd = 1;
             }
 
             // Add points to User and UserPoints
@@ -294,26 +288,40 @@ namespace backend.Services
                 throw;
             }
 
-            // Trigger voucher generation or update for this reseller and campaign
-            if (campaignReseller != null)
+            // Always trigger voucher generation with the points earned
+            bool voucherCreated = false;
+            Voucher? createdVoucher = null;
+            if (_voucherGenerationService != null)
             {
-                var voucherGenService = _voucherGenerationService as VoucherGenerationService;
-                if (voucherGenService != null)
+                voucherCreated = await _voucherGenerationService.GenerateVouchersForResellerAsync(resellerId, campaign.Id, pointsToAdd);
+                if (voucherCreated)
                 {
-                    await voucherGenService.GenerateOrUpdateVoucherForResellerAsync(resellerId, campaign.Id, pointsToAdd);
+                    // Fetch the latest voucher for this reseller/campaign
+                    createdVoucher = await _context.Vouchers
+                        .Where(v => v.ResellerId == resellerId && v.CampaignId == campaign.Id)
+                        .OrderByDescending(v => v.CreatedAt)
+                        .FirstOrDefaultAsync();
                 }
-                // Remove the fallback call with 3 arguments, as the interface does not support it
             }
-
-            string message = customerId.HasValue 
-                ? $"QR code redeemed successfully! {pointsToAdd} points added to customer account."
-                : $"QR code redeemed successfully! {pointsToAdd} points added to your account.";
+            if (!voucherCreated)
+            {
+                Console.WriteLine($"[VoucherGen] Voucher generation failed for reseller {resellerId}, campaign {campaign.Id}");
+            }
 
             return new ApiResponse<string>
             {
-                Success = true,
-                Message = message,
-                Data = $"Points added: {pointsToAdd}, User: {targetUser.Name}"
+                Success = voucherCreated,
+                Message = voucherCreated ? $"QR code redeemed successfully! {pointsToAdd} points added. Voucher created." : $"QR code redeemed, but voucher creation failed.",
+                Data = createdVoucher != null ? System.Text.Json.JsonSerializer.Serialize(new {
+                    createdVoucher.Id,
+                    createdVoucher.VoucherCode,
+                    createdVoucher.Value,
+                    createdVoucher.CampaignId,
+                    createdVoucher.ResellerId,
+                    createdVoucher.PointsRequired,
+                    createdVoucher.ExpiryDate,
+                    createdVoucher.IsRedeemed
+                }) : null
             };
         }
 

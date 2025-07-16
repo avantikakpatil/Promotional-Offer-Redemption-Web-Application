@@ -51,7 +51,7 @@ namespace backend.Controllers.Reseller
 
             var vouchers = await _context.Vouchers
                 .Include(v => v.Campaign)
-                .Include(v => v.RedeemedByShopkeeper)
+                // .Include(v => v.RedeemedByShopkeeper) // Temporarily removed to diagnose 500 error
                 .Where(v => v.ResellerId == resellerId)
                 .OrderByDescending(v => v.CreatedAt)
                 .ToListAsync();
@@ -68,7 +68,7 @@ namespace backend.Controllers.Reseller
                     id = v.Id,
                     voucherCode = v.VoucherCode,
                     value = v.Value,
-                    campaignName = v.Campaign?.Name,
+                    campaignName = v.Campaign?.Name, // Use null-conditional
                     campaignId = v.CampaignId,
                     pointsRequired = v.PointsRequired,
                     isRedeemed = v.IsRedeemed,
@@ -203,6 +203,7 @@ namespace backend.Controllers.Reseller
                 .ToListAsync();
 
             int totalGenerated = 0;
+            var errorMessages = new List<string>();
             foreach (var campaignId in campaignIds)
             {
                 var voucherService = HttpContext.RequestServices.GetService(typeof(backend.Services.IVoucherGenerationService)) as backend.Services.IVoucherGenerationService;
@@ -210,7 +211,17 @@ namespace backend.Controllers.Reseller
                 {
                     var result = await voucherService.GenerateVouchersForResellerAsync(resellerId.Value, campaignId);
                     if (result) totalGenerated++;
+                    else errorMessages.Add($"Failed to generate voucher for campaign ID {campaignId}.");
                 }
+                else
+                {
+                    errorMessages.Add("Voucher generation service not available.");
+                }
+            }
+
+            if (errorMessages.Count > 0)
+            {
+                return BadRequest(new { success = false, message = $"Voucher generation failed for some campaigns.", errors = errorMessages });
             }
 
             return Ok(new { success = true, message = $"Voucher generation triggered for {campaignIds.Count} campaigns. Success: {totalGenerated}" });

@@ -77,6 +77,12 @@ namespace backend.Services
                     };
                 }
 
+                // Validate voucher settings
+                if (createCampaignDto.VoucherValue == null || createCampaignDto.VoucherGenerationThreshold == null || createCampaignDto.VoucherValidityDays == null)
+                {
+                    throw new Exception("Voucher settings (value, threshold, validity days) are required for campaign creation.");
+                }
+
                 // Create campaign entity
                 var campaign = new Campaign
                 {
@@ -90,7 +96,10 @@ namespace backend.Services
                     TargetAudience = createCampaignDto.TargetAudience,
                     IsActive = createCampaignDto.IsActive,
                     ManufacturerId = manufacturerId,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    VoucherValue = createCampaignDto.VoucherValue,
+                    VoucherGenerationThreshold = createCampaignDto.VoucherGenerationThreshold,
+                    VoucherValidityDays = createCampaignDto.VoucherValidityDays
                 };
 
                 // Add reward tiers
