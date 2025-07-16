@@ -294,10 +294,15 @@ namespace backend.Services
                 throw;
             }
 
-            // Trigger voucher generation for this reseller and campaign
+            // Trigger voucher generation or update for this reseller and campaign
             if (campaignReseller != null)
             {
-                await _voucherGenerationService.GenerateVouchersForResellerAsync(resellerId, campaign.Id);
+                var voucherGenService = _voucherGenerationService as VoucherGenerationService;
+                if (voucherGenService != null)
+                {
+                    await voucherGenService.GenerateOrUpdateVoucherForResellerAsync(resellerId, campaign.Id, pointsToAdd);
+                }
+                // Remove the fallback call with 3 arguments, as the interface does not support it
             }
 
             string message = customerId.HasValue 

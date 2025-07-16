@@ -36,6 +36,8 @@ namespace backend.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        public DateTime? UpdatedAt { get; set; }
+
         // Navigation properties
         [ForeignKey("ResellerId")]
         public virtual User? Reseller { get; set; }

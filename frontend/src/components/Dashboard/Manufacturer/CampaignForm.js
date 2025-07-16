@@ -25,8 +25,21 @@ const CampaignForm = ({
   const [selectedEligibleProducts, setSelectedEligibleProducts] = useState(initialData.eligibleProducts || []);
 
   useEffect(() => {
+    // Map eligibleProducts from initialData to the structure expected by the form
+    if (initialData.eligibleProducts && Array.isArray(initialData.eligibleProducts)) {
+      setSelectedEligibleProducts(
+        initialData.eligibleProducts.map(ep => ({
+          productId: ep.productId,
+          productName: ep.productName,
+          pointCost: ep.pointCost,
+          redemptionLimit: ep.redemptionLimit,
+          isActive: ep.isActive
+        }))
+      );
+    } else {
+      setSelectedEligibleProducts([]);
+    }
     setFormData((prev) => ({ ...prev, ...initialData }));
-    setSelectedEligibleProducts(initialData.eligibleProducts || []);
   }, [initialData]);
 
   useEffect(() => {

@@ -21,6 +21,9 @@ import Help from './components/Dashboard/Manufacturer/Help';
 import Navbar from './components/Common/Navbar';
 import Vouchers from './components/Dashboard/Reseller/Vouchers';
 import ProductManage from './components/Dashboard/Manufacturer/ProductManage';
+import CampaignEdit from './components/Dashboard/Manufacturer/CampaignEdit';
+// Add a placeholder CampaignView component
+const CampaignView = React.lazy(() => import('./components/Dashboard/Manufacturer/CampaignView'));
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -134,6 +137,8 @@ function App() {
                 <Route path="dashboard" element={<DashboardHome />} />
                 <Route path="campaign/create" element={<CampaignCreate />} />
                 <Route path="campaigns" element={<ViewCampaigns />} />
+                <Route path="campaign/:id/edit" element={<CampaignEdit />} />
+                <Route path="campaign/:id" element={<React.Suspense fallback={<div>Loading...</div>}><CampaignView /></React.Suspense>} />
                 <Route path="qr-codes" element={<QRCodeManagement />} />
                 <Route path="assign-reseller" element={<ResellerAssign />} />
                 <Route path="analytics" element={<Analytics />} />

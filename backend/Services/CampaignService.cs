@@ -197,6 +197,8 @@ namespace backend.Services
             {
                 var campaign = await _context.Campaigns
                     .Include(c => c.RewardTiers)
+                    .Include(c => c.EligibleProducts)
+                        .ThenInclude(ep => ep.Product)
                     .FirstOrDefaultAsync(c => c.Id == campaignId && c.ManufacturerId == manufacturerId);
 
                 if (campaign == null)
@@ -235,6 +237,8 @@ namespace backend.Services
             {
                 var campaign = await _context.Campaigns
                     .Include(c => c.RewardTiers)
+                    .Include(c => c.EligibleProducts)
+                        .ThenInclude(ep => ep.Product)
                     .FirstOrDefaultAsync(c => c.Id == campaignId && c.ManufacturerId == manufacturerId);
 
                 if (campaign == null)
@@ -310,6 +314,8 @@ namespace backend.Services
 
                 var updatedCampaign = await _context.Campaigns
                     .Include(c => c.RewardTiers)
+                    .Include(c => c.EligibleProducts)
+                        .ThenInclude(ep => ep.Product)
                     .FirstOrDefaultAsync(c => c.Id == campaign.Id);
 
                 var campaignDto = MapToDto(updatedCampaign!);

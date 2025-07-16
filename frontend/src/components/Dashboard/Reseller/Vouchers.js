@@ -10,6 +10,7 @@ const Vouchers = () => {
   const [genLoading, setGenLoading] = useState(false);
   const [genMsg, setGenMsg] = useState('');
   const [autoGenAttempted, setAutoGenAttempted] = useState(false); // Prevent repeated auto-generation
+  const [debugVouchers, setDebugVouchers] = useState(null);
 
   useEffect(() => {
     fetchVouchers();
@@ -23,6 +24,7 @@ const Vouchers = () => {
     try {
       const response = await campaignAPI.getResellerVouchers();
       const fetchedVouchers = response.data || [];
+      setDebugVouchers(response);
       setVouchers(fetchedVouchers);
       // Auto-generate vouchers if none exist and not already attempted
       if (fetchedVouchers.length === 0 && !autoGenAttempted) {
@@ -90,11 +92,15 @@ const Vouchers = () => {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>
       )}
+      {debugVouchers && (
+        <pre className="bg-gray-100 text-xs p-2 rounded mt-2 overflow-x-auto">{JSON.stringify(debugVouchers, null, 2)}</pre>
+      )}
       {!loading && vouchers.length === 0 && !error && (
         <div className="bg-white rounded-lg shadow p-12 text-center">
           <div className="text-6xl mb-4">🎟️</div>
           <h3 className="text-xl font-semibold text-gray-800 mb-2">No vouchers found</h3>
           <p className="text-gray-600">You have not earned any vouchers yet. Participate in campaigns to earn rewards!</p>
+          <p className="text-red-600 mt-2">[Debug] No vouchers returned from API.</p>
         </div>
       )}
       {!loading && vouchers.length > 0 && (
