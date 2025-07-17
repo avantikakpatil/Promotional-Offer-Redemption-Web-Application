@@ -9,5 +9,7 @@ namespace backend.Services
         Task<bool> GenerateVouchersForResellerAsync(int resellerId, int campaignId, int pointsEarned = 0);
         Task<bool> GenerateVouchersForCampaignAsync(int campaignId);
         Task<object> GetVoucherGenerationStatsAsync(int campaignId);
+        Task<int> BackfillVoucherQRCodesAsync();
+        Task<int> BackfillVoucherEligibleProductsAsync();
     }
 } 

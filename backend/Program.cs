@@ -210,6 +210,28 @@ using (var scope = app.Services.CreateScope())
 }
 // --- END ONE-TIME DATABASE CLEANUP BLOCK ---
 
+// --- ONE-TIME VOUCHER QR CODE BACKFILL BLOCK ---
+// This will create QR codes for all existing vouchers that do not have one.
+// Remove or comment out after running once!
+using (var scope = app.Services.CreateScope())
+{
+    var voucherGenService = scope.ServiceProvider.GetRequiredService<backend.Services.IVoucherGenerationService>();
+    var created = voucherGenService.BackfillVoucherQRCodesAsync().GetAwaiter().GetResult();
+    Console.WriteLine($"[SYNC] Voucher QR code backfill complete. Created {created} QR codes for vouchers.");
+}
+// --- END ONE-TIME VOUCHER QR CODE BACKFILL BLOCK ---
+
+// --- ONE-TIME VOUCHER ELIGIBLE PRODUCTS BACKFILL BLOCK ---
+// This will set eligible products for all existing vouchers that do not have them.
+// Remove or comment out after running once!
+using (var scope = app.Services.CreateScope())
+{
+    var voucherGenService = scope.ServiceProvider.GetRequiredService<backend.Services.IVoucherGenerationService>();
+    var updated = voucherGenService.BackfillVoucherEligibleProductsAsync().GetAwaiter().GetResult();
+    Console.WriteLine($"[SYNC] Voucher eligible products backfill complete. Updated {updated} vouchers.");
+}
+// --- END ONE-TIME VOUCHER ELIGIBLE PRODUCTS BACKFILL BLOCK ---
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

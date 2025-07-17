@@ -18,15 +18,19 @@ namespace backend.Services
 
         public async Task<QRCodeDto> CreateQRCodeAsync(QRCodeCreateDto dto)
         {
+            // Fetch campaign info first
+            var campaign = await _context.Campaigns.FirstOrDefaultAsync(c => c.Id == dto.CampaignId);
+            int points = (campaign != null && campaign.Points > 0) ? campaign.Points : 1;
             var qr = new QRCode
             {
                 Code = dto.Code,
-                CampaignId = dto.CampaignId
+                CampaignId = dto.CampaignId,
+                Points = points
             };
             _context.QRCodes.Add(qr);
             await _context.SaveChangesAsync();
-            // Fetch campaign info and reward tiers
-            var campaign = await _context.Campaigns
+            // Fetch campaign info and reward tiers (again, for DTO)
+            campaign = await _context.Campaigns
                 .Include(c => c.RewardTiers)
                 .FirstOrDefaultAsync(c => c.Id == qr.CampaignId);
             return ToDto(qr, campaign);
@@ -120,11 +124,12 @@ namespace backend.Services
             }
 
             var now = DateTime.UtcNow;
-            if (campaign.StartDate > now || campaign.EndDate < now)
-            {
-                Console.WriteLine($"Campaign not active: now={now}, start={campaign.StartDate}, end={campaign.EndDate}");
-                return new ApiResponse<string> { Success = false, Message = "Campaign not active.", ErrorCode = "CAMPAIGN_INACTIVE" };
-            }
+            // REMOVE campaign active check for customer QR redemption
+            // if (campaign.StartDate > now || campaign.EndDate < now)
+            // {
+            //     Console.WriteLine($"Campaign not active: now={now}, start={campaign.StartDate}, end={campaign.EndDate}");
+            //     return new ApiResponse<string> { Success = false, Message = "Campaign not active.", ErrorCode = "CAMPAIGN_INACTIVE" };
+            // }
 
             int pointsToAdd = campaign.Points;
             if (pointsToAdd <= 0)
@@ -209,8 +214,14 @@ namespace backend.Services
             }
 
             var now = DateTime.UtcNow;
-            // Always use the campaign points (or 1 if not set)
-            int pointsToAdd = campaign.Points > 0 ? campaign.Points : 1;
+            // REMOVE campaign active check for reseller QR redemption
+            // if (campaign.StartDate > now || campaign.EndDate < now)
+            // {
+            //     Console.WriteLine($"Campaign not active: now={now}, start={campaign.StartDate}, end={campaign.EndDate}");
+            //     return new ApiResponse<string> { Success = false, Message = "Campaign not active.", ErrorCode = "CAMPAIGN_INACTIVE" };
+            // }
+
+            int pointsToAdd = qr.Points > 0 ? qr.Points : (campaign.Points > 0 ? campaign.Points : 1);
             if (pointsToAdd <= 0)
             {
                 pointsToAdd = 1;

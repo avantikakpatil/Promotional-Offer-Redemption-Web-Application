@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { campaignAPI } from '../../../services/api';
 import { QRCodeCanvas } from 'qrcode.react';
 import html2canvas from 'html2canvas';
@@ -109,6 +109,20 @@ const Vouchers = () => {
     }
   };
 
+  // Group vouchers by campaignId and sum PointsRequired
+  const groupedVouchers = useMemo(() => {
+    const map = new Map();
+    vouchers.forEach(voucher => {
+      if (!map.has(voucher.campaignId)) {
+        map.set(voucher.campaignId, { ...voucher });
+      } else {
+        // Accumulate points
+        map.get(voucher.campaignId).pointsRequired += voucher.pointsRequired;
+      }
+    });
+    return Array.from(map.values());
+  }, [vouchers]);
+
   return (
     <ResellerLayout>
       <div className="space-y-6">
@@ -165,26 +179,20 @@ const Vouchers = () => {
         
         {!loading && vouchers.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {vouchers.map((voucher) => (
+            {groupedVouchers.map((voucher) => (
               <div 
-                key={voucher.id} 
-                id={`voucher-card-${voucher.id}`} 
+                key={voucher.campaignId} 
+                id={`voucher-card-${voucher.campaignId}`} 
                 className="bg-white rounded-lg shadow p-6 flex flex-col justify-between h-full border border-gray-100 hover:shadow-lg transition-shadow"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono text-lg font-bold text-blue-700">{voucher.voucherCode}</span>
-                  {voucher.isRedeemed ? (
-                    <span className="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">Redeemed</span>
-                  ) : (
-                    <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">Not Redeemed</span>
-                  )}
+                <div className="mb-4">
+                  <div className="text-lg font-bold text-blue-700">{voucher.campaignName}</div>
+                  <div className="text-xs text-gray-500">Voucher Code: <span className="font-mono">{voucher.voucherCode}</span></div>
                 </div>
-                
-                {/* QR Code Display */}
                 <div className="flex flex-col items-center my-4">
                   {voucher.qrCode ? (
                     <QRCodeCanvas 
-                      id={`qr-canvas-${voucher.id}`} 
+                      id={`qr-canvas-${voucher.campaignId}`} 
                       value={voucher.qrCode} 
                       size={128} 
                       className="border border-gray-200 rounded"
@@ -195,23 +203,12 @@ const Vouchers = () => {
                     </div>
                   )}
                 </div>
-                
-                <div className="mt-2">
-                  <div className="text-sm text-gray-600 mb-1">
-                    Campaign: <span className="font-semibold text-gray-800">{voucher.campaignName}</span>
-                  </div>
-                  <div className="text-sm text-gray-600 mb-1">
-                    Value: <span className="font-semibold text-gray-800">₹{voucher.value}</span>
-                  </div>
-                  <div className="text-sm text-gray-600 mb-1">
-                    Points Required: <span className="font-semibold text-gray-800">{voucher.pointsRequired}</span>
-                  </div>
-                  <div className="text-sm text-gray-600 mb-1">
-                    Expiry: <span className="font-semibold text-gray-800">{new Date(voucher.expiryDate).toLocaleDateString()}</span>
-                  </div>
+                <div className="mt-2 text-center">
+                  <div className="text-2xl font-extrabold text-green-700 mb-1">{voucher.value} pts</div>
+                  <div className="text-sm text-gray-600">Total Redeemed Points</div>
+                  <div className="text-xs text-gray-400 mt-1">Sum of all points redeemed for this campaign</div>
+                  <div className="text-sm text-gray-600 mt-2">Expiry: <span className="font-semibold text-gray-800">{new Date(voucher.expiryDate).toLocaleDateString()}</span></div>
                 </div>
-                
-                {/* Download Button */}
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <button
                     onClick={() => downloadVoucherImage(voucher.id)}
