@@ -21,7 +21,10 @@ const CampaignCreate = () => {
     rewardTiers: [{ threshold: '', reward: '' }],
     budget: '',
     targetAudience: '',
-    isActive: true
+    isActive: true,
+    voucherValue: '',
+    voucherGenerationThreshold: '',
+    voucherValidityDays: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -131,6 +134,10 @@ const CampaignCreate = () => {
     if (!selectedEligibleProducts || selectedEligibleProducts.length === 0) {
       newErrors.eligibleProducts = 'At least one eligible product must be selected';
     }
+    // Voucher fields
+    if (!formData.voucherValue || isNaN(formData.voucherValue) || parseFloat(formData.voucherValue) <= 0) newErrors.voucherValue = 'Voucher value is required and must be positive';
+    if (!formData.voucherGenerationThreshold || isNaN(formData.voucherGenerationThreshold) || parseInt(formData.voucherGenerationThreshold) <= 0) newErrors.voucherGenerationThreshold = 'Voucher generation threshold is required and must be positive';
+    if (!formData.voucherValidityDays || isNaN(formData.voucherValidityDays) || parseInt(formData.voucherValidityDays) <= 0) newErrors.voucherValidityDays = 'Voucher validity days is required and must be positive';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -239,7 +246,10 @@ const CampaignCreate = () => {
           pointCost: parseInt(ep.pointCost),
           redemptionLimit: ep.redemptionLimit ? parseInt(ep.redemptionLimit) : null,
           isActive: ep.isActive
-        }))
+        })),
+        voucherValue: parseFloat(formData.voucherValue),
+        voucherGenerationThreshold: parseInt(formData.voucherGenerationThreshold),
+        voucherValidityDays: parseInt(formData.voucherValidityDays)
       };
       console.log('Sending campaign data:', campaignData);
       console.log('Token info:', tokenInfo);
@@ -487,6 +497,58 @@ const CampaignCreate = () => {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   placeholder="e.g., Young families, Health-conscious consumers"
                 />
+              </div>
+
+              <div>
+                <label htmlFor="voucherValue" className="block text-sm font-medium text-gray-700 mb-2">
+                  Voucher Value (₹) *
+                </label>
+                <input
+                  type="number"
+                  name="voucherValue"
+                  id="voucherValue"
+                  value={formData.voucherValue}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.voucherValue ? 'border-red-500' : 'border-gray-300'}`}
+                  placeholder="e.g., 100"
+                  min="1"
+                  required
+                />
+                {errors.voucherValue && <p className="mt-1 text-sm text-red-600">{errors.voucherValue}</p>}
+              </div>
+              <div>
+                <label htmlFor="voucherGenerationThreshold" className="block text-sm font-medium text-gray-700 mb-2">
+                  Voucher Generation Threshold (Points) *
+                </label>
+                <input
+                  type="number"
+                  name="voucherGenerationThreshold"
+                  id="voucherGenerationThreshold"
+                  value={formData.voucherGenerationThreshold}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.voucherGenerationThreshold ? 'border-red-500' : 'border-gray-300'}`}
+                  placeholder="e.g., 100"
+                  min="1"
+                  required
+                />
+                {errors.voucherGenerationThreshold && <p className="mt-1 text-sm text-red-600">{errors.voucherGenerationThreshold}</p>}
+              </div>
+              <div>
+                <label htmlFor="voucherValidityDays" className="block text-sm font-medium text-gray-700 mb-2">
+                  Voucher Validity (Days) *
+                </label>
+                <input
+                  type="number"
+                  name="voucherValidityDays"
+                  id="voucherValidityDays"
+                  value={formData.voucherValidityDays}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.voucherValidityDays ? 'border-red-500' : 'border-gray-300'}`}
+                  placeholder="e.g., 30"
+                  min="1"
+                  required
+                />
+                {errors.voucherValidityDays && <p className="mt-1 text-sm text-red-600">{errors.voucherValidityDays}</p>}
               </div>
 
               <div className="md:col-span-2">
