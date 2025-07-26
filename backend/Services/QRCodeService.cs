@@ -18,20 +18,27 @@ namespace backend.Services
 
         public async Task<QRCodeDto> CreateQRCodeAsync(QRCodeCreateDto dto)
         {
-            // Fetch campaign info first
-            var campaign = await _context.Campaigns.FirstOrDefaultAsync(c => c.Id == dto.CampaignId);
-            int points = (campaign != null && campaign.Points > 0) ? campaign.Points : 1;
+            var campaign = await _context.Campaigns.FindAsync(dto.CampaignId);
+            if (campaign == null)
+                throw new ArgumentException("Campaign not found");
+
             var qr = new QRCode
             {
                 Code = dto.Code,
                 CampaignId = dto.CampaignId,
-                Points = points
+                ResellerId = dto.ResellerId,
+                VoucherId = dto.VoucherId,
+                Points = dto.Points,
+                ExpiryDate = dto.ExpiryDate,
+                IsRedeemed = false,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
+
             _context.QRCodes.Add(qr);
             await _context.SaveChangesAsync();
-            // Fetch campaign info and reward tiers (again, for DTO)
+            // Fetch campaign info
             campaign = await _context.Campaigns
-                .Include(c => c.RewardTiers)
                 .FirstOrDefaultAsync(c => c.Id == qr.CampaignId);
             return ToDto(qr, campaign);
         }
@@ -40,7 +47,6 @@ namespace backend.Services
         {
             var qrs = await _context.QRCodes.Where(q => q.CampaignId == campaignId).ToListAsync();
             var campaign = await _context.Campaigns
-                .Include(c => c.RewardTiers)
                 .FirstOrDefaultAsync(c => c.Id == campaignId);
             return qrs.Select(qr => ToDto(qr, campaign));
         }
@@ -57,7 +63,6 @@ namespace backend.Services
             if (qr == null) return null;
             
             var campaign = await _context.Campaigns
-                .Include(c => c.RewardTiers)
                 .FirstOrDefaultAsync(c => c.Id == qr.CampaignId);
             return ToDto(qr, campaign);
         }
@@ -131,7 +136,7 @@ namespace backend.Services
             //     return new ApiResponse<string> { Success = false, Message = "Campaign not active.", ErrorCode = "CAMPAIGN_INACTIVE" };
             // }
 
-            int pointsToAdd = campaign.Points;
+            int pointsToAdd = 1; // Default points since Points field was removed from Campaign
             if (pointsToAdd <= 0)
             {
                 Console.WriteLine($"Invalid points for campaign {campaign.Id}: {pointsToAdd}");
@@ -221,7 +226,7 @@ namespace backend.Services
             //     return new ApiResponse<string> { Success = false, Message = "Campaign not active.", ErrorCode = "CAMPAIGN_INACTIVE" };
             // }
 
-            int pointsToAdd = qr.Points > 0 ? qr.Points : (campaign.Points > 0 ? campaign.Points : 1);
+            int pointsToAdd = qr.Points > 0 ? qr.Points : 1; // Default to 1 since Points field was removed from Campaign
             if (pointsToAdd <= 0)
             {
                 pointsToAdd = 1;
@@ -385,15 +390,9 @@ namespace backend.Services
                 RedeemedAt = qr.RedeemedAt,
                 CreatedAt = qr.CreatedAt,
                 UpdatedAt = qr.UpdatedAt,
-                Points = campaign?.Points ?? 0,
+                Points = 0, // Default value since Points field was removed from Campaign
                 StartDate = campaign?.StartDate ?? DateTime.MinValue,
-                EndDate = campaign?.EndDate ?? DateTime.MinValue,
-                RewardTiers = campaign?.RewardTiers?.Select(rt => new QRCodeRewardTierDto
-                {
-                    Id = rt.Id,
-                    Threshold = rt.Threshold,
-                    Reward = rt.Reward
-                }).ToList() ?? new List<QRCodeRewardTierDto>()
+                EndDate = campaign?.EndDate ?? DateTime.MinValue
             };
             return dto;
         }

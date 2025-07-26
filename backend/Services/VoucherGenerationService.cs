@@ -178,7 +178,6 @@ namespace backend.Services
                 {
                     CampaignId = campaignId,
                     CampaignName = campaign.Name,
-                    EnableAutoVoucherGeneration = campaign.EnableAutoVoucherGeneration,
                     VoucherGenerationThreshold = campaign.VoucherGenerationThreshold,
                     VoucherValue = campaign.VoucherValue,
                     VoucherValidityDays = campaign.VoucherValidityDays,

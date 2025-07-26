@@ -174,14 +174,10 @@ namespace backend.Controllers.Reseller
                     id = c.Id,
                     name = c.Name,
                     productType = c.ProductType,
-                    points = c.Points,
                     startDate = c.StartDate,
                     endDate = c.EndDate,
                     description = c.Description,
                     isActive = c.IsActive,
-                    minimumOrderValue = c.MinimumOrderValue,
-                    maximumOrderValue = c.MaximumOrderValue,
-                    schemeType = c.SchemeType,
                     createdAt = c.CreatedAt,
                     manufacturer = new
                     {

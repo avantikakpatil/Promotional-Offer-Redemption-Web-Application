@@ -505,12 +505,9 @@ namespace backend.Controllers.Manufacturer
                 return NotFound("Campaign not found");
 
             // Update voucher generation settings
-            campaign.EnableAutoVoucherGeneration = voucherSettingsDto.EnableAutoVoucherGeneration;
             campaign.VoucherGenerationThreshold = voucherSettingsDto.VoucherGenerationThreshold;
             campaign.VoucherValue = voucherSettingsDto.VoucherValue;
             campaign.VoucherValidityDays = voucherSettingsDto.VoucherValidityDays;
-            campaign.VoucherEligibleProducts = voucherSettingsDto.VoucherEligibleProducts;
-            campaign.VoucherPointsEqualsMoney = voucherSettingsDto.VoucherPointsEqualsMoney;
             campaign.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -548,7 +545,6 @@ namespace backend.Controllers.Manufacturer
             {
                 CampaignId = id,
                 CampaignName = campaign.Name,
-                EnableAutoVoucherGeneration = campaign.EnableAutoVoucherGeneration,
                 VoucherGenerationThreshold = campaign.VoucherGenerationThreshold,
                 VoucherValue = campaign.VoucherValue,
                 VoucherValidityDays = campaign.VoucherValidityDays,
@@ -585,8 +581,8 @@ namespace backend.Controllers.Manufacturer
             if (campaign == null)
                 return NotFound("Campaign not found");
 
-            if (!campaign.EnableAutoVoucherGeneration)
-                return BadRequest("Auto voucher generation is not enabled for this campaign");
+            if (!campaign.VoucherGenerationThreshold.HasValue || !campaign.VoucherValue.HasValue)
+                return BadRequest("Voucher generation settings are not configured for this campaign");
 
             // Use the voucher generation service
             var voucherGenerationService = HttpContext.RequestServices.GetRequiredService<IVoucherGenerationService>();

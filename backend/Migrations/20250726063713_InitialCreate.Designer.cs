@@ -12,8 +12,8 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250715175310_AddCampaignEligibleProductTable")]
-    partial class AddCampaignEligibleProductTable
+    [Migration("20250726063713_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -56,9 +56,6 @@ namespace backend.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.Property<int>("ManufacturerId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("MaxResellersAllowed")
                         .HasColumnType("int");
 
                     b.Property<decimal?>("MaximumOrderValue")
@@ -694,6 +691,9 @@ namespace backend.Migrations
 
                     b.Property<int>("ResellerId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<decimal>("Value")
                         .HasColumnType("decimal(18,2)");

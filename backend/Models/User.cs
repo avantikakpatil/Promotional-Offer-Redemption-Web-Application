@@ -45,6 +45,7 @@ namespace backend.Models
         public int? AssignedResellerId { get; set; }
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }
         
         // Total points earned by the user (mainly for resellers)

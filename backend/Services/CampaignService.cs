@@ -29,91 +29,22 @@ namespace backend.Services
         {
             try
             {
-                // Validate dates
-                if (createCampaignDto.StartDate >= createCampaignDto.EndDate)
-                {
-                    return new ApiResponse<CampaignDto>
-                    {
-                        Success = false,
-                        Message = "End date must be after start date",
-                        Errors = new List<string> { "End date must be after start date" }
-                    };
-                }
-
-                if (createCampaignDto.StartDate < DateTime.UtcNow.Date)
-                {
-                    return new ApiResponse<CampaignDto>
-                    {
-                        Success = false,
-                        Message = "Start date cannot be in the past",
-                        Errors = new List<string> { "Start date cannot be in the past" }
-                    };
-                }
-
-                // Validate reward tiers
-                if (!createCampaignDto.RewardTiers.Any())
-                {
-                    return new ApiResponse<CampaignDto>
-                    {
-                        Success = false,
-                        Message = "At least one reward tier is required",
-                        Errors = new List<string> { "At least one reward tier is required" }
-                    };
-                }
-
-                // Check for duplicate thresholds
-                var duplicateThresholds = createCampaignDto.RewardTiers
-                    .GroupBy(t => t.Threshold)
-                    .Where(g => g.Count() > 1)
-                    .Select(g => g.Key);
-
-                if (duplicateThresholds.Any())
-                {
-                    return new ApiResponse<CampaignDto>
-                    {
-                        Success = false,
-                        Message = "Duplicate reward tier thresholds are not allowed",
-                        Errors = new List<string> { "Duplicate reward tier thresholds are not allowed" }
-                    };
-                }
-
-                // Validate voucher settings
-                if (createCampaignDto.VoucherValue == null || createCampaignDto.VoucherGenerationThreshold == null || createCampaignDto.VoucherValidityDays == null)
-                {
-                    throw new Exception("Voucher settings (value, threshold, validity days) are required for campaign creation.");
-                }
-
-                // Create campaign entity
                 var campaign = new Campaign
                 {
                     Name = createCampaignDto.Name,
                     ProductType = createCampaignDto.ProductType,
-                    Points = createCampaignDto.Points,
                     StartDate = createCampaignDto.StartDate,
                     EndDate = createCampaignDto.EndDate,
                     Description = createCampaignDto.Description,
-                    Budget = createCampaignDto.Budget,
-                    TargetAudience = createCampaignDto.TargetAudience,
                     IsActive = createCampaignDto.IsActive,
                     ManufacturerId = manufacturerId,
-                    CreatedAt = DateTime.UtcNow,
-                    VoucherValue = createCampaignDto.VoucherValue,
                     VoucherGenerationThreshold = createCampaignDto.VoucherGenerationThreshold,
-                    VoucherValidityDays = createCampaignDto.VoucherValidityDays
+                    VoucherValue = createCampaignDto.VoucherValue,
+                    VoucherValidityDays = createCampaignDto.VoucherValidityDays,
+                    CreatedAt = DateTime.UtcNow
                 };
 
-                // Add reward tiers
-                foreach (var tierDto in createCampaignDto.RewardTiers)
-                {
-                    campaign.RewardTiers.Add(new RewardTier
-                    {
-                        Threshold = tierDto.Threshold,
-                        Reward = tierDto.Reward,
-                        CreatedAt = DateTime.UtcNow
-                    });
-                }
-
-                // Add eligible products
+                // Add eligible products for points earning
                 if (createCampaignDto.EligibleProducts != null)
                 {
                     foreach (var ep in createCampaignDto.EligibleProducts)
@@ -128,12 +59,27 @@ namespace backend.Services
                     }
                 }
 
+                // Add voucher products for redemption
+                if (createCampaignDto.VoucherProducts != null)
+                {
+                    foreach (var vp in createCampaignDto.VoucherProducts)
+                    {
+                        campaign.VoucherProducts.Add(new CampaignVoucherProduct
+                        {
+                            ProductId = vp.ProductId,
+                            VoucherValue = vp.VoucherValue,
+                            IsActive = vp.IsActive
+                        });
+                    }
+                }
+
                 _context.Campaigns.Add(campaign);
                 await _context.SaveChangesAsync();
 
-                // Load the created campaign with reward tiers
+                // Load the created campaign
                 var createdCampaign = await _context.Campaigns
-                    .Include(c => c.RewardTiers)
+                    .Include(c => c.EligibleProducts)
+                    .Include(c => c.VoucherProducts)
                     .FirstOrDefaultAsync(c => c.Id == campaign.Id);
 
                 var campaignDto = MapToDto(createdCampaign!);
@@ -166,16 +112,16 @@ namespace backend.Services
         }
 
         public async Task<int> GetCampaignCountAsync(int manufacturerId)
-{
-    return await _context.Campaigns.CountAsync(c => c.ManufacturerId == manufacturerId);
-}
+        {
+            return await _context.Campaigns.CountAsync(c => c.ManufacturerId == manufacturerId);
+        }
 
         public async Task<ApiResponse<List<CampaignDto>>> GetCampaignsByManufacturerAsync(int manufacturerId)
         {
             try
             {
                 var campaigns = await _context.Campaigns
-                    .Include(c => c.RewardTiers)
+                    .Include(c => c.EligibleProducts)
                     .Where(c => c.ManufacturerId == manufacturerId)
                     .OrderByDescending(c => c.CreatedAt)
                     .ToListAsync();
@@ -205,9 +151,7 @@ namespace backend.Services
             try
             {
                 var campaign = await _context.Campaigns
-                    .Include(c => c.RewardTiers)
                     .Include(c => c.EligibleProducts)
-                        .ThenInclude(ep => ep.Product)
                     .FirstOrDefaultAsync(c => c.Id == campaignId && c.ManufacturerId == manufacturerId);
 
                 if (campaign == null)
@@ -216,7 +160,7 @@ namespace backend.Services
                     {
                         Success = false,
                         Message = "Campaign not found",
-                        Errors = new List<string> { "Campaign not found" }
+                        Errors = new List<string> { "Campaign with the specified ID was not found" }
                     };
                 }
 
@@ -245,9 +189,7 @@ namespace backend.Services
             try
             {
                 var campaign = await _context.Campaigns
-                    .Include(c => c.RewardTiers)
                     .Include(c => c.EligibleProducts)
-                        .ThenInclude(ep => ep.Product)
                     .FirstOrDefaultAsync(c => c.Id == campaignId && c.ManufacturerId == manufacturerId);
 
                 if (campaign == null)
@@ -256,56 +198,28 @@ namespace backend.Services
                     {
                         Success = false,
                         Message = "Campaign not found",
-                        Errors = new List<string> { "Campaign not found" }
+                        Errors = new List<string> { "Campaign with the specified ID was not found" }
                     };
                 }
 
-                // Validate dates
-                if (updateCampaignDto.StartDate >= updateCampaignDto.EndDate)
-                {
-                    return new ApiResponse<CampaignDto>
-                    {
-                        Success = false,
-                        Message = "End date must be after start date",
-                        Errors = new List<string> { "End date must be after start date" }
-                    };
-                }
-
-                // Update campaign properties
+                // Update basic properties
                 campaign.Name = updateCampaignDto.Name;
                 campaign.ProductType = updateCampaignDto.ProductType;
-                campaign.Points = updateCampaignDto.Points;
                 campaign.StartDate = updateCampaignDto.StartDate;
                 campaign.EndDate = updateCampaignDto.EndDate;
                 campaign.Description = updateCampaignDto.Description;
-                campaign.Budget = updateCampaignDto.Budget;
-                campaign.TargetAudience = updateCampaignDto.TargetAudience;
                 campaign.IsActive = updateCampaignDto.IsActive;
+                campaign.VoucherGenerationThreshold = updateCampaignDto.VoucherGenerationThreshold;
+                campaign.VoucherValue = updateCampaignDto.VoucherValue;
+                campaign.VoucherValidityDays = updateCampaignDto.VoucherValidityDays;
                 campaign.UpdatedAt = DateTime.UtcNow;
-
-                // Update reward tiers
-                _context.RewardTiers.RemoveRange(campaign.RewardTiers);
-                campaign.RewardTiers.Clear();
-
-                foreach (var tierDto in updateCampaignDto.RewardTiers)
-                {
-                    campaign.RewardTiers.Add(new RewardTier
-                    {
-                        Threshold = tierDto.Threshold,
-                        Reward = tierDto.Reward,
-                        CreatedAt = DateTime.UtcNow
-                    });
-                }
 
                 // Update eligible products
                 if (updateCampaignDto.EligibleProducts != null)
                 {
-                    // Remove old eligible products
-                    var oldEligibleProducts = campaign.EligibleProducts.ToList();
-                    foreach (var oldEp in oldEligibleProducts)
-                    {
-                        _context.CampaignEligibleProducts.Remove(oldEp);
-                    }
+                    // Remove existing eligible products
+                    _context.CampaignEligibleProducts.RemoveRange(campaign.EligibleProducts);
+
                     // Add new eligible products
                     foreach (var ep in updateCampaignDto.EligibleProducts)
                     {
@@ -319,15 +233,27 @@ namespace backend.Services
                     }
                 }
 
+                // Update voucher products
+                if (updateCampaignDto.VoucherProducts != null)
+                {
+                    // Remove existing voucher products
+                    _context.CampaignVoucherProducts.RemoveRange(campaign.VoucherProducts);
+
+                    // Add new voucher products
+                    foreach (var vp in updateCampaignDto.VoucherProducts)
+                    {
+                        campaign.VoucherProducts.Add(new CampaignVoucherProduct
+                        {
+                            ProductId = vp.ProductId,
+                            VoucherValue = vp.VoucherValue,
+                            IsActive = vp.IsActive
+                        });
+                    }
+                }
+
                 await _context.SaveChangesAsync();
 
-                var updatedCampaign = await _context.Campaigns
-                    .Include(c => c.RewardTiers)
-                    .Include(c => c.EligibleProducts)
-                        .ThenInclude(ep => ep.Product)
-                    .FirstOrDefaultAsync(c => c.Id == campaign.Id);
-
-                var campaignDto = MapToDto(updatedCampaign!);
+                var campaignDto = MapToDto(campaign);
 
                 return new ApiResponse<CampaignDto>
                 {
@@ -352,7 +278,6 @@ namespace backend.Services
             try
             {
                 var campaign = await _context.Campaigns
-                    .Include(c => c.RewardTiers)
                     .FirstOrDefaultAsync(c => c.Id == campaignId && c.ManufacturerId == manufacturerId);
 
                 if (campaign == null)
@@ -361,7 +286,7 @@ namespace backend.Services
                     {
                         Success = false,
                         Message = "Campaign not found",
-                        Errors = new List<string> { "Campaign not found" }
+                        Errors = new List<string> { "Campaign with the specified ID was not found" }
                     };
                 }
 
@@ -399,7 +324,7 @@ namespace backend.Services
                     {
                         Success = false,
                         Message = "Campaign not found",
-                        Errors = new List<string> { "Campaign not found" }
+                        Errors = new List<string> { "Campaign with the specified ID was not found" }
                     };
                 }
 
@@ -412,7 +337,7 @@ namespace backend.Services
                 {
                     Success = true,
                     Message = $"Campaign {(campaign.IsActive ? "activated" : "deactivated")} successfully",
-                    Data = true
+                    Data = campaign.IsActive
                 };
             }
             catch (Exception ex)
@@ -420,7 +345,7 @@ namespace backend.Services
                 return new ApiResponse<bool>
                 {
                     Success = false,
-                    Message = "An error occurred while updating campaign status",
+                    Message = "An error occurred while toggling campaign status",
                     Errors = new List<string> { ex.Message }
                 };
             }
@@ -428,39 +353,35 @@ namespace backend.Services
 
         private static CampaignDto MapToDto(Campaign campaign)
         {
-            var dto = new CampaignDto
+            return new CampaignDto
             {
                 Id = campaign.Id,
                 Name = campaign.Name,
                 ProductType = campaign.ProductType,
-                Points = campaign.Points,
                 StartDate = campaign.StartDate,
                 EndDate = campaign.EndDate,
                 Description = campaign.Description,
-                Budget = campaign.Budget,
-                TargetAudience = campaign.TargetAudience,
                 IsActive = campaign.IsActive,
                 ManufacturerId = campaign.ManufacturerId,
+                VoucherGenerationThreshold = campaign.VoucherGenerationThreshold,
+                VoucherValue = campaign.VoucherValue,
+                VoucherValidityDays = campaign.VoucherValidityDays,
                 CreatedAt = campaign.CreatedAt,
                 UpdatedAt = campaign.UpdatedAt,
-                RewardTiers = campaign.RewardTiers.Select(rt => new RewardTierDto
-                {
-                    Id = rt.Id,
-                    CampaignId = rt.CampaignId,
-                    Threshold = rt.Threshold,
-                    Reward = rt.Reward,
-                    CreatedAt = rt.CreatedAt
-                }).ToList(),
-                EligibleProducts = campaign.EligibleProducts.Select(ep => new EligibleProductDto
+                EligibleProducts = campaign.EligibleProducts?.Select(ep => new CampaignEligibleProductDto
                 {
                     ProductId = ep.ProductId,
-                    ProductName = ep.Product != null ? ep.Product.Name : string.Empty,
                     PointCost = ep.PointCost,
                     RedemptionLimit = ep.RedemptionLimit,
                     IsActive = ep.IsActive
-                }).ToList()
+                }).ToList() ?? new List<CampaignEligibleProductDto>(),
+                VoucherProducts = campaign.VoucherProducts?.Select(vp => new CampaignVoucherProductDto
+                {
+                    ProductId = vp.ProductId,
+                    VoucherValue = vp.VoucherValue,
+                    IsActive = vp.IsActive
+                }).ToList() ?? new List<CampaignVoucherProductDto>()
             };
-            return dto;
         }
     }
 }

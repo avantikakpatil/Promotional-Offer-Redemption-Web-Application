@@ -20,24 +20,11 @@ namespace backend.Models.DTOs
         [Required]
         public DateTime EndDate { get; set; }
         
-        [Required]
-        public string Description { get; set; } = string.Empty;
-        
         public decimal? Budget { get; set; }
         
         public string? TargetAudience { get; set; }
         
         public string? EligibleProducts { get; set; }
-        
-        public decimal? MinimumOrderValue { get; set; }
-        
-        public decimal? MaximumOrderValue { get; set; }
-        
-        public int? MaxResellersAllowed { get; set; }
-        
-        public bool RequiresApproval { get; set; } = false;
-        
-        public string? SchemeType { get; set; }
     }
 
     public class AssignResellerDto
@@ -192,16 +179,10 @@ namespace backend.Models.DTOs
 
     public class VoucherSettingsDto
     {
-        public bool EnableAutoVoucherGeneration { get; set; } = false;
-        
         public int? VoucherGenerationThreshold { get; set; }
         
         public decimal? VoucherValue { get; set; }
         
         public int? VoucherValidityDays { get; set; } = 90;
-        
-        public string? VoucherEligibleProducts { get; set; }
-        
-        public bool VoucherPointsEqualsMoney { get; set; } = true;
     }
 } 

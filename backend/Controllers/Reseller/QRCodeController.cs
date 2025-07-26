@@ -135,7 +135,6 @@ namespace backend.Controllers.Reseller
                 // Return the QR code information
                 return Ok(new {
                     code = qrCode,
-                    points = campaign.Points,
                     product = campaign.ProductType,
                     productId = $"CAMPAIGN-{campaign.Id}",
                     campaignName = campaign.Name,

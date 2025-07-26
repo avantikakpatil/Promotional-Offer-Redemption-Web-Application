@@ -22,7 +22,7 @@ namespace backend.Controllers.Shopkeeper
 
         // POST: api/shopkeeper/campaigns/{campaignId}/eligible-products
         [HttpPost("{campaignId}/eligible-products")]
-        public async Task<IActionResult> SetEligibleProducts(int campaignId, [FromBody] List<EligibleProductDto> eligibleProducts)
+        public async Task<IActionResult> SetEligibleProducts(int campaignId, [FromBody] List<CampaignEligibleProductDto> eligibleProducts)
         {
             var campaign = await _context.Campaigns
                 .Include(c => c.EligibleProducts)

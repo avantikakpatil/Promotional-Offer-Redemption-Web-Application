@@ -212,9 +212,7 @@ namespace backend.Controllers.Reseller
 
             var campaignReseller = await _context.CampaignResellers
                 .Include(cr => cr.Campaign)
-                .FirstOrDefaultAsync(cr => cr.CampaignId == campaignId && 
-                                         cr.ResellerId == resellerId && 
-                                         cr.IsApproved);
+                .FirstOrDefaultAsync(cr => cr.CampaignId == campaignId && cr.ResellerId == resellerId && cr.IsApproved);
 
             if (campaignReseller == null)
                 return NotFound("Campaign not found or not approved for this reseller");
@@ -224,15 +222,13 @@ namespace backend.Controllers.Reseller
                 return NotFound("Campaign not found");
 
             var availablePoints = campaignReseller.TotalPointsEarned - campaignReseller.PointsUsedForVouchers;
-            var vouchersCanGenerate = campaign.EnableAutoVoucherGeneration && 
-                                     campaign.VoucherGenerationThreshold.HasValue ? 
+            var vouchersCanGenerate = campaign.VoucherGenerationThreshold.HasValue ? 
                                      availablePoints / campaign.VoucherGenerationThreshold.Value : 0;
 
             return Ok(new
             {
                 CampaignId = campaignId,
                 CampaignName = campaign.Name,
-                EnableAutoVoucherGeneration = campaign.EnableAutoVoucherGeneration,
                 VoucherGenerationThreshold = campaign.VoucherGenerationThreshold,
                 VoucherValue = campaign.VoucherValue,
                 VoucherValidityDays = campaign.VoucherValidityDays,

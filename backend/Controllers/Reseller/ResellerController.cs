@@ -108,7 +108,6 @@ namespace backend.Controllers.Reseller
 
             var campaigns = await _context.CampaignResellers
                 .Include(cr => cr.Campaign)
-                .ThenInclude(c => c.RewardTiers)
                 .Include(cr => cr.Campaign.Manufacturer)
                 .Where(cr => cr.ResellerId == resellerId)
                 .Select(cr => new
@@ -116,14 +115,10 @@ namespace backend.Controllers.Reseller
                     id = cr.Campaign.Id,
                     name = cr.Campaign.Name,
                     productType = cr.Campaign.ProductType,
-                    points = cr.Campaign.Points,
                     startDate = cr.Campaign.StartDate,
                     endDate = cr.Campaign.EndDate,
                     description = cr.Campaign.Description,
                     isActive = cr.Campaign.IsActive,
-                    minimumOrderValue = cr.Campaign.MinimumOrderValue,
-                    maximumOrderValue = cr.Campaign.MaximumOrderValue,
-                    schemeType = cr.Campaign.SchemeType,
                     createdAt = cr.Campaign.CreatedAt,
                     manufacturer = new
                     {
@@ -131,13 +126,6 @@ namespace backend.Controllers.Reseller
                         name = cr.Campaign.Manufacturer.Name,
                         businessName = cr.Campaign.Manufacturer.BusinessName
                     },
-                    rewardTiers = cr.Campaign.RewardTiers
-                        .OrderBy(rt => rt.Threshold)
-                        .Select(rt => new {
-                            id = rt.Id,
-                            threshold = rt.Threshold,
-                            reward = rt.Reward
-                        }).ToList(),
                     assignment = new
                     {
                         isApproved = cr.IsApproved,
@@ -179,7 +167,7 @@ namespace backend.Controllers.Reseller
             {
                 CampaignId = campaignId,
                 ResellerId = resellerId.Value,
-                IsApproved = !campaign.RequiresApproval, // auto-approve if not required
+                IsApproved = true, // auto-approve all campaigns
                 CreatedAt = DateTime.UtcNow
             };
             _context.CampaignResellers.Add(campaignReseller);
@@ -240,7 +228,6 @@ namespace backend.Controllers.Reseller
 
             var campaignResellers = await _context.CampaignResellers
                 .Include(cr => cr.Campaign)
-                .ThenInclude(c => c.RewardTiers)
                 .Where(cr => cr.ResellerId == resellerId)
                 .ToListAsync();
 
@@ -251,19 +238,10 @@ namespace backend.Controllers.Reseller
                 IsActive = cr.Campaign?.IsActive,
                 StartDate = cr.Campaign?.StartDate,
                 EndDate = cr.Campaign?.EndDate,
-                EnableAutoVoucherGeneration = cr.Campaign?.EnableAutoVoucherGeneration,
-                RewardTiers = cr.Campaign?.RewardTiers.Select(rt => new {
-                    rt.Id,
-                    rt.Threshold,
-                    rt.Reward
-                }),
+                VoucherGenerationThreshold = cr.Campaign?.VoucherGenerationThreshold,
                 ResellerPoints = points,
                 PointsUsedForVouchers = cr.PointsUsedForVouchers,
                 TotalPointsEarned = cr.TotalPointsEarned,
-                EligibleTiers = cr.Campaign?.RewardTiers
-                    .Where(rt => points >= rt.Threshold)
-                    .Select(rt => rt.Threshold)
-                    .ToList(),
                 ExistingVouchers = _context.Vouchers
                     .Where(v => v.ResellerId == resellerId && v.CampaignId == cr.CampaignId)
                     .Select(v => new { v.Id, v.PointsRequired, v.Value, v.CreatedAt })

@@ -113,7 +113,6 @@ namespace backend.Controllers.Customer
                 // Return the QR code information
                 return Ok(new {
                     code = qrCode,
-                    points = campaign.Points,
                     product = campaign.ProductType,
                     productId = $"CAMPAIGN-{campaign.Id}",
                     campaignName = campaign.Name,
@@ -140,13 +139,6 @@ namespace backend.Controllers.Customer
             var user = await _qrCodeService.GetUserWithHistoryAsync(userId);
             if (user == null) return NotFound();
             return Ok(user);
-        }
-
-        [HttpGet("rewards")]
-        public async Task<IActionResult> GetAllRewardTiers()
-        {
-            var rewardTiers = await _context.RewardTiers.ToListAsync();
-            return Ok(rewardTiers);
         }
     }
 } 

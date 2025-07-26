@@ -12,8 +12,8 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250716181651_AddUpdatedAtToVouchers")]
-    partial class AddUpdatedAtToVouchers
+    [Migration("20250726071348_RemoveUnusedCampaignFields")]
+    partial class RemoveUnusedCampaignFields
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -46,9 +46,6 @@ namespace backend.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("varchar(1000)");
 
-                    b.Property<bool>("EnableAutoVoucherGeneration")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime(6)");
 
@@ -57,15 +54,6 @@ namespace backend.Migrations
 
                     b.Property<int>("ManufacturerId")
                         .HasColumnType("int");
-
-                    b.Property<int?>("MaxResellersAllowed")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("MaximumOrderValue")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal?>("MinimumOrderValue")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -77,13 +65,6 @@ namespace backend.Migrations
 
                     b.Property<string>("ProductType")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<bool>("RequiresApproval")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("SchemeType")
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
@@ -100,15 +81,8 @@ namespace backend.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
 
-                    b.Property<string>("VoucherEligibleProducts")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
                     b.Property<int?>("VoucherGenerationThreshold")
                         .HasColumnType("int");
-
-                    b.Property<bool>("VoucherPointsEqualsMoney")
-                        .HasColumnType("tinyint(1)");
 
                     b.Property<int?>("VoucherValidityDays")
                         .HasColumnType("int");
@@ -523,39 +497,6 @@ namespace backend.Migrations
                     b.ToTable("RedemptionHistories");
                 });
 
-            modelBuilder.Entity("backend.Models.RewardTier", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CampaignId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
-
-                    b.Property<string>("Reward")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<int>("Threshold")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CampaignId", "Threshold")
-                        .IsUnique()
-                        .HasDatabaseName("IX_RewardTiers_CampaignId_Threshold");
-
-                    b.ToTable("RewardTiers");
-                });
-
             modelBuilder.Entity("backend.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -575,15 +516,17 @@ namespace backend.Migrations
                         .HasColumnType("varchar(500)");
 
                     b.Property<string>("BusinessLicense")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<string>("BusinessName")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -591,8 +534,8 @@ namespace backend.Migrations
                         .HasColumnType("varchar(255)");
 
                     b.Property<string>("GSTNumber")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime(6)");
@@ -608,14 +551,22 @@ namespace backend.Migrations
 
                     b.Property<string>("Phone")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<int>("Points")
                         .HasColumnType("int");
 
                     b.Property<string>("Role")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp(6)");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
 
                     b.HasKey("Id");
 
@@ -904,17 +855,6 @@ namespace backend.Migrations
                     b.Navigation("Voucher");
                 });
 
-            modelBuilder.Entity("backend.Models.RewardTier", b =>
-                {
-                    b.HasOne("backend.Models.Campaign", "Campaign")
-                        .WithMany("RewardTiers")
-                        .HasForeignKey("CampaignId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Campaign");
-                });
-
             modelBuilder.Entity("backend.Models.User", b =>
                 {
                     b.HasOne("backend.Models.User", "AssignedManufacturer")
@@ -974,8 +914,6 @@ namespace backend.Migrations
                     b.Navigation("CampaignResellers");
 
                     b.Navigation("EligibleProducts");
-
-                    b.Navigation("RewardTiers");
                 });
 
             modelBuilder.Entity("backend.Models.Order", b =>

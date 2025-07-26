@@ -14,18 +14,16 @@ namespace backend.Data
 
         public DbSet<User> Users { get; set; }
         public DbSet<Campaign> Campaigns { get; set; }
-        public DbSet<RewardTier> RewardTiers { get; set; }
         public DbSet<QRCode> QRCodes { get; set; }
         public DbSet<RedemptionHistory> RedemptionHistories { get; set; }
         public DbSet<UserPoints> UserPoints { get; set; }
-        
-        // B2B Models
+        public DbSet<CampaignEligibleProduct> CampaignEligibleProducts { get; set; }
+        public DbSet<CampaignVoucherProduct> CampaignVoucherProducts { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Voucher> Vouchers { get; set; }
         public DbSet<CampaignReseller> CampaignResellers { get; set; }
-        public DbSet<CampaignEligibleProduct> CampaignEligibleProducts { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -35,17 +33,34 @@ namespace backend.Data
             builder.Entity<User>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
                 entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
-                entity.HasIndex(e => e.Email).IsUnique();
-                entity.Property(e => e.Role).HasConversion<string>();
+                entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.Phone).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.PasswordHash).IsRequired();
+                entity.Property(e => e.Role).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.BusinessName).HasMaxLength(255);
+                entity.Property(e => e.BusinessAddress).HasMaxLength(500);
+                entity.Property(e => e.BusinessLicense).HasMaxLength(100);
+                entity.Property(e => e.GSTNumber).HasMaxLength(20);
                 
-                // B2B relationships
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnType("timestamp(6)")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(e => e.UpdatedAt)
+                    .HasColumnType("timestamp(6)")
+                    .ValueGeneratedOnAddOrUpdate();
+
+                // Create unique index for email
+                entity.HasIndex(e => e.Email).IsUnique();
+
+                // Configure self-referencing relationships
                 entity.HasOne(e => e.AssignedManufacturer)
                       .WithMany(e => e.AssignedResellers)
                       .HasForeignKey(e => e.AssignedManufacturerId)
                       .OnDelete(DeleteBehavior.SetNull);
-                      
+
                 entity.HasOne(e => e.AssignedReseller)
                       .WithMany(e => e.AssignedShopkeepers)
                       .HasForeignKey(e => e.AssignedResellerId)
@@ -59,10 +74,6 @@ namespace backend.Data
                 entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
                 entity.Property(e => e.ProductType).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.Description).IsRequired().HasMaxLength(1000);
-                entity.Property(e => e.TargetAudience).HasMaxLength(500);
-                entity.Property(e => e.Budget).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.MinimumOrderValue).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.MaximumOrderValue).HasColumnType("decimal(18,2)");
                 
                 // Fix: Use TIMESTAMP instead of DATETIME for better MySQL compatibility
                 entity.Property(e => e.CreatedAt)
@@ -79,42 +90,52 @@ namespace backend.Data
                       .WithMany()
                       .HasForeignKey(e => e.ManufacturerId)
                       .OnDelete(DeleteBehavior.Cascade);
-
-                // Configure relationship with RewardTiers
-                entity.HasMany(e => e.RewardTiers)
-                      .WithOne(e => e.Campaign)
-                      .HasForeignKey(e => e.CampaignId)
-                      .OnDelete(DeleteBehavior.Cascade);
                       
                 // Configure relationship with CampaignResellers
                 entity.HasMany(e => e.CampaignResellers)
                       .WithOne(e => e.Campaign)
                       .HasForeignKey(e => e.CampaignId)
                       .OnDelete(DeleteBehavior.Cascade);
-            });
 
-            // Configure RewardTier entity
-            builder.Entity<RewardTier>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Reward).IsRequired().HasMaxLength(500);
-                
-                // Fix: Use TIMESTAMP for RewardTier as well
-                entity.Property(e => e.CreatedAt)
-                    .HasColumnType("timestamp(6)")
-                    .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
-                    .ValueGeneratedOnAdd();
-
-                // Configure relationship with Campaign
-                entity.HasOne(e => e.Campaign)
-                      .WithMany(e => e.RewardTiers)
+                // Configure relationship with CampaignEligibleProducts
+                entity.HasMany(e => e.EligibleProducts)
+                      .WithOne(e => e.Campaign)
                       .HasForeignKey(e => e.CampaignId)
                       .OnDelete(DeleteBehavior.Cascade);
+            });
 
-                // Create unique index for campaign-threshold combination
-                entity.HasIndex(e => new { e.CampaignId, e.Threshold })
-                      .IsUnique()
-                      .HasDatabaseName("IX_RewardTiers_CampaignId_Threshold");
+            // Configure CampaignEligibleProduct entity
+            builder.Entity<CampaignEligibleProduct>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                
+                // Configure relationships
+                entity.HasOne(e => e.Campaign)
+                      .WithMany(e => e.EligibleProducts)
+                      .HasForeignKey(e => e.CampaignId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                      
+                entity.HasOne(e => e.Product)
+                      .WithMany()
+                      .HasForeignKey(e => e.ProductId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure CampaignVoucherProduct entity
+            builder.Entity<CampaignVoucherProduct>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                
+                // Configure relationships
+                entity.HasOne(e => e.Campaign)
+                      .WithMany(e => e.VoucherProducts)
+                      .HasForeignKey(e => e.CampaignId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                      
+                entity.HasOne(e => e.Product)
+                      .WithMany()
+                      .HasForeignKey(e => e.ProductId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Configure Product entity

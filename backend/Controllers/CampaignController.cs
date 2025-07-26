@@ -25,7 +25,6 @@ namespace backend.Controllers
                 // Get all active campaigns created by manufacturers (like Haldiram) for dealers/resellers
                 var campaigns = await _context.Campaigns
                     .Include(c => c.Manufacturer)
-                    .Include(c => c.RewardTiers)
                     .Where(c => c.IsActive && c.StartDate <= DateTime.UtcNow && c.EndDate >= DateTime.UtcNow)
                     .OrderByDescending(c => c.CreatedAt)
                     .Select(c => new
@@ -33,28 +32,17 @@ namespace backend.Controllers
                         id = c.Id,
                         name = c.Name,
                         productType = c.ProductType,
-                        points = c.Points,
                         startDate = c.StartDate,
                         endDate = c.EndDate,
                         description = c.Description,
                         isActive = c.IsActive,
-                        minimumOrderValue = c.MinimumOrderValue,
-                        maximumOrderValue = c.MaximumOrderValue,
-                        schemeType = c.SchemeType,
                         createdAt = c.CreatedAt,
                         manufacturer = new
                         {
                             id = c.Manufacturer.Id,
                             name = c.Manufacturer.Name,
                             businessName = c.Manufacturer.BusinessName
-                        },
-                        rewardTiers = c.RewardTiers
-                            .OrderBy(rt => rt.Threshold)
-                            .Select(rt => new {
-                                id = rt.Id,
-                                threshold = rt.Threshold,
-                                reward = rt.Reward
-                            }).ToList()
+                        }
                     })
                     .ToListAsync();
 
@@ -88,14 +76,10 @@ namespace backend.Controllers
                         id = c.Id,
                         name = c.Name,
                         productType = c.ProductType,
-                        points = c.Points,
                         startDate = c.StartDate,
                         endDate = c.EndDate,
                         description = c.Description,
                         isActive = c.IsActive,
-                        minimumOrderValue = c.MinimumOrderValue,
-                        maximumOrderValue = c.MaximumOrderValue,
-                        schemeType = c.SchemeType,
                         createdAt = c.CreatedAt,
                         manufacturer = new
                         {
@@ -124,7 +108,7 @@ namespace backend.Controllers
             {
                 return StatusCode(500, new { 
                     success = false,
-                    message = "An error occurred while fetching the campaign", 
+                    message = "An error occurred while fetching campaign", 
                     error = ex.Message 
                 });
             }

@@ -102,13 +102,6 @@ namespace backend.Controllers.Reseller
             return Ok(new { success = true, message = $"{dto.Points} points transferred from customer to reseller." });
         }
 
-        [HttpGet("rewards")]
-        public async Task<IActionResult> GetResellerRewards()
-        {
-            var rewards = await _context.RewardTiers.ToListAsync();
-            return Ok(rewards);
-        }
-
         [HttpGet("history")]
         public async Task<IActionResult> GetResellerHistory()
         {

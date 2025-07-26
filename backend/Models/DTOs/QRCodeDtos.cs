@@ -4,13 +4,10 @@ namespace backend.Models.DTOs
     {
         public string Code { get; set; } = string.Empty;
         public int CampaignId { get; set; }
-    }
-
-    public class QRCodeRewardTierDto
-    {
-        public int Id { get; set; }
-        public int Threshold { get; set; }
-        public string Reward { get; set; } = string.Empty;
+        public int ResellerId { get; set; }
+        public int? VoucherId { get; set; }
+        public int Points { get; set; }
+        public DateTime? ExpiryDate { get; set; }
     }
 
     public class QRCodeDto
@@ -25,7 +22,6 @@ namespace backend.Models.DTOs
         public int Points { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
-        public List<QRCodeRewardTierDto> RewardTiers { get; set; } = new();
     }
 
     public class QRInfoRequestDto

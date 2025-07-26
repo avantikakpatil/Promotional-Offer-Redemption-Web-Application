@@ -18,16 +18,19 @@ namespace backend.Controllers.Manufacturer
             _context = context;
         }
 
+        // GET: api/manufacturer/product/test
+        [HttpGet("test")]
+        public ActionResult<string> Test()
+        {
+            return Ok("ProductController is working!");
+        }
+
         // GET: api/manufacturer/product
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
         {
-            var manufacturerId = GetCurrentUserId();
-            if (manufacturerId == null)
-                return Unauthorized();
-
+            // Simply fetch all products from the database
             var products = await _context.Products
-                .Where(p => p.ManufacturerId == manufacturerId)
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
 
@@ -147,6 +150,22 @@ namespace backend.Controllers.Manufacturer
                 .ToListAsync();
 
             return Ok(categories);
+        }
+
+        // GET: api/manufacturer/product/by-category/{category}
+        [HttpGet("by-category/{category}")]
+        public async Task<ActionResult<IEnumerable<Product>>> GetProductsByCategory(string category)
+        {
+            var manufacturerId = GetCurrentUserId();
+            if (manufacturerId == null)
+                return Unauthorized();
+
+            var products = await _context.Products
+                .Where(p => p.ManufacturerId == manufacturerId && p.Category == category && p.IsActive)
+                .OrderBy(p => p.Name)
+                .ToListAsync();
+
+            return Ok(products);
         }
 
         private int? GetCurrentUserId()
