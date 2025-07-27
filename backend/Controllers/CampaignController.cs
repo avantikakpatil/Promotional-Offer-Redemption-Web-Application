@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Data;
 using backend.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend.Controllers
 {
@@ -61,6 +62,8 @@ namespace backend.Controllers
                 });
             }
         }
+
+
 
         // GET: api/campaigns/{id}
         [HttpGet("{id}")]

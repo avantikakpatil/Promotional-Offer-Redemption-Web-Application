@@ -25,9 +25,11 @@ namespace backend.Models.DTOs
         public bool IsActive { get; set; } = true;
 
         // Eligible products for points earning
+        [MinLength(1, ErrorMessage = "At least one eligible product is required")]
         public List<CampaignEligibleProductDto>? EligibleProducts { get; set; }
 
         // Voucher redemption products
+        [MinLength(1, ErrorMessage = "At least one voucher product is required")]
         public List<CampaignVoucherProductDto>? VoucherProducts { get; set; }
 
         public decimal? VoucherValue { get; set; }
@@ -56,7 +58,7 @@ namespace backend.Models.DTOs
 
     public class CampaignEligibleProductDto
     {
-        public int ProductId { get; set; }
+        public int CampaignProductId { get; set; }
         public int PointCost { get; set; }
         public int? RedemptionLimit { get; set; }
         public bool IsActive { get; set; } = true;

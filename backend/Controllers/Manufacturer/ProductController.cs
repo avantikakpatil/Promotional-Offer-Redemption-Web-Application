@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using backend.Data;
 using backend.Models;
@@ -9,6 +10,7 @@ namespace backend.Controllers.Manufacturer
 {
     [ApiController]
     [Route("api/manufacturer/[controller]")]
+    [Authorize(Roles = "manufacturer")]
     public class ProductController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -29,8 +31,13 @@ namespace backend.Controllers.Manufacturer
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
         {
-            // Simply fetch all products from the database
+            var manufacturerId = GetCurrentUserId();
+            if (manufacturerId == null)
+                return Unauthorized();
+
+            // Fetch only products belonging to the current manufacturer
             var products = await _context.Products
+                .Where(p => p.ManufacturerId == manufacturerId && p.IsActive)
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
 

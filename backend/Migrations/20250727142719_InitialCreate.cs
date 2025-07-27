@@ -25,23 +25,25 @@ namespace backend.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Email = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Phone = table.Column<string>(type: "longtext", nullable: false)
+                    Phone = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     PasswordHash = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Role = table.Column<string>(type: "longtext", nullable: false)
+                    Role = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    BusinessName = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
+                    BusinessName = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     BusinessAddress = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    BusinessLicense = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                    BusinessLicense = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    GSTNumber = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                    GSTNumber = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     AssignedManufacturerId = table.Column<int>(type: "int", nullable: true),
                     AssignedResellerId = table.Column<int>(type: "int", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP(6)"),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: true)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn),
                     LastLoginAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     Points = table.Column<int>(type: "int", nullable: false)
                 },
@@ -73,28 +75,15 @@ namespace backend.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     ProductType = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Points = table.Column<int>(type: "int", nullable: false),
                     StartDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     EndDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Budget = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    TargetAudience = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     ManufacturerId = table.Column<int>(type: "int", nullable: false),
-                    MinimumOrderValue = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    MaximumOrderValue = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    RequiresApproval = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    SchemeType = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    EnableAutoVoucherGeneration = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     VoucherGenerationThreshold = table.Column<int>(type: "int", nullable: true),
                     VoucherValue = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     VoucherValidityDays = table.Column<int>(type: "int", nullable: true),
-                    VoucherEligibleProducts = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    VoucherPointsEqualsMoney = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP(6)"),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: true)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.ComputedColumn)
@@ -258,30 +247,6 @@ namespace backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "RewardTiers",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    CampaignId = table.Column<int>(type: "int", nullable: false),
-                    Threshold = table.Column<int>(type: "int", nullable: false),
-                    Reward = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP(6)")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_RewardTiers", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_RewardTiers_Campaigns_CampaignId",
-                        column: x => x.CampaignId,
-                        principalTable: "Campaigns",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "Vouchers",
                 columns: table => new
                 {
@@ -349,6 +314,37 @@ namespace backend.Migrations
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_CampaignEligibleProducts_Products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "Products",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "CampaignVoucherProducts",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    CampaignId = table.Column<int>(type: "int", nullable: false),
+                    ProductId = table.Column<int>(type: "int", nullable: false),
+                    VoucherValue = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CampaignVoucherProducts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CampaignVoucherProducts_Campaigns_CampaignId",
+                        column: x => x.CampaignId,
+                        principalTable: "Campaigns",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_CampaignVoucherProducts_Products_ProductId",
                         column: x => x.ProductId,
                         principalTable: "Products",
                         principalColumn: "Id",
@@ -547,6 +543,16 @@ namespace backend.Migrations
                 column: "ProductType");
 
             migrationBuilder.CreateIndex(
+                name: "IX_CampaignVoucherProducts_CampaignId",
+                table: "CampaignVoucherProducts",
+                column: "CampaignId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignVoucherProducts_ProductId",
+                table: "CampaignVoucherProducts",
+                column: "ProductId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_OrderItems_OrderId",
                 table: "OrderItems",
                 column: "OrderId");
@@ -627,12 +633,6 @@ namespace backend.Migrations
                 column: "VoucherId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_RewardTiers_CampaignId_Threshold",
-                table: "RewardTiers",
-                columns: new[] { "CampaignId", "Threshold" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
                 name: "IX_UserPoints_UserId",
                 table: "UserPoints",
                 column: "UserId",
@@ -686,6 +686,9 @@ namespace backend.Migrations
                 name: "CampaignResellers");
 
             migrationBuilder.DropTable(
+                name: "CampaignVoucherProducts");
+
+            migrationBuilder.DropTable(
                 name: "OrderItems");
 
             migrationBuilder.DropTable(
@@ -693,9 +696,6 @@ namespace backend.Migrations
 
             migrationBuilder.DropTable(
                 name: "RedemptionHistories");
-
-            migrationBuilder.DropTable(
-                name: "RewardTiers");
 
             migrationBuilder.DropTable(
                 name: "UserPoints");

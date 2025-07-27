@@ -10,6 +10,10 @@ import {
   ChartBarIcon,
   UserGroupIcon,
   QrCodeIcon,
+  GiftIcon,
+  TagIcon,
+  CalendarIcon,
+  CurrencyRupeeIcon,
 } from '@heroicons/react/24/outline';
 
 const ViewCampaigns = () => {
@@ -92,8 +96,7 @@ const ViewCampaigns = () => {
         return (
           campaign.name.toLowerCase().includes(searchLower) ||
           campaign.productType.toLowerCase().includes(searchLower) ||
-          campaign.description.toLowerCase().includes(searchLower) ||
-          campaign.targetAudience?.toLowerCase().includes(searchLower)
+          campaign.description.toLowerCase().includes(searchLower)
         );
       }
 
@@ -107,10 +110,6 @@ const ViewCampaigns = () => {
           aValue = a.name.toLowerCase();
           bValue = b.name.toLowerCase();
           break;
-        case 'points':
-          aValue = a.points;
-          bValue = b.points;
-          break;
         case 'startDate':
           aValue = new Date(a.startDate);
           bValue = new Date(b.startDate);
@@ -119,9 +118,9 @@ const ViewCampaigns = () => {
           aValue = new Date(a.endDate);
           bValue = new Date(b.endDate);
           break;
-        case 'budget':
-          aValue = a.budget || 0;
-          bValue = b.budget || 0;
+        case 'voucherValue':
+          aValue = a.voucherValue || 0;
+          bValue = b.voucherValue || 0;
           break;
         default:
           aValue = new Date(a.createdAt);
@@ -205,10 +204,9 @@ const ViewCampaigns = () => {
             >
               <option value="createdAt">Sort by Created Date</option>
               <option value="name">Sort by Name</option>
-              <option value="points">Sort by Points</option>
               <option value="startDate">Sort by Start Date</option>
               <option value="endDate">Sort by End Date</option>
-              <option value="budget">Sort by Budget</option>
+              <option value="voucherValue">Sort by Voucher Value</option>
             </select>
 
             <button
@@ -221,193 +219,210 @@ const ViewCampaigns = () => {
         </div>
       </div>
 
-      {/* Campaigns Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Campaign
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Product Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Points
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Duration
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Budget
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredAndSortedCampaigns.map((campaign) => (
-                <tr key={campaign.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{campaign.name}</div>
-                      <div className="text-sm text-gray-500 truncate max-w-xs">
-                        {campaign.description}
-                      </div>
-                      {campaign.targetAudience && (
-                        <div className="text-xs text-gray-400">
-                          Target: {campaign.targetAudience}
-                        </div>
-                      )}
-                      {/* Reward Tiers */}
-                      {Array.isArray(campaign.rewardTiers) && campaign.rewardTiers.length > 0 && (
-                        <div className="mt-2">
-                          <div className="text-xs font-semibold text-gray-700 mb-1">Reward Tiers:</div>
-                          <ul className="text-xs text-gray-600 space-y-1">
-                            {campaign.rewardTiers.map((tier, idx) => (
-                              <li key={tier.id || idx} className="flex items-center gap-2">
-                                <span className="inline-block bg-blue-50 text-blue-800 px-2 py-0.5 rounded font-semibold">
-                                  Threshold: {tier.threshold} pts
-                                </span>
-                                <span className="inline-block bg-green-50 text-green-800 px-2 py-0.5 rounded">
-                                  {tier.reward}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {campaign.productType}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {campaign.points} pts
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div>
-                      <div>Start: {new Date(campaign.startDate).toLocaleDateString()}</div>
-                      <div>End: {new Date(campaign.endDate).toLocaleDateString()}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {campaign.budget ? `₹${campaign.budget.toLocaleString()}` : 'Not set'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+      {/* Campaigns List */}
+      <div className="space-y-4">
+        {filteredAndSortedCampaigns.map((campaign) => (
+          <div key={campaign.id} className="bg-white rounded-lg shadow overflow-hidden">
+            {/* Campaign Header */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl font-semibold text-gray-900">{campaign.name}</h3>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(campaign)}`}>
                       {getStatusText(campaign)}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      {/* View Details */}
-                      <Link
-                        to={`/manufacturer/campaign/${campaign.id}`}
-                        className="text-blue-600 hover:text-blue-900 p-1"
-                        title="View Details"
-                      >
-                        <EyeIcon className="h-4 w-4" />
-                      </Link>
-
-                      {/* Edit Campaign */}
-                      <Link
-                        to={`/manufacturer/campaign/${campaign.id}/edit`}
-                        className="text-green-600 hover:text-green-900 p-1"
-                        title="Edit Campaign"
-                      >
-                        <PencilIcon className="h-4 w-4" />
-                      </Link>
-
-                      {/* Analytics */}
-                      <Link
-                        to={`/manufacturer/analytics?campaignId=${campaign.id}`}
-                        className="text-purple-600 hover:text-purple-900 p-1"
-                        title="View Analytics"
-                      >
-                        <ChartBarIcon className="h-4 w-4" />
-                      </Link>
-
-                      {/* QR Codes */}
-                      <Link
-                        to={`/manufacturer/qr-codes?campaignId=${campaign.id}`}
-                        className="text-indigo-600 hover:text-indigo-900 p-1"
-                        title="Manage QR Codes"
-                      >
-                        <QrCodeIcon className="h-4 w-4" />
-                      </Link>
-
-                      {/* Assign Resellers */}
-                      <Link
-                        to={`/manufacturer/assign-reseller?campaignId=${campaign.id}`}
-                        className="text-orange-600 hover:text-orange-900 p-1"
-                        title="Assign Resellers"
-                      >
-                        <UserGroupIcon className="h-4 w-4" />
-                      </Link>
-
-                      {/* Toggle Status */}
-                      <button
-                        onClick={() => handleToggleStatus(campaign.id)}
-                        className={`p-1 ${
-                          campaign.isActive 
-                            ? 'text-yellow-600 hover:text-yellow-900' 
-                            : 'text-green-600 hover:text-green-900'
-                        }`}
-                        title={campaign.isActive ? 'Pause Campaign' : 'Activate Campaign'}
-                      >
-                        {campaign.isActive ? (
-                          <PauseIcon className="h-4 w-4" />
-                        ) : (
-                          <PlayIcon className="h-4 w-4" />
-                        )}
-                      </button>
-
-                      {/* Delete Campaign */}
-                      <button
-                        onClick={() => handleDeleteCampaign(campaign.id, campaign.name)}
-                        className="text-red-600 hover:text-red-900 p-1"
-                        title="Delete Campaign"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {campaign.productType}
+                    </span>
+                  </div>
+                  <p className="text-gray-600 mb-3">{campaign.description}</p>
+                  
+                  {/* Campaign Details */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-600">
+                        {new Date(campaign.startDate).toLocaleDateString()} - {new Date(campaign.endDate).toLocaleDateString()}
+                      </span>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    <div className="flex items-center gap-2">
+                      <CurrencyRupeeIcon className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-600">
+                        Voucher: ₹{campaign.voucherValue || 0}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <TagIcon className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-600">
+                        Threshold: {campaign.voucherGenerationThreshold || 0} pts
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <GiftIcon className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-600">
+                        Validity: {campaign.voucherValidityDays || 0} days
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-        {/* Empty State */}
-        {filteredAndSortedCampaigns.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">📊</div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">No campaigns found</h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm || filter !== 'all' 
-                ? 'No campaigns match your current filters.' 
-                : 'You haven\'t created any campaigns yet.'
-              }
-            </p>
-            {!searchTerm && filter === 'all' && (
-              <Link
-                to="/manufacturer/campaign/create"
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-              >
-                Create Your First Campaign
-              </Link>
-            )}
+                {/* Actions */}
+                <div className="flex items-center space-x-2 ml-4">
+                  <Link
+                    to={`/manufacturer/campaign/${campaign.id}`}
+                    className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50"
+                    title="View Details"
+                  >
+                    <EyeIcon className="h-5 w-5" />
+                  </Link>
+
+                  <Link
+                    to={`/manufacturer/campaign/${campaign.id}/edit`}
+                    className="text-green-600 hover:text-green-900 p-2 rounded-lg hover:bg-green-50"
+                    title="Edit Campaign"
+                  >
+                    <PencilIcon className="h-5 w-5" />
+                  </Link>
+
+                  <Link
+                    to={`/manufacturer/analytics?campaignId=${campaign.id}`}
+                    className="text-purple-600 hover:text-purple-900 p-2 rounded-lg hover:bg-purple-50"
+                    title="View Analytics"
+                  >
+                    <ChartBarIcon className="h-5 w-5" />
+                  </Link>
+
+                  <Link
+                    to={`/manufacturer/qr-codes?campaignId=${campaign.id}`}
+                    className="text-indigo-600 hover:text-indigo-900 p-2 rounded-lg hover:bg-indigo-50"
+                    title="Manage QR Codes"
+                  >
+                    <QrCodeIcon className="h-5 w-5" />
+                  </Link>
+
+                  <Link
+                    to={`/manufacturer/assign-reseller?campaignId=${campaign.id}`}
+                    className="text-orange-600 hover:text-orange-900 p-2 rounded-lg hover:bg-orange-50"
+                    title="Assign Resellers"
+                  >
+                    <UserGroupIcon className="h-5 w-5" />
+                  </Link>
+
+                  <button
+                    onClick={() => handleToggleStatus(campaign.id)}
+                    className={`p-2 rounded-lg ${
+                      campaign.isActive 
+                        ? 'text-yellow-600 hover:text-yellow-900 hover:bg-yellow-50' 
+                        : 'text-green-600 hover:text-green-900 hover:bg-green-50'
+                    }`}
+                    title={campaign.isActive ? 'Pause Campaign' : 'Activate Campaign'}
+                  >
+                    {campaign.isActive ? (
+                      <PauseIcon className="h-5 w-5" />
+                    ) : (
+                      <PlayIcon className="h-5 w-5" />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteCampaign(campaign.id, campaign.name)}
+                    className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50"
+                    title="Delete Campaign"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Campaign Products */}
+            <div className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Eligible Products */}
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <TagIcon className="h-4 w-4" />
+                    Eligible Products (for Points Earning)
+                  </h4>
+                  {campaign.eligibleProducts && campaign.eligibleProducts.length > 0 ? (
+                    <div className="space-y-2">
+                      {campaign.eligibleProducts.map((product, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                          <div>
+                            <span className="text-sm font-medium text-gray-900">Product ID: {product.campaignProductId}</span>
+                            <div className="text-xs text-gray-600">
+                              Points: {product.pointCost} | Limit: {product.redemptionLimit || 'No limit'}
+                            </div>
+                          </div>
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {product.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">No eligible products configured</p>
+                  )}
+                </div>
+
+                {/* Voucher Products */}
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <GiftIcon className="h-4 w-4" />
+                    Voucher Products (for Redemption)
+                  </h4>
+                  {campaign.voucherProducts && campaign.voucherProducts.length > 0 ? (
+                    <div className="space-y-2">
+                      {campaign.voucherProducts.map((product, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                          <div>
+                            <span className="text-sm font-medium text-gray-900">Product ID: {product.productId}</span>
+                            <div className="text-xs text-gray-600">
+                              Voucher Value: ₹{product.voucherValue}
+                            </div>
+                          </div>
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            product.isActive ? 'bg-purple-100 text-purple-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {product.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">No voucher products configured</p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
-        )}
+        ))}
       </div>
+
+      {/* Empty State */}
+      {filteredAndSortedCampaigns.length === 0 && (
+        <div className="bg-white rounded-lg shadow p-12 text-center">
+          <div className="text-6xl mb-4">📊</div>
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">No campaigns found</h3>
+          <p className="text-gray-600 mb-4">
+            {searchTerm || filter !== 'all' 
+              ? 'No campaigns match your current filters.' 
+              : 'You haven\'t created any campaigns yet.'
+            }
+          </p>
+          {!searchTerm && filter === 'all' && (
+            <Link
+              to="/manufacturer/campaign/create"
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Create Your First Campaign
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Summary Stats */}
       {campaigns.length > 0 && (

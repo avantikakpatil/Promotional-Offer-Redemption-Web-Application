@@ -38,7 +38,7 @@ namespace backend.Controllers.Shopkeeper
             {
                 campaign.EligibleProducts.Add(new CampaignEligibleProduct
                 {
-                    ProductId = ep.ProductId,
+                    CampaignProductId = ep.CampaignProductId,
                     PointCost = ep.PointCost,
                     RedemptionLimit = ep.RedemptionLimit,
                     IsActive = ep.IsActive
@@ -54,14 +54,14 @@ namespace backend.Controllers.Shopkeeper
         public async Task<IActionResult> GetEligibleProducts(int campaignId)
         {
             var eligibleProducts = await _context.CampaignEligibleProducts
-                .Include(ep => ep.Product)
+                .Include(ep => ep.CampaignProduct)
                 .Where(ep => ep.CampaignId == campaignId && ep.IsActive)
                 .ToListAsync();
 
             var result = eligibleProducts.Select(ep => new
             {
-                ep.ProductId,
-                ProductName = ep.Product != null ? ep.Product.Name : string.Empty,
+                ep.CampaignProductId,
+                ProductName = ep.CampaignProduct != null ? ep.CampaignProduct.Name : string.Empty,
                 ep.PointCost,
                 ep.RedemptionLimit,
                 ep.IsActive

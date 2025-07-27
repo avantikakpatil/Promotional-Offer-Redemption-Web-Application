@@ -12,7 +12,7 @@ namespace backend.Models
         public int CampaignId { get; set; }
 
         [Required]
-        public int ProductId { get; set; }
+        public int CampaignProductId { get; set; }
 
         [Required]
         public int PointCost { get; set; }
@@ -25,7 +25,7 @@ namespace backend.Models
         [ForeignKey("CampaignId")]
         public virtual Campaign? Campaign { get; set; }
 
-        [ForeignKey("ProductId")]
-        public virtual Product? Product { get; set; }
+        [ForeignKey("CampaignProductId")]
+        public virtual CampaignProduct? CampaignProduct { get; set; }
     }
 } 

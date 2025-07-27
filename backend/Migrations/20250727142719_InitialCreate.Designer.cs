@@ -12,8 +12,8 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250726071348_RemoveUnusedCampaignFields")]
-    partial class RemoveUnusedCampaignFields
+    [Migration("20250727142719_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -32,9 +32,6 @@ namespace backend.Migrations
                         .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal?>("Budget")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -60,9 +57,6 @@ namespace backend.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
-                    b.Property<int>("Points")
-                        .HasColumnType("int");
-
                     b.Property<string>("ProductType")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -70,10 +64,6 @@ namespace backend.Migrations
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime(6)");
-
-                    b.Property<string>("TargetAudience")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .ValueGeneratedOnAddOrUpdate()
@@ -199,6 +189,41 @@ namespace backend.Migrations
                         .HasDatabaseName("IX_CampaignResellers_CampaignId_ResellerId");
 
                     b.ToTable("CampaignResellers");
+                });
+
+            modelBuilder.Entity("backend.Models.CampaignVoucherProduct", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("VoucherValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("CampaignVoucherProducts");
                 });
 
             modelBuilder.Entity("backend.Models.Order", b =>
@@ -729,6 +754,25 @@ namespace backend.Migrations
                     b.Navigation("Reseller");
                 });
 
+            modelBuilder.Entity("backend.Models.CampaignVoucherProduct", b =>
+                {
+                    b.HasOne("backend.Models.Campaign", "Campaign")
+                        .WithMany("VoucherProducts")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("Product");
+                });
+
             modelBuilder.Entity("backend.Models.Order", b =>
                 {
                     b.HasOne("backend.Models.Campaign", "Campaign")
@@ -914,6 +958,8 @@ namespace backend.Migrations
                     b.Navigation("CampaignResellers");
 
                     b.Navigation("EligibleProducts");
+
+                    b.Navigation("VoucherProducts");
                 });
 
             modelBuilder.Entity("backend.Models.Order", b =>

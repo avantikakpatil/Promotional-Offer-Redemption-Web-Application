@@ -1,41 +1,71 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using backend.Data;
 using backend.Models;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend.Controllers
 {
     [ApiController]
-    [Route("api/dummy")]
-    public class DummyDataController : ControllerBase
+    [Route("api/campaign-products")]
+    public class CampaignProductController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
 
-        public DummyDataController(ApplicationDbContext context)
+        public CampaignProductController(ApplicationDbContext context)
         {
             _context = context;
         }
 
-        // GET: api/dummy/categories
-        [HttpGet("categories")]
-        public ActionResult<IEnumerable<string>> GetCategories()
+        // GET: api/campaign-products
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetCampaignProducts()
         {
-            return Ok(DummyData.Categories);
+            try
+            {
+                var products = await _context.CampaignProducts.ToListAsync();
+                return Ok(products);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { 
+                    success = false,
+                    message = "An error occurred while fetching campaign products", 
+                    error = ex.Message 
+                });
+            }
         }
 
-        // GET: api/dummy/products
-        [HttpGet("products")]
-        public ActionResult<IEnumerable<Product>> GetProducts([FromQuery] string? category)
+        // GET: api/campaign-products/debug
+        [HttpGet("debug")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DebugCampaignProducts()
         {
-            var products = string.IsNullOrEmpty(category)
-                ? DummyData.Products
-                : DummyData.Products.FindAll(p => p.Category == category);
-            return Ok(products);
+            try
+            {
+                var count = await _context.CampaignProducts.CountAsync();
+                var products = await _context.CampaignProducts.Take(5).ToListAsync();
+                
+                return Ok(new { 
+                    count = count,
+                    products = products,
+                    message = $"Found {count} campaign products"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { 
+                    success = false,
+                    message = "Error checking campaign products", 
+                    error = ex.Message 
+                });
+            }
         }
 
-        // POST: api/dummy/populate-campaign-products
-        [HttpPost("populate-campaign-products")]
+        // POST: api/campaign-products/populate
+        [HttpPost("populate")]
+        [AllowAnonymous]
         public async Task<IActionResult> PopulateCampaignProducts()
         {
             try

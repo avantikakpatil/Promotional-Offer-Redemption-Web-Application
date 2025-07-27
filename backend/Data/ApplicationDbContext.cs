@@ -24,6 +24,7 @@ namespace backend.Data
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Voucher> Vouchers { get; set; }
         public DbSet<CampaignReseller> CampaignResellers { get; set; }
+        public DbSet<CampaignProduct> CampaignProducts { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -114,10 +115,10 @@ namespace backend.Data
                       .WithMany(e => e.EligibleProducts)
                       .HasForeignKey(e => e.CampaignId)
                       .OnDelete(DeleteBehavior.Cascade);
-                      
-                entity.HasOne(e => e.Product)
+                
+                entity.HasOne(e => e.CampaignProduct)
                       .WithMany()
-                      .HasForeignKey(e => e.ProductId)
+                      .HasForeignKey(e => e.CampaignProductId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
@@ -136,6 +137,22 @@ namespace backend.Data
                       .WithMany()
                       .HasForeignKey(e => e.ProductId)
                       .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure CampaignProduct entity
+            builder.Entity<CampaignProduct>(entity =>
+            {
+                entity.ToTable("campaignproducts"); // Map to the correct table name
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.Category).HasMaxLength(100);
+                entity.Property(e => e.SKU).HasMaxLength(50);
+                entity.Property(e => e.Brand).HasMaxLength(100);
+                entity.Property(e => e.BasePrice).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnType("timestamp(6)")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
+                    .ValueGeneratedOnAdd();
             });
 
             // Configure Product entity

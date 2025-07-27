@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Calendar, Package, Target, Info, AlertCircle, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
-import { productAPI } from '../../../services/api';
+import { Package, Target, Info, AlertCircle, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
+import { productAPI, campaignAPI } from '../../../services/api';
 
 const steps = [
   { label: 'Basic Info' },
@@ -16,6 +16,7 @@ const CampaignCreate = () => {
     startDate: '',
     endDate: '',
     description: '',
+    isActive: true,
     voucherValue: '',
     voucherGenerationThreshold: '',
     voucherValidityDays: ''
@@ -23,8 +24,6 @@ const CampaignCreate = () => {
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const [tokenInfo, setTokenInfo] = useState(null);
-  const [eligibleProducts, setEligibleProducts] = useState([]);
   const [selectedEligibleProducts, setSelectedEligibleProducts] = useState([]);
   const [selectedVoucherProducts, setSelectedVoucherProducts] = useState([]);
   const [step, setStep] = useState(0);
@@ -35,37 +34,7 @@ const CampaignCreate = () => {
   // Configuration for API base URL
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5162';
 
-  // Debug token and decode it on component mount
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        // Decode JWT payload to see what claims are available
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const nameIdUri = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
-        const roleUri = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
-        setTokenInfo({
-          exists: true,
-          claims: payload,
-          hasUserId: !!payload.UserId || !!payload.nameid || !!payload.id || !!payload[nameIdUri],
-          hasId: !!payload.id || !!payload.nameid || !!payload.UserId || !!payload[nameIdUri],
-          hasRole: !!payload.role || !!payload[roleUri],
-          userIdValue: payload.UserId || payload.id || payload.nameid || payload[nameIdUri] || 'Not found',
-          role: payload.role || payload[roleUri] || payload[Object.keys(payload).find(key => key.toLowerCase().includes('role'))] || 'Not found'
-        });
-        
-        console.log('Token payload:', payload);
-        console.log('Available claims:', Object.keys(payload));
-        console.log('UserId claim:', payload.UserId);
-        console.log('id claim:', payload.id);
-      } catch (error) {
-        console.error('Error decoding token:', error);
-        setTokenInfo({ exists: true, error: 'Invalid token format' });
-      }
-    } else {
-      setTokenInfo({ exists: false });
-    }
-  }, []);
+
 
   // Fetch categories for Product Type dropdown
   useEffect(() => {
@@ -85,22 +54,22 @@ const CampaignCreate = () => {
   useEffect(() => {
     if (!formData.productType) {
       setCategoryProducts([]);
-      setEligibleProducts([]);
       setSelectedEligibleProducts([]);
       setSelectedVoucherProducts([]);
       return;
     }
     async function fetchCategoryProducts() {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/dummy/products?category=${encodeURIComponent(formData.productType)}`);
+                       // Fetch all campaign products from the backend
+               const res = await fetch(`${API_BASE_URL}/api/campaign-products`);
         const data = await res.json();
-        setCategoryProducts(data);
-        setEligibleProducts(data); // for compatibility with rest of code
+        // Filter by selected category
+        const filtered = data.filter(p => p.category === formData.productType);
+        setCategoryProducts(filtered);
         setSelectedEligibleProducts([]); // reset selection on category change
         setSelectedVoucherProducts([]); // reset voucher selection on category change
       } catch (err) {
         setCategoryProducts([]);
-        setEligibleProducts([]);
         setSelectedEligibleProducts([]);
         setSelectedVoucherProducts([]);
       }
@@ -112,15 +81,8 @@ const CampaignCreate = () => {
   useEffect(() => {
     async function fetchManufacturerProducts() {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/manufacturer/product`);
-        
-        if (res.ok) {
-          const data = await res.json();
-          setManufacturerProducts(data);
-        } else {
-          console.error('Failed to fetch products:', res.status, res.statusText);
-          setManufacturerProducts([]);
-        }
+        const res = await productAPI.getManufacturerProducts();
+        setManufacturerProducts(res.data);
       } catch (err) {
         console.error('Error fetching manufacturer products:', err);
         setManufacturerProducts([]);
@@ -129,6 +91,13 @@ const CampaignCreate = () => {
     
     fetchManufacturerProducts();
   }, [API_BASE_URL]);
+
+  // Add a helper to check for overlap between selectedEligibleProducts and selectedVoucherProducts
+  const getOverlappingProductIds = () => {
+    const eligibleIds = new Set(selectedEligibleProducts.map(ep => ep.productId));
+    const voucherIds = new Set(selectedVoucherProducts.map(vp => vp.productId));
+    return [...eligibleIds].filter(id => voucherIds.has(id));
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -214,6 +183,26 @@ const CampaignCreate = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Filter out invalid products before submission
+    const validEligibleProductIds = new Set(categoryProducts.map(p => p.id)); // campaignproducts table
+    const validVoucherProductIds = new Set(manufacturerProducts.map(p => p.id)); // products table
+    const filteredEligibleProducts = selectedEligibleProducts.filter(ep => validEligibleProductIds.has(ep.productId));
+    const filteredVoucherProducts = selectedVoucherProducts.filter(vp => validVoucherProductIds.has(vp.productId));
+
+    if (filteredEligibleProducts.length !== selectedEligibleProducts.length || filteredVoucherProducts.length !== selectedVoucherProducts.length) {
+      alert('One or more selected products are no longer available. Please review your selections.');
+      return;
+    }
+
+    // Warn if the same product is selected for both eligible and voucher
+    const overlap = getOverlappingProductIds();
+    if (overlap.length > 0) {
+      if (!window.confirm('Warning: The following product IDs are selected for both earning points and voucher redemption: ' + overlap.join(', ') + '. This is allowed, but please confirm you want to proceed.')) {
+        return;
+      }
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -228,41 +217,34 @@ const CampaignCreate = () => {
       const campaignData = {
         name: formData.name,
         productType: formData.productType,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
+        startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
+        endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
         description: formData.description,
-        eligibleProducts: selectedEligibleProducts.map(ep => ({
-          productId: ep.productId,
+        isActive: formData.isActive,
+        eligibleProducts: filteredEligibleProducts.length > 0 ? filteredEligibleProducts.map(ep => ({
+          campaignProductId: ep.productId, // from campaignproducts table
           pointCost: ep.pointCost ? parseInt(ep.pointCost) : 0,
           redemptionLimit: ep.redemptionLimit ? parseInt(ep.redemptionLimit) : null,
           isActive: ep.isActive
-        })),
-        voucherValue: parseFloat(formData.voucherValue),
-        voucherGenerationThreshold: parseInt(formData.voucherGenerationThreshold),
-        voucherValidityDays: parseInt(formData.voucherValidityDays)
+        })) : undefined,
+        voucherProducts: filteredVoucherProducts.length > 0 ? filteredVoucherProducts.map(vp => ({
+          productId: vp.productId, // from products table
+          voucherValue: vp.voucherValue ? parseFloat(vp.voucherValue) : 0,
+          isActive: vp.isActive
+        })) : undefined,
+        voucherValue: formData.voucherValue ? parseFloat(formData.voucherValue) : null,
+        voucherGenerationThreshold: formData.voucherGenerationThreshold ? parseInt(formData.voucherGenerationThreshold) : null,
+        voucherValidityDays: formData.voucherValidityDays ? parseInt(formData.voucherValidityDays) : null
       };
 
-      if (!window.confirm('Are you sure you want to create this campaign?')) {
-        setLoading(false);
-        return;
-      }
+      const response = await campaignAPI.createCampaign(campaignData);
 
-      const response = await fetch(`${API_BASE_URL}/api/manufacturer/campaigns`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(campaignData)
-      });
-
-      if (response.ok) {
+      if (response.status === 200 || response.status === 201) {
         alert('Campaign created successfully!');
         navigate('/manufacturer/campaigns');
       } else {
-        const errorData = await response.json();
-        console.error('Campaign creation failed:', errorData);
-        alert(`Failed to create campaign: ${errorData.message || 'Unknown error'}`);
+        console.error('Campaign creation failed:', response.data);
+        alert(`Failed to create campaign: ${response.data?.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error creating campaign:', error);
@@ -302,22 +284,34 @@ const CampaignCreate = () => {
     }
   };
 
-  // 1. Visually prominent stepper at the top
   const Stepper = () => (
     <div className="flex items-center justify-center mb-8">
-      {steps.map((stepObj, idx) => (
-        <div key={stepObj.label} className="flex items-center">
-          <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold text-lg border-2 transition-all duration-200 
-            ${step === idx ? 'bg-blue-600 text-white border-blue-600 shadow-lg' : 'bg-white text-blue-600 border-blue-300'}`}
-          >
-            {idx + 1}
+      <div className="flex items-center space-x-4">
+        {steps.map((stepItem, index) => (
+  <div key={index} className="flex items-center">
+    <div
+      className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
+        index <= step
+          ? 'bg-blue-600 border-blue-600 text-white'
+          : 'bg-white border-gray-300 text-gray-500'
+      }`}
+    >
+      {index < step ? <CheckCircle className="w-5 h-5" /> : index + 1}
+    </div>
+
+            <span className={`ml-2 text-sm font-medium ${
+              index <= step ? 'text-blue-600' : 'text-gray-500'
+            }`}>
+              {stepItem.label}
+            </span>
+            {index < steps.length - 1 && (
+              <div className={`w-12 h-0.5 ml-4 ${
+                index < step ? 'bg-blue-600' : 'bg-gray-300'
+              }`} />
+            )}
           </div>
-          <span className={`ml-3 mr-6 text-base font-semibold ${step === idx ? 'text-blue-700' : 'text-gray-400'}`}>{stepObj.label}</span>
-          {idx < steps.length - 1 && (
-            <div className="w-10 h-1 bg-blue-200 rounded-full mx-2" />
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 
@@ -325,9 +319,13 @@ const CampaignCreate = () => {
     switch (step) {
       case 0:
         return (
-          <div className="bg-white shadow-xl rounded-2xl p-8 border border-gray-200 mb-10">
-            <h2 className="text-2xl font-bold text-blue-700 mb-2 flex items-center"><Info className="h-6 w-6 mr-2 text-blue-500" /> Basic Campaign Information</h2>
-            <hr className="my-4 border-blue-200" />
+          <div className="bg-white shadow-lg rounded-xl p-6 border border-gray-200">
+            <div className="flex items-center space-x-2 mb-6">
+              <Info className="h-5 w-5 text-blue-600" />
+              <h2 className="text-xl font-semibold text-gray-900">Basic Campaign Information</h2>
+            </div>
+            <div className="mb-4 text-gray-500 text-sm">Fill in the basic details for your campaign. <span className='text-blue-600'>(Step 1 of 2)</span></div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -363,6 +361,8 @@ const CampaignCreate = () => {
                 {errors.productType && <p className="mt-1 text-sm text-red-600">{errors.productType}</p>}
               </div>
 
+
+
               <div>
                 <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-2">
                   Start Date *
@@ -395,6 +395,8 @@ const CampaignCreate = () => {
                 {errors.endDate && <p className="mt-1 text-sm text-red-600">{errors.endDate}</p>}
               </div>
 
+
+
               <div>
                 <label htmlFor="voucherValue" className="block text-sm font-medium text-gray-700 mb-2">
                   Voucher Value (₹) *
@@ -412,7 +414,6 @@ const CampaignCreate = () => {
                   required
                 />
                 {errors.voucherValue && <p className="mt-1 text-sm text-red-600">{errors.voucherValue}</p>}
-                <p className="text-xs text-gray-500 mt-1">Value of the voucher to be redeemed.</p>
               </div>
 
               <div>
@@ -487,16 +488,15 @@ const CampaignCreate = () => {
         );
       case 1:
         return (
-          <div className="bg-white shadow-xl rounded-2xl p-8 border border-gray-200 mb-10">
-            <h2 className="text-2xl font-bold text-blue-700 mb-2 flex items-center"><Package className="h-6 w-6 mr-2 text-blue-500" /> Product Selection for Campaign</h2>
-            <hr className="my-4 border-blue-200" />
+          <div className="bg-white shadow-lg rounded-xl p-6 border border-gray-200">
+            <h3 className="text-lg font-semibold mb-2">Product Selection for Campaign</h3>
             <div className="mb-4 text-gray-500 text-sm">Select products from the chosen category and assign points for this campaign. <span className='text-blue-600'>(Step 2 of 2)</span></div>
             
             {/* Section 1: Available Products from Selected Category */}
             <div className="mb-8">
               <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
                 <Package className="h-4 w-4 mr-2 text-blue-600" />
-                Available Products - {formData.productType || 'Select Category'}
+                Available Products (for Points Earning, from Campaign Products Table) - {formData.productType || 'Select Category'}
               </h4>
               <div className="border rounded p-4 bg-gray-50">
                 {!formData.productType ? (
@@ -513,7 +513,7 @@ const CampaignCreate = () => {
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
                       <thead>
-                        <tr className="bg-gray-100 sticky top-0 z-10">
+                        <tr className="bg-gray-100">
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Select</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Product Name</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Brand</th>
@@ -522,10 +522,10 @@ const CampaignCreate = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {categoryProducts.map((product, index) => {
+                        {categoryProducts.map((product) => {
                           const isSelected = selectedEligibleProducts.some(ep => ep.productId === product.id);
                           return (
-                            <tr key={product.id} className={`border-b ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                            <tr key={product.id} className="border-b hover:bg-gray-50">
                               <td className="px-3 py-2">
                                 <input
                                   type="checkbox"
@@ -559,7 +559,7 @@ const CampaignCreate = () => {
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
                       <thead>
-                        <tr className="bg-green-100 sticky top-0 z-10">
+                        <tr className="bg-green-100">
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Product Name</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Brand</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-700">SKU</th>
@@ -569,10 +569,10 @@ const CampaignCreate = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {selectedEligibleProducts.map((selectedProduct, index) => {
+                        {selectedEligibleProducts.map((selectedProduct) => {
                           const product = categoryProducts.find(p => p.id === selectedProduct.productId);
                           return (
-                            <tr key={selectedProduct.productId} className={`border-b ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                            <tr key={selectedProduct.productId} className="border-b hover:bg-green-100">
                               <td className="px-3 py-2 font-medium text-gray-900">{product?.name || 'Unknown Product'}</td>
                               <td className="px-3 py-2 text-gray-600">{product?.brand || '-'}</td>
                               <td className="px-3 py-2 text-gray-600 font-mono text-xs">{product?.sku || '-'}</td>
@@ -591,9 +591,9 @@ const CampaignCreate = () => {
                               <td className="px-3 py-2">
                                 <button
                                   onClick={() => handleEligibleProductSelect(product, false)}
-                                  className="text-red-600 font-bold flex items-center hover:text-red-800 text-sm"
+                                  className="text-red-600 hover:text-red-800 text-sm font-medium"
                                 >
-                                  <Trash2 className="w-4 h-4 mr-1" /> Remove
+                                  Remove
                                 </button>
                               </td>
                             </tr>
@@ -610,7 +610,7 @@ const CampaignCreate = () => {
             <div className="mb-8">
               <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
                 <Target className="h-4 w-4 mr-2 text-purple-600" />
-                Voucher Redemption Products (Your Products)
+                Voucher Redemption Products (from Products Table)
               </h4>
               <div className="mb-4 text-gray-500 text-sm">Select products from your managed products that can be redeemed using vouchers generated from this campaign.</div>
               
@@ -624,7 +624,7 @@ const CampaignCreate = () => {
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
                       <thead>
-                        <tr className="bg-purple-100 sticky top-0 z-10">
+                        <tr className="bg-purple-100">
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Select</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Product Name</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Category</th>
@@ -634,10 +634,10 @@ const CampaignCreate = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {manufacturerProducts.map((product, index) => {
+                        {manufacturerProducts.map((product) => {
                           const isSelected = selectedVoucherProducts.some(vp => vp.productId === product.id);
                           return (
-                            <tr key={product.id} className={`border-b ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                            <tr key={product.id} className="border-b hover:bg-purple-100">
                               <td className="px-3 py-2">
                                 <input
                                   type="checkbox"
@@ -681,7 +681,7 @@ const CampaignCreate = () => {
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
                       <thead>
-                        <tr className="bg-purple-100 sticky top-0 z-10">
+                        <tr className="bg-purple-100">
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Product Name</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Category</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-700">SKU</th>
@@ -691,10 +691,10 @@ const CampaignCreate = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {selectedVoucherProducts.map((selectedProduct, index) => {
+                        {selectedVoucherProducts.map((selectedProduct) => {
                           const product = manufacturerProducts.find(p => p.id === selectedProduct.productId);
                           return (
-                            <tr key={selectedProduct.productId} className={`border-b ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                            <tr key={selectedProduct.productId} className="border-b hover:bg-purple-100">
                               <td className="px-3 py-2 font-medium text-gray-900">{product?.name || 'Unknown Product'}</td>
                               <td className="px-3 py-2 text-gray-600">{product?.category || '-'}</td>
                               <td className="px-3 py-2 text-gray-600 font-mono text-xs">{product?.sku || '-'}</td>
@@ -714,9 +714,9 @@ const CampaignCreate = () => {
                               <td className="px-3 py-2">
                                 <button
                                   onClick={() => handleVoucherProductSelect(product, false)}
-                                  className="text-red-600 font-bold flex items-center hover:text-red-800 text-sm"
+                                  className="text-red-600 hover:text-red-800 text-sm font-medium"
                                 >
-                                  <Trash2 className="w-4 h-4 mr-1" /> Remove
+                                  Remove
                                 </button>
                               </td>
                             </tr>

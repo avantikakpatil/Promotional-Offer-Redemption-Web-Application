@@ -29,6 +29,40 @@ namespace backend.Services
         {
             try
             {
+                // Check that all eligible product IDs exist in CampaignProducts table
+                var eligibleProductIds = createCampaignDto.EligibleProducts?.Select(ep => ep.CampaignProductId).ToList() ?? new List<int>();
+                if (eligibleProductIds.Any())
+                {
+                    var existingEligibleProductIds = await _context.CampaignProducts.Where(p => eligibleProductIds.Contains(p.Id)).Select(p => p.Id).ToListAsync();
+                    var missingEligibleProductIds = eligibleProductIds.Except(existingEligibleProductIds).ToList();
+                    if (missingEligibleProductIds.Any())
+                    {
+                        return new ApiResponse<CampaignDto>
+                        {
+                            Success = false,
+                            Message = "One or more selected eligible products do not exist.",
+                            Errors = new List<string> { $"Missing CampaignProductIds: {string.Join(", ", missingEligibleProductIds)}" }
+                        };
+                    }
+                }
+
+                // Check that all voucher product IDs exist in Products table
+                var voucherProductIds = createCampaignDto.VoucherProducts?.Select(vp => vp.ProductId).ToList() ?? new List<int>();
+                if (voucherProductIds.Any())
+                {
+                    var existingVoucherProductIds = await _context.Products.Where(p => voucherProductIds.Contains(p.Id)).Select(p => p.Id).ToListAsync();
+                    var missingVoucherProductIds = voucherProductIds.Except(existingVoucherProductIds).ToList();
+                    if (missingVoucherProductIds.Any())
+                    {
+                        return new ApiResponse<CampaignDto>
+                        {
+                            Success = false,
+                            Message = "One or more selected voucher products do not exist.",
+                            Errors = new List<string> { $"Missing ProductIds: {string.Join(", ", missingVoucherProductIds)}" }
+                        };
+                    }
+                }
+
                 var campaign = new Campaign
                 {
                     Name = createCampaignDto.Name,
@@ -51,7 +85,7 @@ namespace backend.Services
                     {
                         campaign.EligibleProducts.Add(new CampaignEligibleProduct
                         {
-                            ProductId = ep.ProductId,
+                            CampaignProductId = ep.CampaignProductId,
                             PointCost = ep.PointCost,
                             RedemptionLimit = ep.RedemptionLimit,
                             IsActive = ep.IsActive
@@ -78,7 +112,7 @@ namespace backend.Services
 
                 // Load the created campaign
                 var createdCampaign = await _context.Campaigns
-                    .Include(c => c.EligibleProducts)
+                    .Include(c => c.EligibleProducts).ThenInclude(ep => ep.CampaignProduct)
                     .Include(c => c.VoucherProducts)
                     .FirstOrDefaultAsync(c => c.Id == campaign.Id);
 
@@ -121,7 +155,7 @@ namespace backend.Services
             try
             {
                 var campaigns = await _context.Campaigns
-                    .Include(c => c.EligibleProducts)
+                    .Include(c => c.EligibleProducts).ThenInclude(ep => ep.CampaignProduct)
                     .Where(c => c.ManufacturerId == manufacturerId)
                     .OrderByDescending(c => c.CreatedAt)
                     .ToListAsync();
@@ -151,7 +185,7 @@ namespace backend.Services
             try
             {
                 var campaign = await _context.Campaigns
-                    .Include(c => c.EligibleProducts)
+                    .Include(c => c.EligibleProducts).ThenInclude(ep => ep.CampaignProduct)
                     .FirstOrDefaultAsync(c => c.Id == campaignId && c.ManufacturerId == manufacturerId);
 
                 if (campaign == null)
@@ -225,7 +259,7 @@ namespace backend.Services
                     {
                         campaign.EligibleProducts.Add(new CampaignEligibleProduct
                         {
-                            ProductId = ep.ProductId,
+                            CampaignProductId = ep.CampaignProductId,
                             PointCost = ep.PointCost,
                             RedemptionLimit = ep.RedemptionLimit,
                             IsActive = ep.IsActive
@@ -370,7 +404,7 @@ namespace backend.Services
                 UpdatedAt = campaign.UpdatedAt,
                 EligibleProducts = campaign.EligibleProducts?.Select(ep => new CampaignEligibleProductDto
                 {
-                    ProductId = ep.ProductId,
+                    CampaignProductId = ep.CampaignProductId,
                     PointCost = ep.PointCost,
                     RedemptionLimit = ep.RedemptionLimit,
                     IsActive = ep.IsActive

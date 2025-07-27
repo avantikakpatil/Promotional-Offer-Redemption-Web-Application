@@ -93,7 +93,7 @@ namespace backend.Services
                     string eligibleProductsJson = null;
                     if (campaign != null && campaign.EligibleProducts != null && campaign.EligibleProducts.Any())
                     {
-                        var productIds = campaign.EligibleProducts.Select(ep => ep.ProductId).ToList();
+                        var productIds = campaign.EligibleProducts.Select(ep => ep.CampaignProductId).ToList();
                         eligibleProductsJson = System.Text.Json.JsonSerializer.Serialize(productIds);
                     }
                     var voucherExpiry = now.AddDays(90); // Default 90 days
@@ -251,7 +251,7 @@ namespace backend.Services
                         .FirstOrDefaultAsync(c => c.Id == voucher.CampaignId);
                     if (campaign != null && campaign.EligibleProducts != null && campaign.EligibleProducts.Any())
                     {
-                        var productIds = campaign.EligibleProducts.Select(ep => ep.ProductId).ToList();
+                        var productIds = campaign.EligibleProducts.Select(ep => ep.CampaignProductId).ToList();
                         voucher.EligibleProducts = System.Text.Json.JsonSerializer.Serialize(productIds);
                         updatedCount++;
                     }
