@@ -25,17 +25,17 @@ namespace backend.Controllers.Reseller
         [HttpPost("coupons/redeem")]
         public IActionResult RedeemCoupon([FromBody] RedeemQRCodeDto dto)
         {
-            var coupon = _context.QRCodes.FirstOrDefault(q => q.Code == dto.Code);
-            if (coupon == null || coupon.IsRedeemed)
+            var voucher = _context.Vouchers.FirstOrDefault(v => v.QrCode == dto.Code);
+            if (voucher == null || voucher.IsRedeemed)
                 return BadRequest(new { error = "Invalid or already redeemed coupon." });
 
             var customer = _context.Users.FirstOrDefault(u => u.Id == dto.CustomerId);
             if (customer == null)
                 return BadRequest(new { error = "Customer not found." });
 
-            coupon.IsRedeemed = true;
-            coupon.RedeemedByUserId = dto.CustomerId;
-            coupon.RedeemedAt = DateTime.UtcNow;
+            voucher.IsRedeemed = true;
+            voucher.RedeemedByShopkeeperId = dto.CustomerId;
+            voucher.RedeemedAt = DateTime.UtcNow;
 
             customer.Points += dto.Points;
 

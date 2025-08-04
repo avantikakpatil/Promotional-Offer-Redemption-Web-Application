@@ -85,42 +85,7 @@ namespace backend.Controllers.Reseller
         //}
 
         // POST: api/reseller/voucher/{id}/generate-qr
-        [HttpPost("{id}/generate-qr")]
-        public async Task<ActionResult<QRCode>> GenerateQRCode(int id, GenerateQRCodeDto generateQRCodeDto)
-        {
-            var resellerId = GetCurrentUserId();
-            if (resellerId == null)
-                return Unauthorized();
-
-            var voucher = await _context.Vouchers
-                .FirstOrDefaultAsync(v => v.Id == id && v.ResellerId == resellerId);
-
-            if (voucher == null)
-                return NotFound();
-
-            if (voucher.IsRedeemed)
-                return BadRequest("Voucher has already been redeemed");
-
-            if (voucher.ExpiryDate <= DateTime.UtcNow)
-                return BadRequest("Voucher has expired");
-
-            // Generate QR code
-            var qrCode = new QRCode
-            {
-                Code = $"QR-{voucher.VoucherCode}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}",
-                CampaignId = voucher.CampaignId,
-                ResellerId = resellerId,
-                VoucherId = voucher.Id,
-                Points = voucher.PointsRequired,
-                ExpiryDate = generateQRCodeDto.ExpiryDate ?? voucher.ExpiryDate,
-                IsRedeemed = false
-            };
-
-            _context.QRCodes.Add(qrCode);
-            await _context.SaveChangesAsync();
-
-            return Ok(qrCode);
-        }
+        // QR code generation is now handled by the QrCode property on Voucher. Endpoint removed.
 
         // GET: api/reseller/voucher/points-required
         [HttpGet("points-required")]

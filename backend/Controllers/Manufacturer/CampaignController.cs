@@ -423,15 +423,15 @@ namespace backend.Controllers.Manufacturer
                 .Where(cr => cr.CampaignId == id && cr.IsApproved)
                 .CountAsync();
 
-            var totalOrders = await _context.Orders
+            var totalOrders = await _context.TempOrderPoints
                 .Where(o => o.CampaignId == id)
                 .CountAsync();
 
-            var totalOrderValue = await _context.Orders
+            var totalOrderValue = await _context.TempOrderPoints
                 .Where(o => o.CampaignId == id)
                 .SumAsync(o => o.TotalAmount);
 
-            var totalPointsEarned = await _context.Orders
+            var totalPointsEarned = await _context.TempOrderPoints
                 .Where(o => o.CampaignId == id)
                 .SumAsync(o => o.TotalPointsEarned);
 

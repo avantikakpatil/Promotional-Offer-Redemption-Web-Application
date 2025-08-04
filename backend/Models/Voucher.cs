@@ -38,6 +38,10 @@ namespace backend.Models
 
         public DateTime? UpdatedAt { get; set; }
 
+        // QR code string for this voucher (single-table approach)
+        [StringLength(255)]
+        public string QrCode { get; set; } = string.Empty;
+
         // Navigation properties
         [ForeignKey("ResellerId")]
         public virtual User? Reseller { get; set; }

@@ -185,4 +185,26 @@ namespace backend.Models.DTOs
         
         public int? VoucherValidityDays { get; set; } = 90;
     }
+
+    public class CreateOrderRequest
+    {
+        [Required]
+        public List<CreateOrderItemRequest> Items { get; set; } = new List<CreateOrderItemRequest>();
+
+        public string? ShippingAddress { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public class CreateOrderItemRequest
+    {
+        [Required]
+        public int EligibleProductId { get; set; }
+
+        [Required]
+        public int CampaignId { get; set; }
+
+        [Required]
+        [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1")]
+        public int Quantity { get; set; }
+    }
 } 

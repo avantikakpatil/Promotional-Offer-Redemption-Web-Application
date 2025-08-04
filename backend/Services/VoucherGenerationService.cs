@@ -98,6 +98,7 @@ namespace backend.Services
                     }
                     var voucherExpiry = now.AddDays(90); // Default 90 days
                     var voucherCode = $"QR-VCH-{now:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
+                    var qrCodeString = $"QR-{voucherCode}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
                     voucher = new Voucher
                     {
                         VoucherCode = voucherCode,
@@ -109,31 +110,11 @@ namespace backend.Services
                         ExpiryDate = voucherExpiry,
                         IsRedeemed = false,
                         CreatedAt = now,
-                        UpdatedAt = now
+                        UpdatedAt = now,
+                        QrCode = qrCodeString
                     };
                     _logger.LogInformation($"[VoucherGen] Creating new voucher: {System.Text.Json.JsonSerializer.Serialize(voucher)}");
                     _context.Vouchers.Add(voucher);
-                    await _context.SaveChangesAsync(); // Save to get voucher.Id
-
-                    // Automatically generate QR code for this voucher if not exists
-                    var existingVoucherQR = await _context.QRCodes.FirstOrDefaultAsync(q => q.VoucherId == voucher.Id);
-                    if (existingVoucherQR == null)
-                    {
-                        var qrCode = new QRCode
-                        {
-                            Code = $"QR-{voucher.VoucherCode}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}",
-                            CampaignId = voucher.CampaignId,
-                            ResellerId = resellerId,
-                            VoucherId = voucher.Id,
-                            Points = voucher.PointsRequired,
-                            ExpiryDate = voucher.ExpiryDate,
-                            IsRedeemed = false,
-                            CreatedAt = now,
-                            UpdatedAt = now
-                        };
-                        _context.QRCodes.Add(qrCode);
-                        await _context.SaveChangesAsync();
-                    }
                 }
                 await _context.SaveChangesAsync();
                 return true;
@@ -210,31 +191,18 @@ namespace backend.Services
         public async Task<int> BackfillVoucherQRCodesAsync()
         {
             var vouchers = await _context.Vouchers.ToListAsync();
-            int createdCount = 0;
+            int updatedCount = 0;
             foreach (var voucher in vouchers)
             {
-                var existingQR = await _context.QRCodes.FirstOrDefaultAsync(q => q.VoucherId == voucher.Id);
-                if (existingQR == null)
+                if (string.IsNullOrEmpty(voucher.QrCode))
                 {
-                    var now = DateTime.UtcNow;
-                    var qrCode = new QRCode
-                    {
-                        Code = $"QR-{voucher.VoucherCode}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}",
-                        CampaignId = voucher.CampaignId,
-                        ResellerId = voucher.ResellerId,
-                        VoucherId = voucher.Id,
-                        Points = voucher.PointsRequired,
-                        ExpiryDate = voucher.ExpiryDate,
-                        IsRedeemed = false,
-                        CreatedAt = now,
-                        UpdatedAt = now
-                    };
-                    _context.QRCodes.Add(qrCode);
-                    createdCount++;
+                    var qrCodeString = $"QR-{voucher.VoucherCode}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
+                    voucher.QrCode = qrCodeString;
+                    updatedCount++;
                 }
             }
             await _context.SaveChangesAsync();
-            return createdCount;
+            return updatedCount;
         }
 
         // Backfill eligible products for all existing vouchers that do not have them

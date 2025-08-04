@@ -6,7 +6,7 @@ public static class ServiceRegistration
     public static void AddCustomServices(this IServiceCollection services)
     {
         // ...existing code...
-        services.AddScoped<IQRCodeService, QRCodeService>();
+        services.AddScoped<ICampaignPointsService, CampaignPointsService>();
         // ...existing code...
     }
 }

@@ -1,19 +1,25 @@
 import React, { useState, useEffect } from 'react';
+import { FaStar, FaCheckCircle, FaClock, FaMoneyBillWave, FaShoppingCart, FaGift } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 const Points = () => {
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const navigate = useNavigate();
   
-  // Real data states
-  const [pointsData, setPointsData] = useState({
-    totalPoints: 0,
-    availablePoints: 0,
-    usedPoints: 0,
-    pendingPoints: 0
+  // Campaign-specific points data
+  const [campaignPoints, setCampaignPoints] = useState([]);
+  const [summary, setSummary] = useState({
+    totalPointsEarned: 0,
+    totalPointsUsed: 0,
+    totalAvailablePoints: 0,
+    totalOrderValue: 0,
+    totalOrders: 0,
+    totalVouchersGenerated: 0,
+    totalVoucherValueGenerated: 0
   });
-  const [pointsHistory, setPointsHistory] = useState([]);
-  const [orderStats, setOrderStats] = useState({ totalOrders: 0, totalOrderValue: 0 });
   
   useEffect(() => {
     fetchPointsData();
@@ -24,80 +30,74 @@ const Points = () => {
       setLoading(true);
       setError('');
       const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      
+      console.log('Fetching points data...');
+      console.log('Token:', token ? 'Present' : 'Missing');
+      console.log('User:', user);
 
-      // Fetch points summary
-      const pointsResponse = await fetch('/api/reseller/points', {
+      // Fetch campaign-specific points data
+      const response = await fetch('/api/reseller/order/points', {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
       });
-      let currentPoints = 0;
-      if (pointsResponse.ok) {
-        const pointsResult = await pointsResponse.json();
-        currentPoints = pointsResult.points || 0;
-        setPointsData(prev => ({
-          ...prev,
-          totalPoints: currentPoints,
-          availablePoints: currentPoints,
-          usedPoints: pointsResult.usedPoints || 0
-        }));
-      }
 
-      // Fetch order stats
-      const orderStatsResponse = await fetch('/api/reseller/order/points', {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
-      });
-      if (orderStatsResponse.ok) {
-        const stats = await orderStatsResponse.json();
-        setOrderStats({
-          totalOrders: stats.TotalOrders || stats.totalOrders || 0,
-          totalOrderValue: stats.TotalOrderValue || stats.totalOrderValue || 0
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Points data received:', data);
+        setCampaignPoints(data.campaignPoints || []);
+        setSummary(data.summary || {
+          totalPointsEarned: 0,
+          totalPointsUsed: 0,
+          totalAvailablePoints: 0,
+          totalOrderValue: 0,
+          totalOrders: 0,
+          totalVouchersGenerated: 0,
+          totalVoucherValueGenerated: 0
         });
-      }
-
-      // Fetch redemption history
-      const historyResponse = await fetch('/api/reseller/qrcodes/history', {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
-      });
-      if (historyResponse.ok) {
-        const historyResult = await historyResponse.json();
-        const history = historyResult.redemptionHistory || [];
-        // Transform history data to match the expected format
-        const transformedHistory = history.map((item, index) => ({
-          id: item.id || index + 1,
-          type: item.points > 0 ? 'Earned' : 'Used',
-          amount: item.points,
-          source: item.campaignName || 'QR Code Redemption',
-          date: new Date(item.redeemedAt).toLocaleDateString(),
-          status: 'Completed',
-          description: `${item.points > 0 ? 'Points earned from' : 'Points used for'} ${item.campaignName || 'QR code redemption'}`,
-          qrCode: item.qrCode,
-          customerName: item.customerName
-        }));
-        setPointsHistory(transformedHistory);
-        // Optionally, calculate used points from history
-        const usedPoints = transformedHistory.filter(h => h.type === 'Used').reduce((sum, h) => sum + Math.abs(h.amount), 0);
-        setPointsData(prev => ({ ...prev, usedPoints }));
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error response:', errorData);
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (err) {
       console.error('Error fetching points data:', err);
-      setError('Failed to load points data. Please try again.');
+      setError(`Failed to load points data: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredHistory = pointsHistory.filter(entry => {
-    if (filter === 'all') return true;
-    return entry.type.toLowerCase() === filter.toLowerCase();
-  });
+  const refreshPointsData = async () => {
+    try {
+      setRefreshing(true);
+      setError('');
+      await fetchPointsData();
+    } catch (err) {
+      console.error('Error refreshing points data:', err);
+      setError('Failed to refresh points data.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const testPublicEndpoint = async () => {
+    try {
+      console.log('Testing public endpoint...');
+      const response = await fetch('/api/reseller/order/public-test');
+      const data = await response.json();
+      console.log('Public test response:', data);
+      alert(`Public test: ${data.message}\nResellers: ${data.databaseStats.resellerCount}\nCampaigns: ${data.databaseStats.campaignCount}\nOrders: ${data.databaseStats.orderCount}\nCampaign Points: ${data.databaseStats.campaignPointsCount}`);
+    } catch (err) {
+      console.error('Error testing public endpoint:', err);
+      alert(`Error testing public endpoint: ${err.message}`);
+    }
+  };
 
   const getTypeColor = (type) => {
     switch (type) {
@@ -125,12 +125,51 @@ const Points = () => {
     }
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h1 className="text-3xl font-bold text-gray-800">My Points</h1>
-        <p className="text-gray-600 mt-2">Track your points balance and transaction history</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">My Points</h1>
+            <p className="text-gray-600 mt-2">Track your points balance and campaign performance</p>
+          </div>
+          <button
+            onClick={refreshPointsData}
+            disabled={refreshing || loading}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {refreshing ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+            ) : (
+              <span className="mr-2">🔄</span>
+            )}
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button
+            onClick={() => navigate('/reseller/dashboard/vouchers')}
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors ml-2"
+          >
+            <FaGift className="mr-2" />
+            Generate Vouchers
+          </button>
+          <button
+            onClick={testPublicEndpoint}
+            className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors ml-2"
+          >
+            <span className="mr-2">🧪</span>
+            Test API
+          </button>
+        </div>
       </div>
 
       {/* Loading State */}
@@ -167,11 +206,11 @@ const Points = () => {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <div className="p-3 rounded-full bg-blue-100 text-blue-600">
-                  <span className="text-2xl">⭐</span>
+                  <FaStar className="text-2xl" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Points</p>
-                  <p className="text-2xl font-bold text-gray-900">{pointsData.totalPoints}</p>
+                  <p className="text-sm font-medium text-gray-600">Total Points Earned</p>
+                  <p className="text-2xl font-bold text-gray-900">{summary.totalPointsEarned}</p>
                 </div>
               </div>
             </div>
@@ -179,23 +218,11 @@ const Points = () => {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <div className="p-3 rounded-full bg-green-100 text-green-600">
-                  <span className="text-2xl">✅</span>
+                  <FaCheckCircle className="text-2xl" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Available Points</p>
-                  <p className="text-2xl font-bold text-gray-900">{pointsData.availablePoints}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center">
-                <div className="p-3 rounded-full bg-orange-100 text-orange-600">
-                  <span className="text-2xl">⏳</span>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Pending Points</p>
-                  <p className="text-2xl font-bold text-gray-900">{pointsData.pendingPoints}</p>
+                  <p className="text-2xl font-bold text-gray-900">{summary.totalAvailablePoints}</p>
                 </div>
               </div>
             </div>
@@ -203,25 +230,38 @@ const Points = () => {
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <div className="p-3 rounded-full bg-red-100 text-red-600">
-                  <span className="text-2xl">💸</span>
+                  <FaMoneyBillWave className="text-2xl" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Used Points</p>
-                  <p className="text-2xl font-bold text-gray-900">{pointsData.usedPoints}</p>
+                  <p className="text-sm font-medium text-gray-600">Points Used</p>
+                  <p className="text-2xl font-bold text-gray-900">{summary.totalPointsUsed}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-purple-100 text-purple-600">
+                  <FaGift className="text-2xl" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Vouchers Generated</p>
+                  <p className="text-2xl font-bold text-gray-900">{summary.totalVouchersGenerated}</p>
                 </div>
               </div>
             </div>
           </div>
+
           {/* Order Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
-                <div className="p-3 rounded-full bg-purple-100 text-purple-600">
-                  <span className="text-2xl">🛒</span>
+                <div className="p-3 rounded-full bg-orange-100 text-orange-600">
+                  <FaShoppingCart className="text-2xl" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                  <p className="text-2xl font-bold text-gray-900">{orderStats.totalOrders}</p>
+                  <p className="text-2xl font-bold text-gray-900">{summary.totalOrders}</p>
                 </div>
               </div>
             </div>
@@ -232,60 +272,28 @@ const Points = () => {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Total Order Value</p>
-                  <p className="text-2xl font-bold text-gray-900">₹{orderStats.totalOrderValue}</p>
+                  <p className="text-2xl font-bold text-gray-900">₹{summary.totalOrderValue.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-indigo-100 text-indigo-600">
+                  <span className="text-2xl">🎁</span>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Voucher Value Generated</p>
+                  <p className="text-2xl font-bold text-gray-900">₹{summary.totalVoucherValueGenerated.toLocaleString()}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Points History */}
+          {/* Campaign Points Details */}
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-800">Points History</h2>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setFilter('all')}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                      filter === 'all' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    All
-                  </button>
-                  <button
-                    onClick={() => setFilter('earned')}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                      filter === 'earned' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Earned
-                  </button>
-                  <button
-                    onClick={() => setFilter('used')}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                      filter === 'used' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Used
-                  </button>
-                  <button
-                    onClick={() => setFilter('pending')}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                      filter === 'pending' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Pending
-                  </button>
-                </div>
-              </div>
+              <h2 className="text-xl font-semibold text-gray-800">Campaign Points Breakdown</h2>
+              <p className="text-gray-600 mt-1">Points earned from each campaign</p>
             </div>
 
             <div className="overflow-x-auto">
@@ -293,51 +301,65 @@ const Points = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
+                      Campaign
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount
+                      Points Earned
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Source
+                      Points Used
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
+                      Available Points
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
+                      Orders
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Description
+                      Order Value
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Vouchers Generated
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Last Updated
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredHistory.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-gray-50">
+                  {campaignPoints.map((campaign) => (
+                    <tr key={campaign.campaignId} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(entry.type)}`}>
-                          {entry.type}
+                        <div className="text-sm font-medium text-gray-900">
+                          {campaign.campaignName || 'Unknown Campaign'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm font-medium text-green-600">
+                          +{campaign.totalPointsEarned}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`font-medium ${entry.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {entry.amount > 0 ? '+' : ''}{entry.amount}
+                        <span className="text-sm font-medium text-red-600">
+                          {campaign.pointsUsedForVouchers}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm font-medium text-blue-600">
+                          {campaign.availablePoints}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {entry.source}
+                        {campaign.totalOrders}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ₹{campaign.totalOrderValue.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {campaign.totalVouchersGenerated}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(entry.date).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(entry.status)}`}>
-                          {entry.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {entry.description}
+                        {formatDate(campaign.lastUpdated)}
                       </td>
                     </tr>
                   ))}
@@ -345,11 +367,11 @@ const Points = () => {
               </table>
             </div>
 
-            {filteredHistory.length === 0 && (
+            {campaignPoints.length === 0 && (
               <div className="p-12 text-center">
                 <div className="text-6xl mb-4">📊</div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">No transactions found</h3>
-                <p className="text-gray-600">There are no points transactions matching your current filter.</p>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">No campaign points found</h3>
+                <p className="text-gray-600">Start placing orders to earn points from campaigns.</p>
               </div>
             )}
           </div>

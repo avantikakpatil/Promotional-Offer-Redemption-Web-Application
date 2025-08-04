@@ -61,6 +61,7 @@ export const campaignAPI = {
   // Reseller endpoints
   getAvailableCampaigns: () => api.get('/reseller/order/available-campaigns'),
   getCampaignProducts: (campaignId) => api.get(`/reseller/order/campaign/${campaignId}/products`),
+  getCampaignDetails: (campaignId) => api.get(`/reseller/order/campaign/${campaignId}/details`),
 
   // Manufacturer endpoints
   getManufacturerCampaigns: () => api.get('/manufacturer/campaigns'),

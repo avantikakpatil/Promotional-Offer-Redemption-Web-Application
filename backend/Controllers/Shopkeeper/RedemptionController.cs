@@ -27,41 +27,49 @@ namespace backend.Controllers.Shopkeeper
             if (shopkeeperId == null)
                 return Unauthorized();
 
-            var qrCode = await _context.QRCodes
-                .Include(q => q.Voucher)
-                .Include(q => q.Reseller)
-                .Include(q => q.Campaign)
-                .FirstOrDefaultAsync(q => q.Code == validationDto.QRCode);
-
-            if (qrCode == null)
-                return BadRequest("Invalid QR code");
-
-            if (qrCode.IsRedeemed)
-                return BadRequest("QR code has already been redeemed");
-
-            if (qrCode.ExpiryDate.HasValue && qrCode.ExpiryDate <= DateTime.UtcNow)
-                return BadRequest("QR code has expired");
-
-            if (qrCode.Voucher == null)
-                return BadRequest("No voucher associated with this QR code");
-
-            if (qrCode.Voucher.IsRedeemed)
-                return BadRequest("Voucher has already been redeemed");
-
-            if (qrCode.Voucher.ExpiryDate <= DateTime.UtcNow)
-                return BadRequest("Voucher has expired");
-
-            // Get eligible products for redemption
-            var eligibleProductIds = new List<int>();
-            if (!string.IsNullOrEmpty(qrCode.Voucher.EligibleProducts))
+            string codeToValidate = validationDto.QRCode;
+            // Try to parse as JSON and extract 'code' property if present
+            if (!string.IsNullOrWhiteSpace(validationDto.QRCode) && validationDto.QRCode.Trim().StartsWith("{"))
             {
                 try
                 {
-                    eligibleProductIds = JsonSerializer.Deserialize<List<int>>(qrCode.Voucher.EligibleProducts);
+                    using var doc = System.Text.Json.JsonDocument.Parse(validationDto.QRCode);
+                    if (doc.RootElement.TryGetProperty("code", out var codeProp) && codeProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        codeToValidate = codeProp.GetString();
+                    }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // If JSON parsing fails, return empty list
+                    return BadRequest($"Invalid QR code JSON: {ex.Message}");
+                }
+            }
+
+            var voucher = await _context.Vouchers
+                .Include(v => v.Reseller)
+                .Include(v => v.Campaign)
+                .FirstOrDefaultAsync(v => v.QrCode == codeToValidate);
+
+            if (voucher == null)
+                return BadRequest($"Invalid QR code: {codeToValidate} not found in database");
+
+            if (voucher.IsRedeemed)
+                return BadRequest($"Voucher '{voucher.VoucherCode}' has already been redeemed");
+
+            if (voucher.ExpiryDate <= DateTime.UtcNow)
+                return BadRequest($"Voucher '{voucher.VoucherCode}' has expired (expiry: {voucher.ExpiryDate})");
+
+            // Get eligible products for redemption
+            var eligibleProductIds = new List<int>();
+            if (!string.IsNullOrEmpty(voucher.EligibleProducts))
+            {
+                try
+                {
+                    eligibleProductIds = JsonSerializer.Deserialize<List<int>>(voucher.EligibleProducts);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest($"EligibleProducts JSON parse error: {ex.Message}");
                 }
             }
 
@@ -85,14 +93,14 @@ namespace backend.Controllers.Shopkeeper
 
             return Ok(new
             {
-                QRCode = qrCode.Code,
-                VoucherCode = qrCode.Voucher.VoucherCode,
-                VoucherValue = qrCode.Voucher.Value,
-                PointsRequired = qrCode.Points,
-                ResellerName = qrCode.Reseller?.Name,
-                CampaignName = qrCode.Campaign?.Name,
+                QRCode = voucher.QrCode,
+                VoucherCode = voucher.VoucherCode,
+                VoucherValue = voucher.Value,
+                PointsRequired = voucher.PointsRequired,
+                ResellerName = voucher.Reseller?.Name,
+                CampaignName = voucher.Campaign?.Name,
                 EligibleProducts = products,
-                ExpiryDate = qrCode.Voucher.ExpiryDate
+                ExpiryDate = voucher.ExpiryDate
             });
         }
 
@@ -100,41 +108,27 @@ namespace backend.Controllers.Shopkeeper
         [HttpPost("redeem")]
         public async Task<ActionResult<object>> RedeemVoucher(RedeemVoucherDto redeemDto)
         {
-            var shopkeeperId = GetCurrentUserId();
-            if (shopkeeperId == null)
-                return Unauthorized();
+            var voucher = await _context.Vouchers
+                .Include(v => v.Reseller)
+                .Include(v => v.Campaign)
+                .FirstOrDefaultAsync(v => v.QrCode == redeemDto.QRCode);
 
-            var qrCode = await _context.QRCodes
-                .Include(q => q.Voucher)
-                .Include(q => q.Reseller)
-                .Include(q => q.Campaign)
-                .FirstOrDefaultAsync(q => q.Code == redeemDto.QRCode);
-
-            if (qrCode == null)
+            if (voucher == null)
                 return BadRequest("Invalid QR code");
 
-            if (qrCode.IsRedeemed)
-                return BadRequest("QR code has already been redeemed");
-
-            if (qrCode.ExpiryDate.HasValue && qrCode.ExpiryDate <= DateTime.UtcNow)
-                return BadRequest("QR code has expired");
-
-            if (qrCode.Voucher == null)
-                return BadRequest("No voucher associated with this QR code");
-
-            if (qrCode.Voucher.IsRedeemed)
+            if (voucher.IsRedeemed)
                 return BadRequest("Voucher has already been redeemed");
 
-            if (qrCode.Voucher.ExpiryDate <= DateTime.UtcNow)
+            if (voucher.ExpiryDate <= DateTime.UtcNow)
                 return BadRequest("Voucher has expired");
 
             // Validate selected products
             var eligibleProductIds = new List<int>();
-            if (!string.IsNullOrEmpty(qrCode.Voucher.EligibleProducts))
+            if (!string.IsNullOrEmpty(voucher.EligibleProducts))
             {
                 try
                 {
-                    eligibleProductIds = JsonSerializer.Deserialize<List<int>>(qrCode.Voucher.EligibleProducts);
+                    eligibleProductIds = JsonSerializer.Deserialize<List<int>>(voucher.EligibleProducts);
                 }
                 catch
                 {
@@ -152,28 +146,25 @@ namespace backend.Controllers.Shopkeeper
 
             var totalValue = selectedProducts.Sum(p => p.RetailPrice);
 
-            if (totalValue > qrCode.Voucher.Value)
-                return BadRequest("Selected products exceed voucher value");
-
             // Process redemption
-            qrCode.IsRedeemed = true;
-            qrCode.RedeemedAt = DateTime.UtcNow;
-            qrCode.RedeemedByShopkeeperId = shopkeeperId;
+            var shopkeeperId = GetCurrentUserId();
+            if (shopkeeperId == null)
+                return Unauthorized();
 
-            qrCode.Voucher.IsRedeemed = true;
-            qrCode.Voucher.RedeemedAt = DateTime.UtcNow;
-            qrCode.Voucher.RedeemedByShopkeeperId = shopkeeperId;
+            voucher.IsRedeemed = true;
+            voucher.RedeemedAt = DateTime.UtcNow;
+            voucher.RedeemedByShopkeeperId = shopkeeperId;
 
             // Create redemption history
             var redemptionHistory = new RedemptionHistory
             {
                 UserId = shopkeeperId.Value,
-                QRCode = qrCode.Code,
-                Points = qrCode.Points,
+                QRCode = voucher.QrCode,
+                Points = voucher.PointsRequired,
                 RedeemedAt = DateTime.UtcNow,
-                ResellerId = qrCode.ResellerId,
+                ResellerId = voucher.ResellerId,
                 ShopkeeperId = shopkeeperId,
-                VoucherId = qrCode.VoucherId,
+                VoucherId = voucher.Id,
                 RedeemedProducts = JsonSerializer.Serialize(selectedProducts.Select(p => new { p.Id, p.Name, p.RetailPrice })),
                 RedemptionValue = totalValue,
                 RedemptionType = "voucher"
@@ -187,7 +178,7 @@ namespace backend.Controllers.Shopkeeper
             {
                 Success = true,
                 Message = "Voucher redeemed successfully",
-                VoucherCode = qrCode.Voucher.VoucherCode,
+                VoucherCode = voucher.VoucherCode,
                 RedeemedValue = totalValue,
                 RedeemedProducts = selectedProducts.Select(p => new { p.Name, p.RetailPrice }),
                 RedeemedAt = DateTime.UtcNow

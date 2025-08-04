@@ -45,7 +45,6 @@ namespace backend.Data
             new User { Id = 102, Name = "Reseller Two", Email = "reseller2@example.com", Phone = "1234567891", PasswordHash = "hash2", Role = "reseller" }
         };
 
-        // Dummy orders (initially empty, to be added daily)
-        public static List<Order> Orders = new List<Order>();
+        // All code referencing Order and OrderItem has been removed. Add dummy data for TempOrderPoints if needed.
     }
 } 
