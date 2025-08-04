@@ -14,6 +14,7 @@ import {
   UserGroupIcon,
   ChartBarIcon,
   QrCodeIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 
 const CampaignView = () => {
@@ -23,7 +24,6 @@ const CampaignView = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [campaignProducts, setCampaignProducts] = useState([]);
-  const [voucherProducts, setVoucherProducts] = useState([]);
 
   useEffect(() => {
     async function fetchCampaign() {
@@ -32,8 +32,10 @@ const CampaignView = () => {
         const res = await campaignAPI.getCampaignById(id);
         if (res.data && res.data.data) {
           setCampaign(res.data.data);
+          console.log('Campaign data received:', res.data.data);
+          console.log('Voucher products in campaign:', res.data.data.voucherProducts);
           
-          // Fetch campaign products details
+          // Fetch campaign products details for eligible products
           if (res.data.data.eligibleProducts && res.data.data.eligibleProducts.length > 0) {
             try {
               const campaignProductsRes = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5162'}/api/campaign-products`);
@@ -44,15 +46,13 @@ const CampaignView = () => {
             }
           }
 
-          // Fetch voucher products details
+          // Set voucher products from campaign data (they should now be included in the response)
           if (res.data.data.voucherProducts && res.data.data.voucherProducts.length > 0) {
-            try {
-              const voucherProductsRes = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5162'}/api/manufacturer/products`);
-              const voucherProductsData = await voucherProductsRes.json();
-              setVoucherProducts(voucherProductsData.data || []);
-            } catch (err) {
-              console.error('Error fetching voucher products:', err);
-            }
+            // The voucher products should now be included in the campaign response
+            // We don't need to fetch them separately anymore
+            console.log('Voucher products from campaign:', res.data.data.voucherProducts);
+          } else {
+            console.log('No voucher products found in campaign response');
           }
         } else {
           setError('Campaign not found.');
@@ -86,8 +86,60 @@ const CampaignView = () => {
       const product = campaignProducts.find(p => p.id === productId);
       return product ? product.name : `Product ID: ${productId}`;
     } else {
-      const product = voucherProducts.find(p => p.id === productId);
-      return product ? product.name : `Product ID: ${productId}`;
+      // For voucher products, we need to get the product details from the campaign data
+      // The voucher products should now be included in the campaign response with product details
+      const voucherProduct = campaign?.voucherProducts?.find(vp => vp.productId === productId);
+      if (voucherProduct && voucherProduct.product) {
+        return voucherProduct.product.name || `Product ID: ${productId}`;
+      }
+      return `Product ID: ${productId}`;
+    }
+  };
+
+  const handleAddVoucherProducts = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5162'}/api/manufacturer/campaigns/${id}/add-voucher-products`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Success: ${result.message}`);
+        // Refresh the campaign data
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.message || 'Failed to add voucher products'}`);
+      }
+    } catch (error) {
+      console.error('Error adding voucher products:', error);
+      alert('Error adding voucher products');
+    }
+  };
+
+  const handleDebugCampaign = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5162'}/api/manufacturer/campaigns/${id}/debug`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Campaign debug data:', result);
+        alert(`Debug Info:\nEligible Products: ${result.EligibleProductsCount}\nVoucher Products: ${result.VoucherProductsCount}`);
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.message || 'Failed to get debug info'}`);
+      }
+    } catch (error) {
+      console.error('Error getting debug info:', error);
+      alert('Error getting debug info');
     }
   };
 
@@ -143,6 +195,20 @@ const CampaignView = () => {
               >
                 <PencilIcon className="w-4 h-4 mr-2" />
                 Edit Campaign
+              </button>
+              <button
+                onClick={handleAddVoucherProducts}
+                className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <GiftIcon className="w-4 h-4 mr-2" />
+                Add Voucher Products
+              </button>
+              <button
+                onClick={handleDebugCampaign}
+                className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                <InformationCircleIcon className="w-4 h-4 mr-2" />
+                Debug
               </button>
             </div>
           </div>
@@ -260,7 +326,7 @@ const CampaignView = () => {
                   <div key={index} className="border border-purple-200 rounded-lg p-4 bg-purple-50">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-medium text-gray-900">
-                        {getProductName(product.productId, 'voucher')}
+                        {product.product ? product.product.name : `Product ID: ${product.productId}`}
                       </h4>
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         product.isActive ? 'bg-purple-100 text-purple-800' : 'bg-red-100 text-red-800'
@@ -272,6 +338,12 @@ const CampaignView = () => {
                       <span className="text-gray-500">Voucher value:</span>
                       <span className="ml-2 font-medium text-gray-900">₹{product.voucherValue}</span>
                     </div>
+                    {product.product && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        <span>Category: {product.product.category || 'N/A'}</span>
+                        {product.product.sku && <span className="ml-2">SKU: {product.product.sku}</span>}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

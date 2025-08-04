@@ -113,7 +113,7 @@ namespace backend.Services
                 // Load the created campaign
                 var createdCampaign = await _context.Campaigns
                     .Include(c => c.EligibleProducts).ThenInclude(ep => ep.CampaignProduct)
-                    .Include(c => c.VoucherProducts)
+                    .Include(c => c.VoucherProducts).ThenInclude(vp => vp.Product)
                     .FirstOrDefaultAsync(c => c.Id == campaign.Id);
 
                 var campaignDto = MapToDto(createdCampaign!);
@@ -156,6 +156,7 @@ namespace backend.Services
             {
                 var campaigns = await _context.Campaigns
                     .Include(c => c.EligibleProducts).ThenInclude(ep => ep.CampaignProduct)
+                    .Include(c => c.VoucherProducts).ThenInclude(vp => vp.Product)
                     .Where(c => c.ManufacturerId == manufacturerId)
                     .OrderByDescending(c => c.CreatedAt)
                     .ToListAsync();
@@ -186,6 +187,7 @@ namespace backend.Services
             {
                 var campaign = await _context.Campaigns
                     .Include(c => c.EligibleProducts).ThenInclude(ep => ep.CampaignProduct)
+                    .Include(c => c.VoucherProducts).ThenInclude(vp => vp.Product)
                     .FirstOrDefaultAsync(c => c.Id == campaignId && c.ManufacturerId == manufacturerId);
 
                 if (campaign == null)
@@ -223,7 +225,8 @@ namespace backend.Services
             try
             {
                 var campaign = await _context.Campaigns
-                    .Include(c => c.EligibleProducts)
+                    .Include(c => c.EligibleProducts).ThenInclude(ep => ep.CampaignProduct)
+                    .Include(c => c.VoucherProducts).ThenInclude(vp => vp.Product)
                     .FirstOrDefaultAsync(c => c.Id == campaignId && c.ManufacturerId == manufacturerId);
 
                 if (campaign == null)

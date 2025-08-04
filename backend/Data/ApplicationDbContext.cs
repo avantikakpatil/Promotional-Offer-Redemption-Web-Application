@@ -103,6 +103,12 @@ namespace backend.Data
                       .WithOne(e => e.Campaign)
                       .HasForeignKey(e => e.CampaignId)
                       .OnDelete(DeleteBehavior.Cascade);
+                      
+                // Configure relationship with CampaignVoucherProducts
+                entity.HasMany(e => e.VoucherProducts)
+                      .WithOne(e => e.Campaign)
+                      .HasForeignKey(e => e.CampaignId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Configure CampaignEligibleProduct entity

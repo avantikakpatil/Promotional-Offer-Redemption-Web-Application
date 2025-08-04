@@ -515,6 +515,113 @@ namespace backend.Controllers.Manufacturer
             return Ok(new { Message = "Voucher settings updated successfully", Campaign = campaign });
         }
 
+        // POST: api/manufacturer/campaigns/{id}/add-voucher-products
+        [HttpPost("{id}/add-voucher-products")]
+        public async Task<ActionResult<object>> AddVoucherProducts(int id)
+        {
+            var manufacturerId = GetCurrentUserId();
+            if (manufacturerId == null)
+                return Unauthorized();
+
+            var campaign = await _context.Campaigns
+                .FirstOrDefaultAsync(c => c.Id == id && c.ManufacturerId == manufacturerId);
+
+            if (campaign == null)
+                return NotFound("Campaign not found");
+
+            // Get manufacturer's products
+            var manufacturerProducts = await _context.Products
+                .Where(p => p.ManufacturerId == manufacturerId && p.IsActive)
+                .Take(3) // Add first 3 products as voucher products
+                .ToListAsync();
+
+            if (!manufacturerProducts.Any())
+                return BadRequest("No products found for this manufacturer");
+
+            // Add voucher products
+            var voucherProducts = manufacturerProducts.Select(p => new CampaignVoucherProduct
+            {
+                CampaignId = id,
+                ProductId = p.Id,
+                VoucherValue = p.RetailPrice * 0.1m, // 10% of retail price
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            }).ToList();
+
+            await _context.CampaignVoucherProducts.AddRangeAsync(voucherProducts);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = $"Added {voucherProducts.Count} voucher products to campaign",
+                voucherProducts = voucherProducts.Select(vp => new
+                {
+                    vp.ProductId,
+                    vp.VoucherValue,
+                    vp.IsActive
+                }).ToList()
+            });
+        }
+
+        // GET: api/manufacturer/campaigns/{id}/debug
+        [HttpGet("{id}/debug")]
+        public async Task<ActionResult<object>> DebugCampaign(int id)
+        {
+            var manufacturerId = GetCurrentUserId();
+            if (manufacturerId == null)
+                return Unauthorized();
+
+            var campaign = await _context.Campaigns
+                .Include(c => c.EligibleProducts).ThenInclude(ep => ep.CampaignProduct)
+                .Include(c => c.VoucherProducts).ThenInclude(vp => vp.Product)
+                .FirstOrDefaultAsync(c => c.Id == id && c.ManufacturerId == manufacturerId);
+
+            if (campaign == null)
+                return NotFound("Campaign not found");
+
+            object eligibleProducts;
+            if (campaign.EligibleProducts != null)
+            {
+                eligibleProducts = campaign.EligibleProducts.Select(ep => new
+                {
+                    ep.CampaignProductId,
+                    ep.PointCost,
+                    ep.IsActive,
+                    ProductName = ep.CampaignProduct?.Name
+                }).ToList();
+            }
+            else
+            {
+                eligibleProducts = new List<object>();
+            }
+
+            object voucherProducts;
+            if (campaign.VoucherProducts != null)
+            {
+                voucherProducts = campaign.VoucherProducts.Select(vp => new
+                {
+                    vp.ProductId,
+                    vp.VoucherValue,
+                    vp.IsActive,
+                    ProductName = vp.Product?.Name
+                }).ToList();
+            }
+            else
+            {
+                voucherProducts = new List<object>();
+            }
+
+            return Ok(new
+            {
+                CampaignId = id,
+                CampaignName = campaign.Name,
+                EligibleProductsCount = campaign.EligibleProducts?.Count ?? 0,
+                VoucherProductsCount = campaign.VoucherProducts?.Count ?? 0,
+                EligibleProducts = eligibleProducts,
+                VoucherProducts = voucherProducts
+            });
+        }
+
         // GET: api/manufacturer/campaigns/{id}/voucher-stats
         [HttpGet("{id}/voucher-stats")]
         public async Task<ActionResult<object>> GetVoucherStats(int id)
