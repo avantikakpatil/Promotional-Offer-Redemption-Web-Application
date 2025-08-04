@@ -88,6 +88,14 @@ function App() {
                 element={<Navigate to="/reseller/dashboard/campaigns" replace />}
               />
               <Route
+                path="/reseller/order-products"
+                element={<Navigate to="/reseller/dashboard/order-products" replace />}
+              />
+              <Route
+                path="/reseller/orders"
+                element={<Navigate to="/reseller/dashboard/orders" replace />}
+              />
+              <Route
                 path="/reseller/vouchers"
                 element={<Navigate to="/reseller/dashboard/vouchers" replace />}
               />

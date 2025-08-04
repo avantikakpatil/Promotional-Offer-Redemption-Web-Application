@@ -26,6 +26,8 @@ namespace backend.Controllers
                 // Get all active campaigns created by manufacturers (like Haldiram) for dealers/resellers
                 var campaigns = await _context.Campaigns
                     .Include(c => c.Manufacturer)
+                    .Include(c => c.EligibleProducts)
+                    .Include(c => c.VoucherProducts)
                     .Where(c => c.IsActive && c.StartDate <= DateTime.UtcNow && c.EndDate >= DateTime.UtcNow)
                     .OrderByDescending(c => c.CreatedAt)
                     .Select(c => new
@@ -38,6 +40,26 @@ namespace backend.Controllers
                         description = c.Description,
                         isActive = c.IsActive,
                         createdAt = c.CreatedAt,
+                        // Voucher settings
+                        voucherGenerationThreshold = c.VoucherGenerationThreshold,
+                        voucherValue = c.VoucherValue,
+                        voucherValidityDays = c.VoucherValidityDays,
+                        // Campaign products
+                        eligibleProducts = c.EligibleProducts.Select(ep => new
+                        {
+                            id = ep.Id,
+                            campaignProductId = ep.CampaignProductId,
+                            pointCost = ep.PointCost,
+                            redemptionLimit = ep.RedemptionLimit,
+                            isActive = ep.IsActive
+                        }).ToList(),
+                        voucherProducts = c.VoucherProducts.Select(vp => new
+                        {
+                            id = vp.Id,
+                            productId = vp.ProductId,
+                            voucherValue = vp.VoucherValue,
+                            isActive = vp.IsActive
+                        }).ToList(),
                         manufacturer = new
                         {
                             id = c.Manufacturer.Id,
@@ -47,9 +69,42 @@ namespace backend.Controllers
                     })
                     .ToListAsync();
 
+                // Get reward tiers for each campaign
+                var campaignIds = campaigns.Select(c => c.id).ToList();
+                var rewardTiers = await _context.RewardTiers
+                    .Where(rt => campaignIds.Contains(rt.CampaignId))
+                    .Select(rt => new
+                    {
+                        campaignId = rt.CampaignId,
+                        id = rt.Id,
+                        threshold = rt.Threshold,
+                        reward = rt.Reward
+                    })
+                    .ToListAsync();
+
+                // Attach reward tiers to campaigns
+                var campaignsWithRewardTiers = campaigns.Select(c => new
+                {
+                    c.id,
+                    c.name,
+                    c.productType,
+                    c.startDate,
+                    c.endDate,
+                    c.description,
+                    c.isActive,
+                    c.createdAt,
+                    c.voucherGenerationThreshold,
+                    c.voucherValue,
+                    c.voucherValidityDays,
+                    c.eligibleProducts,
+                    c.voucherProducts,
+                    c.manufacturer,
+                    rewardTiers = rewardTiers.Where(rt => rt.campaignId == c.id).ToList()
+                }).ToList();
+
                 return Ok(new { 
                     success = true, 
-                    data = campaigns,
+                    data = campaignsWithRewardTiers,
                     message = "Campaigns fetched successfully"
                 });
             }
@@ -73,6 +128,8 @@ namespace backend.Controllers
             {
                 var campaign = await _context.Campaigns
                     .Include(c => c.Manufacturer)
+                    .Include(c => c.EligibleProducts)
+                    .Include(c => c.VoucherProducts)
                     .Where(c => c.Id == id && c.IsActive)
                     .Select(c => new
                     {
@@ -84,6 +141,26 @@ namespace backend.Controllers
                         description = c.Description,
                         isActive = c.IsActive,
                         createdAt = c.CreatedAt,
+                        // Voucher settings
+                        voucherGenerationThreshold = c.VoucherGenerationThreshold,
+                        voucherValue = c.VoucherValue,
+                        voucherValidityDays = c.VoucherValidityDays,
+                        // Campaign products
+                        eligibleProducts = c.EligibleProducts.Select(ep => new
+                        {
+                            id = ep.Id,
+                            campaignProductId = ep.CampaignProductId,
+                            pointCost = ep.PointCost,
+                            redemptionLimit = ep.RedemptionLimit,
+                            isActive = ep.IsActive
+                        }).ToList(),
+                        voucherProducts = c.VoucherProducts.Select(vp => new
+                        {
+                            id = vp.Id,
+                            productId = vp.ProductId,
+                            voucherValue = vp.VoucherValue,
+                            isActive = vp.IsActive
+                        }).ToList(),
                         manufacturer = new
                         {
                             id = c.Manufacturer.Id,
@@ -101,9 +178,40 @@ namespace backend.Controllers
                     });
                 }
 
+                // Get reward tiers for this campaign
+                var rewardTiers = await _context.RewardTiers
+                    .Where(rt => rt.CampaignId == id)
+                    .Select(rt => new
+                    {
+                        id = rt.Id,
+                        threshold = rt.Threshold,
+                        reward = rt.Reward
+                    })
+                    .ToListAsync();
+
+                // Attach reward tiers to campaign
+                var campaignWithRewardTiers = new
+                {
+                    campaign.id,
+                    campaign.name,
+                    campaign.productType,
+                    campaign.startDate,
+                    campaign.endDate,
+                    campaign.description,
+                    campaign.isActive,
+                    campaign.createdAt,
+                    campaign.voucherGenerationThreshold,
+                    campaign.voucherValue,
+                    campaign.voucherValidityDays,
+                    campaign.eligibleProducts,
+                    campaign.voucherProducts,
+                    campaign.manufacturer,
+                    rewardTiers = rewardTiers
+                };
+
                 return Ok(new { 
                     success = true, 
-                    data = campaign,
+                    data = campaignWithRewardTiers,
                     message = "Campaign fetched successfully"
                 });
             }

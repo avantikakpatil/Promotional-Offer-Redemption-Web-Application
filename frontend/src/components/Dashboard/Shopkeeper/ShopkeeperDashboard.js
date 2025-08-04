@@ -8,12 +8,20 @@ import ShopkeeperHome from './ShopkeeperHome';
 import EligibleProducts from './EligibleProducts';
 
 const ShopkeeperDashboard = () => {
+  // Add a state to trigger history refresh
+  const [historyRefreshKey, setHistoryRefreshKey] = React.useState(0);
+
+  // Callback to trigger history refresh
+  const handleRedeem = () => {
+    setHistoryRefreshKey(prev => prev + 1);
+  };
+
   return (
     <ShopkeeperLayout>
       <Routes>
         <Route path="/" element={<ShopkeeperHome />} />
-        <Route path="/scanner" element={<QRScanner />} />
-        <Route path="/history" element={<RedemptionHistory />} />
+        <Route path="/scanner" element={<QRScanner onRedeem={handleRedeem} />} />
+        <Route path="/history" element={<RedemptionHistory key={historyRefreshKey} />} />
         <Route path="/products" element={<EligibleProducts />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>

@@ -4,37 +4,20 @@ import api from '../../../services/api';
 const EligibleProducts = () => {
   const [campaigns, setCampaigns] = useState([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
-  const [eligibleProducts, setEligibleProducts] = useState([]);
+  const [voucherProducts, setVoucherProducts] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
-  const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     fetchCampaigns();
-    // Fetch all products for shopkeeper
+    // Fetch all products for name lookup
     const fetchAllProducts = async () => {
       try {
-        setLoading(true);
-        setError('');
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/shopkeeper/products', {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setAllProducts(data);
-        } else {
-          setError('Failed to fetch products');
-        }
-      } catch (err) {
-        setError('Failed to fetch products');
-      } finally {
-        setLoading(false);
+        const res = await api.get('/shopkeeper/products');
+        setAllProducts(res.data);
+      } catch {
+        // ignore error
       }
     };
     fetchAllProducts();
@@ -42,7 +25,7 @@ const EligibleProducts = () => {
 
   useEffect(() => {
     if (selectedCampaignId) {
-      fetchEligibleProducts(selectedCampaignId);
+      fetchVoucherProducts(selectedCampaignId);
     }
   }, [selectedCampaignId]);
 
@@ -56,43 +39,24 @@ const EligibleProducts = () => {
     }
   };
 
-  const fetchAllProducts = async () => {
-    try {
-      const res = await api.get('/products');
-      setAllProducts(res.data);
-    } catch {
-      setError('Failed to fetch products');
-    }
-  };
 
-  const fetchEligibleProducts = async (campaignId) => {
+
+
+  // Fetch products to be given on voucher redemption (from campaignvoucherproducts)
+  const fetchVoucherProducts = async (campaignId) => {
     setLoading(true);
     setError('');
     try {
-      const res = await api.get(`/shopkeeper/campaigns/${campaignId}/eligible-products`);
-      setEligibleProducts(res.data);
-      setSelectedProductIds(res.data.map(p => p.id));
+      const res = await api.get(`/shopkeeper/campaigns/${campaignId}/campaignvoucherproducts`);
+      setVoucherProducts(res.data);
     } catch {
-      setError('Failed to fetch eligible products');
+      setError('Failed to fetch voucher products');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAssignProducts = async () => {
-    setLoading(true);
-    setError('');
-    setSuccess('');
-    try {
-      await api.post(`/shopkeeper/campaigns/${selectedCampaignId}/eligible-products`, selectedProductIds);
-      setSuccess('Eligible products updated!');
-      fetchEligibleProducts(selectedCampaignId);
-    } catch {
-      setError('Failed to update eligible products');
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   return (
     <div className="space-y-6">
@@ -112,46 +76,33 @@ const EligibleProducts = () => {
           </select>
         </div>
         {selectedCampaignId && (
-          <>
-            <div className="mb-4">
-              <label className="block mb-1 font-medium">Assign Eligible Products:</label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-y-auto border rounded p-2">
-                {allProducts.map(product => (
-                  <label key={product.id} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedProductIds.includes(product.id)}
-                      onChange={e => {
-                        if (e.target.checked) {
-                          setSelectedProductIds(ids => [...ids, product.id]);
-                        } else {
-                          setSelectedProductIds(ids => ids.filter(id => id !== product.id));
-                        }
-                      }}
-                    />
-                    <span>{product.name} ({product.brand})</span>
-                  </label>
-                ))}
-              </div>
-              <button
-                className="mt-3 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                onClick={handleAssignProducts}
-                disabled={loading}
-              >
-                {loading ? 'Saving...' : 'Save Eligible Products'}
-              </button>
-              {success && <div className="mt-2 text-green-600">{success}</div>}
-              {error && <div className="mt-2 text-red-600">{error}</div>}
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold mb-2">Currently Eligible Products</h2>
+          <div>
+            <h2 className="text-xl font-semibold mb-2">Products to Give on Voucher Redemption</h2>
+            {loading ? (
+              <div className="text-gray-500">Loading...</div>
+            ) : error ? (
+              <div className="text-red-600">{error}</div>
+            ) : voucherProducts.length === 0 ? (
+              <div className="text-gray-500">No voucher redemption products for this campaign.</div>
+            ) : (
               <ul className="list-disc ml-6">
-                {eligibleProducts.map(p => (
-                  <li key={p.id}>{p.name} ({p.brand})</li>
-                ))}
+                {voucherProducts.map(p => {
+                  // p is a campaignvoucherproduct object; join with allProducts by ProductId
+                  let prod = null;
+                  if (p && typeof p === 'object' && p.ProductId) {
+                    prod = allProducts.find(ap => ap.id === p.ProductId);
+                  }
+                  return (
+                    <li key={p.campaignProductId || p.id || p.ProductId}>
+                      {prod ? `${prod.name}${prod.brand ? ` (${prod.brand})` : ''}` : p.productName || p.name || p.ProductId}
+                      {typeof p.VoucherValue !== 'undefined' ? ` - Value: ₹${p.VoucherValue}` : ''}
+                      {typeof p.IsActive === 'boolean' ? (p.IsActive ? ' (Active)' : ' (Inactive)') : ''}
+                    </li>
+                  );
+                })}
               </ul>
-            </div>
-          </>
+            )}
+          </div>
         )}
       </div>
     </div>

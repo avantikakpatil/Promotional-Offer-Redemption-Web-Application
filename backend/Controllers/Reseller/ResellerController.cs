@@ -51,32 +51,22 @@ namespace backend.Controllers.Reseller
 
             var vouchers = await _context.Vouchers
                 .Include(v => v.Campaign)
-                // .Include(v => v.RedeemedByShopkeeper) // Temporarily removed to diagnose 500 error
                 .Where(v => v.ResellerId == resellerId)
                 .OrderByDescending(v => v.CreatedAt)
                 .ToListAsync();
 
-            // Fetch QR codes for these vouchers
-            var voucherIds = vouchers.Select(v => v.Id).ToList();
-            var qrCodes = await _context.QRCodes
-                .Where(qr => qr.VoucherId != null && voucherIds.Contains(qr.VoucherId.Value))
-                .ToListAsync();
-
-            var result = vouchers.Select(v => {
-                var qr = qrCodes.FirstOrDefault(q => q.VoucherId == v.Id);
-                return new {
-                    id = v.Id,
-                    voucherCode = v.VoucherCode,
-                    value = v.Value,
-                    campaignName = v.Campaign?.Name, // Use null-conditional
-                    campaignId = v.CampaignId,
-                    pointsRequired = v.PointsRequired,
-                    isRedeemed = v.IsRedeemed,
-                    createdAt = v.CreatedAt,
-                    expiryDate = v.ExpiryDate,
-                    eligibleProducts = v.EligibleProducts,
-                    qrCode = qr?.Code // Add QR code value
-                };
+            var result = vouchers.Select(v => new {
+                id = v.Id,
+                voucherCode = v.VoucherCode,
+                value = v.Value,
+                campaignName = v.Campaign?.Name,
+                campaignId = v.CampaignId,
+                pointsRequired = v.PointsRequired,
+                isRedeemed = v.IsRedeemed,
+                createdAt = v.CreatedAt,
+                expiryDate = v.ExpiryDate,
+                eligibleProducts = v.EligibleProducts,
+                qrCode = v.QrCode // Use QrCode property directly
             });
 
             return Ok(result);

@@ -152,8 +152,10 @@ builder.Services.AddScoped<JwtHelper>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICampaignService, CampaignService>();
-builder.Services.AddScoped<IQRCodeService, QRCodeService>();
 builder.Services.AddScoped<IVoucherGenerationService, VoucherGenerationService>();
+
+// Register custom services using the extension method
+builder.Services.AddCustomServices();
 
 // Register background services
 builder.Services.AddHostedService<VoucherGenerationBackgroundService>();

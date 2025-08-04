@@ -7,9 +7,11 @@ const ResellerSidebar = () => {
   const menuItems = [
     { name: 'Dashboard', path: '/reseller', icon: '📊' },
     { name: 'Campaigns', path: '/reseller/campaigns', icon: '🎯' },
+    { name: 'Order Products', path: '/reseller/order-products', icon: '🛒' },
+    { name: 'Orders', path: '/reseller/orders', icon: '📋' },
     { name: 'My Points', path: '/reseller/points', icon: '⭐' },
     { name: 'Vouchers', path: '/reseller/vouchers', icon: '🎫' },
-    { name: 'Redemption History', path: '/reseller/history', icon: '📋' },
+    { name: 'Order History', path: '/reseller/history', icon: '📋' },
     { name: 'Settings', path: '/reseller/settings', icon: '⚙️' },
   ];
 

@@ -57,13 +57,12 @@ namespace backend.Controllers.Manufacturer
 
             var campaigns = await campaignsQuery.ToListAsync();
 
-            // Get QR code scans
-            var qrScansQuery = _context.QRCodes
-                .Where(qr => campaigns.Select(c => c.Id).Contains(qr.CampaignId));
-            
-            if (resellerId.HasValue)
-                qrScansQuery = qrScansQuery.Where(qr => qr.ResellerId == resellerId.Value);
 
+            // Get QR code scans (now using Vouchers table with QrCode property)
+            var qrScansQuery = _context.Vouchers
+                .Where(v => !string.IsNullOrEmpty(v.QrCode) && campaigns.Select(c => c.Id).Contains(v.CampaignId));
+            if (resellerId.HasValue)
+                qrScansQuery = qrScansQuery.Where(v => v.ResellerId == resellerId.Value);
             var qrScans = await qrScansQuery.ToListAsync();
 
             // Get redemptions

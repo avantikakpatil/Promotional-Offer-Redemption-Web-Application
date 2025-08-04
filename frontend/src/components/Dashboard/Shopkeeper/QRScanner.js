@@ -1,339 +1,212 @@
-import React, { useState } from 'react';
-import QRScanner from '../Customer/QRScanner';
-import api from '../../../services/api';
+// QRScanner.js - Updated to handle the new QR format
 
-const ShopkeeperQRScanner = () => {
-  const [showScanner, setShowScanner] = useState(false);
-  const [scannedVoucher, setScannedVoucher] = useState(null);
-  const [redemptionResult, setRedemptionResult] = useState(null);
-  const [redemptionMessage, setRedemptionMessage] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedProducts, setSelectedProducts] = useState([]);
-  const [availableProducts, setAvailableProducts] = useState([]);
-  // Removed: showAddProductModal, newProduct, addProductLoading, addProductError
+
+import React, { useState } from 'react';
+import { QrCode, Camera, AlertCircle, CheckCircle } from 'lucide-react';
+import axios from 'axios';
+import QrScanner from 'react-qr-scanner';
+
+const previewStyle = {
+  height: 240,
+  width: '100%',
+  maxWidth: 400,
+  margin: '0 auto',
+};
+
+const QRScanner = ({ onScan, onError, onRedeem }) => {
+  const [scanning, setScanning] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [voucher, setVoucher] = useState(null);
+  const [redeeming, setRedeeming] = useState(false);
 
   const handleQRScan = async (qrData) => {
-    console.log('QR Code scanned:', qrData);
-    setShowScanner(false);
-    setIsProcessing(true);
-
     try {
-      // Call API to validate QR code
-      const response = await api.post('/shopkeeper/redemption/validate-qr', {
-        qrCode: qrData
+      setError('');
+      setSuccess('');
+      setVoucher(null);
+      let parsedData;
+      try {
+        parsedData = JSON.parse(qrData);
+      } catch (parseError) {
+        parsedData = { qrCode: qrData };
+      }
+      const qrCodeToSend = parsedData.qrCode || parsedData.code || qrData;
+      const response = await axios.post('/api/shopkeeper/redemption/validate-qr', {
+        qrCode: qrCodeToSend,
+        voucherCode: parsedData.voucherCode,
+        campaignId: parsedData.campaignId,
+        value: parsedData.value
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
       });
-
-      const voucherData = response.data;
-      setScannedVoucher(voucherData);
-      setRedemptionResult('success');
-      setRedemptionMessage('Voucher validated successfully! Ready for redemption.');
-
-      // Fetch eligible products for the campaign if campaignId is available
-      if (voucherData.campaignId) {
-        const productsRes = await api.get(`/shopkeeper/campaigns/${voucherData.campaignId}/eligible-products`);
-        setAvailableProducts(productsRes.data || []);
-      } else {
-        setAvailableProducts(voucherData.eligibleProducts || []);
+      if (response.data) {
+        setVoucher({ ...response.data, qrCode: qrCodeToSend });
+        onScan && onScan(response.data);
       }
     } catch (error) {
-      console.error('Error processing QR code:', error);
-      setRedemptionResult('error');
-      let errorMsg = 'Failed to process voucher. Please try again.';
-      if (error.response && error.response.data) {
-        errorMsg = error.response.data.message || error.response.data.error || errorMsg;
-      }
-      setRedemptionMessage(errorMsg);
-      setScannedVoucher(null);
-    } finally {
-      setIsProcessing(false);
+      const errorMessage = error.response?.data || error.message || 'Failed to process QR code';
+      setError(errorMessage);
+      onError && onError(errorMessage);
     }
   };
 
-  const handleRedeemVoucher = async () => {
-    if (!scannedVoucher) return;
-
-    setIsProcessing(true);
+  const handleRedeem = async () => {
+    if (!voucher) return;
+    setRedeeming(true);
+    setError('');
+    setSuccess('');
     try {
-      // Call API to redeem voucher
-      const response = await api.post('/shopkeeper/redemption/redeem', {
-        qrCode: scannedVoucher.qrCode,
-        selectedProductIds: selectedProducts.map(p => p.id)
+      // For simplicity, redeem all eligible products if present
+      const selectedProductIds = voucher.eligibleProducts ? voucher.eligibleProducts.map(p => p.id) : [];
+      const response = await axios.post('/api/shopkeeper/redemption/redeem', {
+        QRCode: voucher.qrCode,
+        SelectedProductIds: selectedProductIds
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
       });
-
-      const result = response.data;
-      setRedemptionResult('success');
-      setRedemptionMessage(`Voucher redeemed successfully! ₹${result.redeemedValue} discount applied.`);
-      
-      // Clear scanned voucher after successful redemption
-      setTimeout(() => {
-        setScannedVoucher(null);
-        setRedemptionResult(null);
-        setRedemptionMessage('');
-        setSelectedProducts([]);
-      }, 3000);
+      setSuccess('Voucher redeemed successfully!');
+      setVoucher(null);
+      onRedeem && onRedeem(); // trigger parent to refresh history
     } catch (error) {
-      console.error('Error redeeming voucher:', error);
-      setRedemptionResult('error');
-      let errorMsg = 'Failed to redeem voucher. Please try again.';
-      if (error.response && error.response.data) {
-        errorMsg = error.response.data.message || error.response.data.error || errorMsg;
-      }
-      setRedemptionMessage(errorMsg);
+      const errorMessage = error.response?.data || error.message || 'Failed to redeem voucher';
+      setError(errorMessage);
     } finally {
-      setIsProcessing(false);
+      setRedeeming(false);
     }
   };
-
-  const handleProductSelection = (product) => {
-    setSelectedProducts(prev => {
-      const isSelected = prev.find(p => p.id === product.id);
-      if (isSelected) {
-        return prev.filter(p => p.id !== product.id);
-      } else {
-        return [...prev, product];
-      }
-    });
-  };
-
-  const handleManualEntry = () => {
-    const voucherCode = prompt('Enter voucher code:');
-    if (voucherCode) {
-      handleQRScan(voucherCode);
-    }
-  };
-
-  const resetScanner = () => {
-    setShowScanner(false);
-    setScannedVoucher(null);
-    setRedemptionResult(null);
-    setRedemptionMessage('');
-    setSelectedProducts([]);
-  };
-
-  const getTotalValue = () => {
-    return selectedProducts.reduce((sum, product) => sum + product.retailPrice, 0);
-  };
-
-  // Replace the product selection UI with a card/grid layout and add point logic
-  const getTotalPointsUsed = () => {
-    return selectedProducts.reduce((sum, product) => sum + (product.PointCost || 0), 0);
-  };
-
-  // Removed: handleAddProduct
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto p-4 md:p-8">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-400 rounded-lg shadow p-6 flex items-center gap-4">
-        <div className="text-4xl text-white">📱</div>
-        <div>
-          <h1 className="text-3xl font-bold text-white">Voucher QR Scanner</h1>
-          <p className="text-blue-100 mt-1">Scan reseller vouchers and redeem products instantly</p>
-        </div>
+    <div className="bg-white rounded-lg shadow-lg p-6">
+      <div className="text-center mb-4">
+        <QrCode size={48} className="mx-auto mb-2 text-blue-600" />
+        <h3 className="text-lg font-semibold">Scan Voucher QR Code</h3>
+        <p className="text-gray-600 text-sm">Point your camera at the QR code to redeem</p>
       </div>
-
-      {/* Scanner Section */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="text-center">
-          {!showScanner && !scannedVoucher && (
-            <div className="space-y-4">
-              <div className="text-6xl mb-4">🔍</div>
-              <h2 className="text-xl font-semibold text-gray-800">Ready to Scan</h2>
-              <p className="text-gray-600 mb-6">Scan a reseller's QR code to redeem their voucher</p>
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={() => setShowScanner(true)}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow"
-                >
-                  Start Scanner
-                </button>
-                <button
-                  onClick={handleManualEntry}
-                  className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors font-medium shadow"
-                >
-                  Manual Entry
-                </button>
-              </div>
-            </div>
-          )}
-          {showScanner && !scannedVoucher && (
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-gray-800">Scanning QR Code</h2>
-              <p className="text-gray-600">Point your camera at the reseller's QR code</p>
-              <div className="bg-gray-100 p-4 rounded-lg flex justify-center">
-                <QRScanner onScan={handleQRScan} />
-              </div>
-              <button
-                onClick={resetScanner}
-                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Processing State */}
-      {isProcessing && (
-        <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <h3 className="text-lg font-semibold text-gray-800">Processing...</h3>
-          <p className="text-gray-600">Please wait while we validate the voucher</p>
-        </div>
-      )}
-
-      {/* Voucher Details & Product Selection */}
-      {scannedVoucher && !isProcessing && (
-        <div className="bg-white rounded-lg shadow p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Main Details */}
-          <div className="md:col-span-2 space-y-6">
-            <div className="flex items-center gap-4 mb-4">
-              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">Valid</span>
-              <h2 className="text-2xl font-bold text-gray-800">Voucher Details</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <h3 className="font-semibold text-gray-800 mb-3">Voucher Information</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Voucher Code:</span>
-                    <span className="font-medium">{scannedVoucher.voucherCode}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Value:</span>
-                    <span className="font-medium text-green-600">₹{scannedVoucher.voucherValue}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Points Required:</span>
-                    <span className="font-medium">{scannedVoucher.pointsRequired}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Expires:</span>
-                    <span className="font-medium">{new Date(scannedVoucher.expiryDate).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Campaign:</span>
-                    <span className="font-medium">{scannedVoucher.campaignName}</span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-800 mb-3">Reseller Information</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Reseller:</span>
-                    <span className="font-medium">{scannedVoucher.resellerName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Campaign:</span>
-                    <span className="font-medium">{scannedVoucher.campaignName}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Product Selection */}
-            <div className="mb-6">
-              <h3 className="font-semibold text-gray-800 mb-3">Select Products for Redemption</h3>
-              {(scannedVoucher.eligibleProducts && scannedVoucher.eligibleProducts.length > 0) ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {scannedVoucher.eligibleProducts.map(product => {
-                    const isSelected = selectedProducts.find(p => p.id === product.id);
-                    const disabled = !isSelected && (getTotalValue() + (product.retailPrice || 0) > (scannedVoucher.voucherValue || scannedVoucher.pointsRequired));
-                    return (
-                      <div
-                        key={product.id}
-                        className={`border rounded-lg p-4 cursor-pointer transition-colors shadow-sm hover:shadow-md ${isSelected ? 'bg-blue-50 border-blue-400' : 'bg-white'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        onClick={() => {
-                          if (!disabled) handleProductSelection(product);
-                        }}
-                      >
-                        <div className="font-semibold text-lg mb-1">{product.name && product.name.trim()}</div>
-                        <div className="text-sm text-gray-600 mb-1">Price: <span className="font-bold">₹{product.retailPrice}</span></div>
-                        {product.brand && <div className="text-xs text-gray-400 mb-1">Brand: {product.brand.trim()}</div>}
-                        {product.description && <div className="text-xs text-gray-400 mb-1">{product.description.trim()}</div>}
-                        {isSelected && <div className="text-xs text-blue-600 font-semibold mt-2">Selected</div>}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-gray-500">No eligible products available for this voucher.</div>
-              )}
-              {/* Show total value used and remaining */}
-              <div className="mt-4 text-sm text-gray-700">
-                Total Value Used: <span className="font-bold">{getTotalValue()}</span> / <span className="font-bold">{scannedVoucher.voucherValue || scannedVoucher.pointsRequired}</span>
-              </div>
-              {/* Confirm button */}
-              <button
-                className="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 w-full md:w-auto"
-                onClick={handleRedeemVoucher}
-                disabled={selectedProducts.length === 0 || getTotalValue() > (scannedVoucher.voucherValue || scannedVoucher.pointsRequired) || isProcessing}
-              >
-                Confirm Redemption
-              </button>
-            </div>
-          </div>
-
-          {/* Sidebar: Redemption Summary */}
-          <div className="bg-gray-50 rounded-lg p-4 shadow-inner flex flex-col gap-4">
-            <h3 className="font-semibold text-gray-800 mb-2">Redemption Summary</h3>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Selected Products:</span>
-                <span className="font-medium">{selectedProducts.length} items</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Total Value:</span>
-                <span className="font-medium">₹{getTotalValue()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Voucher Value:</span>
-                <span className="font-medium text-green-600">₹{scannedVoucher.voucherValue}</span>
-              </div>
-              {getTotalValue() > scannedVoucher.voucherValue && (
-                <div className="text-red-600 text-sm">
-                  Warning: Selected products exceed voucher value
-                </div>
-              )}
-            </div>
+      <div className="scanner-area bg-gray-100 rounded-lg p-8 text-center">
+        {scanning ? (
+          <div className="space-y-4">
+            <QrScanner
+              delay={300}
+              style={previewStyle}
+              onError={err => {
+                setError('Camera error: ' + (err?.message || err));
+                setScanning(false);
+                onError && onError(err);
+              }}
+              onScan={data => {
+                if (data) {
+                  setScanning(false);
+                  handleQRScan(typeof data === 'string' ? data : data.text || data);
+                }
+              }}
+              facingMode="environment"
+            />
+            <p className="text-blue-600">Scanning for QR code...</p>
             <button
-              onClick={resetScanner}
-              className="mt-4 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors w-full"
+              onClick={() => setScanning(false)}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
             >
-              Cancel
+              Stop Scanning
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Result Messages */}
-      {redemptionResult && (
-        <div className={`bg-white rounded-lg shadow p-6 ${
-          redemptionResult === 'success' ? 'border-l-4 border-green-500' : 'border-l-4 border-red-500'
-        }`}>
-          <div className="text-center">
-            <div className={`text-4xl mb-4 ${
-              redemptionResult === 'success' ? 'text-green-500' : 'text-red-500'
-            }`}>
-              {redemptionResult === 'success' ? '✅' : '❌'}
-            </div>
-            <h3 className={`text-lg font-semibold mb-2 ${
-              redemptionResult === 'success' ? 'text-green-800' : 'text-red-800'
-            }`}>
-              {redemptionResult === 'success' ? 'Success!' : 'Error'}
-            </h3>
-            <p className={
-              redemptionResult === 'success' ? 'text-green-700' : 'text-red-700'
-            }>
-              {redemptionMessage}
-            </p>
+        ) : (
+          <div className="space-y-4">
+            <Camera size={64} className="mx-auto text-gray-400" />
+            <button
+              onClick={() => setScanning(true)}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            >
+              Start Scanner
+            </button>
           </div>
+        )}
+      </div>
+      {/* Success Popup */}
+      {success && (
+        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center gap-2 text-green-700">
+            <CheckCircle size={20} />
+            <span className="font-medium">Success</span>
+          </div>
+          <p className="text-green-600 text-sm mt-1">{success}</p>
         </div>
       )}
+      {/* Error Display */}
+      {error && (
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center gap-2 text-red-700">
+            <AlertCircle size={20} />
+            <span className="font-medium">Error</span>
+          </div>
+          <p className="text-red-600 text-sm mt-1">{error}</p>
+        </div>
+      )}
+      {/* Voucher Details and Redeem Button */}
+      {voucher && (
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="font-medium text-blue-800 mb-2">Voucher Details</h4>
+          <p className="text-sm text-blue-700">Campaign: {voucher.campaignName}</p>
+          <p className="text-sm text-blue-700">Voucher Code: {voucher.voucherCode}</p>
+          <p className="text-sm text-blue-700">Value: ₹{voucher.voucherValue}</p>
+          <p className="text-sm text-blue-700">Points Required: {voucher.pointsRequired}</p>
+          <p className="text-sm text-blue-700">Expiry: {new Date(voucher.expiryDate).toLocaleString()}</p>
+          {voucher.eligibleProducts && voucher.eligibleProducts.length > 0 && (
+            <div className="mt-2">
+              <p className="text-sm text-blue-700 font-medium">Eligible Products:</p>
+              <ul className="list-disc list-inside text-sm text-blue-700">
+                {voucher.eligibleProducts.map(p => (
+                  <li key={p.id}>{p.name} (₹{p.retailPrice})</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <button
+            onClick={handleRedeem}
+            className="mt-4 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+            disabled={redeeming}
+          >
+            {redeeming ? 'Redeeming...' : 'Redeem Voucher'}
+          </button>
+        </div>
+      )}
+      {/* Manual Input Fallback */}
+      <div className="mt-6 pt-6 border-t border-gray-200">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Manual Entry</h4>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Enter QR code or voucher code"
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && e.target.value.trim()) {
+                handleQRScan(e.target.value.trim());
+                e.target.value = '';
+              }
+            }}
+          />
+          <button
+            onClick={(e) => {
+              const input = e.target.previousElementSibling;
+              if (input.value.trim()) {
+                handleQRScan(input.value.trim());
+                input.value = '';
+              }
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            Validate
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default ShopkeeperQRScanner; 
+export default QRScanner;

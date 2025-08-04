@@ -12,8 +12,8 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250727182509_AddCampaignProductTable")]
-    partial class AddCampaignProductTable
+    [Migration("20250803044454_AddRewardTiersTable")]
+    partial class AddRewardTiersTable
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -171,7 +171,7 @@ namespace backend.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("CampaignProducts");
+                    b.ToTable("campaignproducts", (string)null);
                 });
 
             modelBuilder.Entity("backend.Models.CampaignReseller", b =>
@@ -567,6 +567,37 @@ namespace backend.Migrations
                     b.ToTable("RedemptionHistories");
                 });
 
+            modelBuilder.Entity("backend.Models.RewardTier", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+
+                    b.Property<string>("Reward")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int>("Threshold")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignId");
+
+                    b.ToTable("RewardTiers");
+                });
+
             modelBuilder.Entity("backend.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -944,6 +975,17 @@ namespace backend.Migrations
                     b.Navigation("Voucher");
                 });
 
+            modelBuilder.Entity("backend.Models.RewardTier", b =>
+                {
+                    b.HasOne("backend.Models.Campaign", "Campaign")
+                        .WithMany("RewardTiers")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+                });
+
             modelBuilder.Entity("backend.Models.User", b =>
                 {
                     b.HasOne("backend.Models.User", "AssignedManufacturer")
@@ -1003,6 +1045,8 @@ namespace backend.Migrations
                     b.Navigation("CampaignResellers");
 
                     b.Navigation("EligibleProducts");
+
+                    b.Navigation("RewardTiers");
 
                     b.Navigation("VoucherProducts");
                 });

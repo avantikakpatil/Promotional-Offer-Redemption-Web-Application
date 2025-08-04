@@ -14,17 +14,18 @@ namespace backend.Data
 
         public DbSet<User> Users { get; set; }
         public DbSet<Campaign> Campaigns { get; set; }
-        public DbSet<QRCode> QRCodes { get; set; }
+        // Removed QRCodes DbSet (single-table QR code system)
         public DbSet<RedemptionHistory> RedemptionHistories { get; set; }
         public DbSet<UserPoints> UserPoints { get; set; }
         public DbSet<CampaignEligibleProduct> CampaignEligibleProducts { get; set; }
         public DbSet<CampaignVoucherProduct> CampaignVoucherProducts { get; set; }
         public DbSet<Product> Products { get; set; }
-        public DbSet<Order> Orders { get; set; }
-        public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Voucher> Vouchers { get; set; }
         public DbSet<CampaignReseller> CampaignResellers { get; set; }
         public DbSet<CampaignProduct> CampaignProducts { get; set; }
+        public DbSet<RewardTier> RewardTiers { get; set; }
+        public DbSet<CampaignPoints> CampaignPoints { get; set; }
+        public DbSet<TempOrderPoints> TempOrderPoints { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -184,61 +185,6 @@ namespace backend.Data
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // Configure Order entity
-            builder.Entity<Order>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.OrderNumber).IsRequired().HasMaxLength(50);
-                entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
-                entity.Property(e => e.ShippingAddress).HasMaxLength(500);
-                entity.Property(e => e.Notes).HasMaxLength(500);
-                entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
-                
-                entity.Property(e => e.OrderDate)
-                    .HasColumnType("timestamp(6)")
-                    .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
-                    .ValueGeneratedOnAdd();
-
-                entity.Property(e => e.ApprovedAt).HasColumnType("timestamp(6)");
-                entity.Property(e => e.ShippedAt).HasColumnType("timestamp(6)");
-                entity.Property(e => e.DeliveredAt).HasColumnType("timestamp(6)");
-
-                // Configure relationships
-                entity.HasOne(e => e.Reseller)
-                      .WithMany()
-                      .HasForeignKey(e => e.ResellerId)
-                      .OnDelete(DeleteBehavior.Cascade);
-                      
-                entity.HasOne(e => e.Campaign)
-                      .WithMany()
-                      .HasForeignKey(e => e.CampaignId)
-                      .OnDelete(DeleteBehavior.Cascade);
-                      
-                entity.HasMany(e => e.OrderItems)
-                      .WithOne(e => e.Order)
-                      .HasForeignKey(e => e.OrderId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            // Configure OrderItem entity
-            builder.Entity<OrderItem>(entity =>
-            {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,2)");
-                entity.Property(e => e.TotalPrice).HasColumnType("decimal(18,2)");
-
-                // Configure relationships
-                entity.HasOne(e => e.Order)
-                      .WithMany(e => e.OrderItems)
-                      .HasForeignKey(e => e.OrderId)
-                      .OnDelete(DeleteBehavior.Cascade);
-                      
-                entity.HasOne(e => e.Product)
-                      .WithMany()
-                      .HasForeignKey(e => e.ProductId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
-
             // Configure Voucher entity
             builder.Entity<Voucher>(entity =>
             {
@@ -303,11 +249,34 @@ namespace backend.Data
                       .OnDelete(DeleteBehavior.SetNull);
             });
 
-            // Configure QRCode entity for B2B
-            builder.Entity<QRCode>(entity =>
+            // Configure RewardTier entity
+            builder.Entity<RewardTier>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Code).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.Threshold).IsRequired();
+                entity.Property(e => e.Reward).IsRequired().HasMaxLength(500);
+                
+                entity.Property(e => e.CreatedAt)
+                    .HasColumnType("timestamp(6)")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
+                    .ValueGeneratedOnAdd();
+
+                // Configure relationship with Campaign
+                entity.HasOne(e => e.Campaign)
+                      .WithMany(e => e.RewardTiers)
+                      .HasForeignKey(e => e.CampaignId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configure CampaignPoints entity
+            builder.Entity<CampaignPoints>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.TotalPointsEarned).IsRequired();
+                entity.Property(e => e.PointsUsedForVouchers).IsRequired();
+                entity.Property(e => e.AvailablePoints).IsRequired();
+                entity.Property(e => e.TotalOrderValue).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.TotalVoucherValueGenerated).HasColumnType("decimal(18,2)");
                 
                 entity.Property(e => e.CreatedAt)
                     .HasColumnType("timestamp(6)")
@@ -315,8 +284,7 @@ namespace backend.Data
                     .ValueGeneratedOnAdd();
 
                 entity.Property(e => e.UpdatedAt).HasColumnType("timestamp(6)");
-                entity.Property(e => e.ExpiryDate).HasColumnType("timestamp(6)");
-                entity.Property(e => e.RedeemedAt).HasColumnType("timestamp(6)");
+                entity.Property(e => e.LastVoucherGeneratedAt).HasColumnType("timestamp(6)");
 
                 // Configure relationships
                 entity.HasOne(e => e.Campaign)
@@ -327,23 +295,15 @@ namespace backend.Data
                 entity.HasOne(e => e.Reseller)
                       .WithMany()
                       .HasForeignKey(e => e.ResellerId)
-                      .OnDelete(DeleteBehavior.SetNull);
-                      
-                entity.HasOne(e => e.Voucher)
-                      .WithMany()
-                      .HasForeignKey(e => e.VoucherId)
-                      .OnDelete(DeleteBehavior.SetNull);
-                      
-                entity.HasOne(e => e.RedeemedByShopkeeper)
-                      .WithMany()
-                      .HasForeignKey(e => e.RedeemedByShopkeeperId)
-                      .OnDelete(DeleteBehavior.SetNull);
-                      
-                entity.HasOne(e => e.RedeemedByUser)
-                      .WithMany()
-                      .HasForeignKey(e => e.RedeemedByUserId)
-                      .OnDelete(DeleteBehavior.SetNull);
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                // Create unique index for CampaignId + ResellerId combination
+                entity.HasIndex(e => new { e.CampaignId, e.ResellerId })
+                      .IsUnique()
+                      .HasDatabaseName("IX_CampaignPoints_CampaignId_ResellerId");
             });
+
+            // Removed QRCode entity configuration (single-table QR code system)
 
             // Configure RedemptionHistory entity for B2B
             builder.Entity<RedemptionHistory>(entity =>
@@ -380,7 +340,26 @@ namespace backend.Data
                       .HasForeignKey(e => e.VoucherId)
                       .OnDelete(DeleteBehavior.SetNull);
             });
+            // TempOrderPoints configuration
+            builder.Entity<TempOrderPoints>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.Date).IsRequired();
+                entity.Property(e => e.ResellerId).IsRequired();
+                entity.Property(e => e.CampaignId).IsRequired();
 
+                // Relationships
+                entity.HasOne(e => e.Reseller)
+                      .WithMany()
+                      .HasForeignKey(e => e.ResellerId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Campaign)
+                      .WithMany()
+                      .HasForeignKey(e => e.CampaignId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
             // Configure indexes for better performance
             builder.Entity<Campaign>()
                 .HasIndex(e => e.ManufacturerId)
@@ -405,14 +384,6 @@ namespace backend.Data
             builder.Entity<Product>()
                 .HasIndex(e => e.Category)
                 .HasDatabaseName("IX_Products_Category");
-                
-            builder.Entity<Order>()
-                .HasIndex(e => e.ResellerId)
-                .HasDatabaseName("IX_Orders_ResellerId");
-                
-            builder.Entity<Order>()
-                .HasIndex(e => e.CampaignId)
-                .HasDatabaseName("IX_Orders_CampaignId");
                 
             builder.Entity<Voucher>()
                 .HasIndex(e => e.VoucherCode)

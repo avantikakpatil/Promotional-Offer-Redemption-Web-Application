@@ -47,6 +47,7 @@ namespace backend.Models
         public virtual ICollection<CampaignEligibleProduct> EligibleProducts { get; set; } = new List<CampaignEligibleProduct>();
         public virtual ICollection<CampaignVoucherProduct> VoucherProducts { get; set; } = new List<CampaignVoucherProduct>();
         public virtual ICollection<CampaignReseller> CampaignResellers { get; set; } = new List<CampaignReseller>();
+        public virtual ICollection<RewardTier> RewardTiers { get; set; } = new List<RewardTier>();
 
         public Campaign()
         {

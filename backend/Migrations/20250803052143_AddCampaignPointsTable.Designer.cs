@@ -12,8 +12,8 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250727142719_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250803052143_AddCampaignPointsTable")]
+    partial class AddCampaignPointsTable
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -108,13 +108,13 @@ namespace backend.Migrations
                     b.Property<int>("CampaignId")
                         .HasColumnType("int");
 
+                    b.Property<int>("CampaignProductId")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<int>("PointCost")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ProductId")
                         .HasColumnType("int");
 
                     b.Property<int?>("RedemptionLimit")
@@ -124,9 +124,111 @@ namespace backend.Migrations
 
                     b.HasIndex("CampaignId");
 
-                    b.HasIndex("ProductId");
+                    b.HasIndex("CampaignProductId");
 
                     b.ToTable("CampaignEligibleProducts");
+                });
+
+            modelBuilder.Entity("backend.Models.CampaignPoints", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AvailablePoints")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CampaignId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+
+                    b.Property<DateTime?>("LastVoucherGeneratedAt")
+                        .HasColumnType("timestamp(6)");
+
+                    b.Property<int>("PointsUsedForVouchers")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResellerId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalOrderValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("TotalOrders")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalPointsEarned")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalVoucherValueGenerated")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("TotalVouchersGenerated")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResellerId");
+
+                    b.HasIndex("CampaignId", "ResellerId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_CampaignPoints_CampaignId_ResellerId");
+
+                    b.ToTable("CampaignPoints");
+                });
+
+            modelBuilder.Entity("backend.Models.CampaignProduct", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("BasePrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Brand")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+
+                    b.Property<int>("ManufacturerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<int>("PointsPerUnit")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SKU")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("campaignproducts", (string)null);
                 });
 
             modelBuilder.Entity("backend.Models.CampaignReseller", b =>
@@ -522,6 +624,37 @@ namespace backend.Migrations
                     b.ToTable("RedemptionHistories");
                 });
 
+            modelBuilder.Entity("backend.Models.RewardTier", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+
+                    b.Property<string>("Reward")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int>("Threshold")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignId");
+
+                    b.ToTable("RewardTiers");
+                });
+
             modelBuilder.Entity("backend.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -717,15 +850,34 @@ namespace backend.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("backend.Models.Product", "Product")
+                    b.HasOne("backend.Models.CampaignProduct", "CampaignProduct")
                         .WithMany()
-                        .HasForeignKey("ProductId")
+                        .HasForeignKey("CampaignProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Campaign");
 
-                    b.Navigation("Product");
+                    b.Navigation("CampaignProduct");
+                });
+
+            modelBuilder.Entity("backend.Models.CampaignPoints", b =>
+                {
+                    b.HasOne("backend.Models.Campaign", "Campaign")
+                        .WithMany()
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.User", "Reseller")
+                        .WithMany()
+                        .HasForeignKey("ResellerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("Reseller");
                 });
 
             modelBuilder.Entity("backend.Models.CampaignReseller", b =>
@@ -899,6 +1051,17 @@ namespace backend.Migrations
                     b.Navigation("Voucher");
                 });
 
+            modelBuilder.Entity("backend.Models.RewardTier", b =>
+                {
+                    b.HasOne("backend.Models.Campaign", "Campaign")
+                        .WithMany("RewardTiers")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+                });
+
             modelBuilder.Entity("backend.Models.User", b =>
                 {
                     b.HasOne("backend.Models.User", "AssignedManufacturer")
@@ -958,6 +1121,8 @@ namespace backend.Migrations
                     b.Navigation("CampaignResellers");
 
                     b.Navigation("EligibleProducts");
+
+                    b.Navigation("RewardTiers");
 
                     b.Navigation("VoucherProducts");
                 });

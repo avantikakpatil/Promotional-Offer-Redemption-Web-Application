@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { FaQrcode } from 'react-icons/fa';
+import { FaShoppingCart, FaChartLine } from 'react-icons/fa';
 import { campaignAPI } from '../../../services/api';
-import QRScanner from './QRScanner';
-import { fetchQRInfo, redeemQRCode, getErrorIcon, getErrorColor } from './qrInfoFetcher';
 import { useAuth } from '../../../contexts/AuthContext';
 
 const ResellerHome = () => {
@@ -11,22 +9,16 @@ const ResellerHome = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
-  // QR Scanning states
-  const [showQRScanner, setShowQRScanner] = useState(false);
-  const [qrRawData, setQrRawData] = useState(null);
-  const [qrInfo, setQrInfo] = useState(null);
-  const [redeemResult, setRedeemResult] = useState(null); // null, 'success', or 'error'
-  const [redeemMessage, setRedeemMessage] = useState('');
-  
   // Real data states
   const [stats, setStats] = useState({
     totalPoints: 0,
     availableVouchers: 0,
     activeCampaigns: 0,
-    totalRedemptions: 0
+    totalOrders: 0,
+    totalOrderValue: 0
   });
   const [recentVouchers, setRecentVouchers] = useState([]);
-  const [redemptionHistory, setRedemptionHistory] = useState([]);
+  const [recentOrders, setRecentOrders] = useState([]);
   
   const { user } = useAuth();
   const resellerId = user?.id || 1;
@@ -40,7 +32,7 @@ const ResellerHome = () => {
       await Promise.all([
         fetchCampaigns(),
         fetchUserPoints(),
-        fetchRedemptionHistory(),
+        fetchRecentOrders(),
         fetchVouchers()
       ]);
     } catch (err) {
@@ -57,8 +49,22 @@ const ResellerHome = () => {
 
   const fetchCampaigns = async () => {
     try {
-      const response = await campaignAPI.getAvailableCampaigns();
-      const campaignsData = response.data || [];
+      // First try to get detailed campaigns from the public endpoint
+      const response = await campaignAPI.getAllCampaigns();
+      let campaignsData = [];
+      
+      if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        campaignsData = response.data.data;
+      } else if (response.data && Array.isArray(response.data.data)) {
+        campaignsData = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        campaignsData = response.data;
+      } else {
+        console.warn('Unexpected response format from getAllCampaigns:', response.data);
+        // Fallback to available campaigns endpoint
+        const fallbackResponse = await campaignAPI.getAvailableCampaigns();
+        campaignsData = fallbackResponse.data || [];
+      }
       
       // Take only the first 3 campaigns for the recent section
       setCampaigns(campaignsData.slice(0, 3));
@@ -77,6 +83,26 @@ const ResellerHome = () => {
       }));
     } catch (err) {
       console.error('Error fetching campaigns:', err);
+      // Fallback to available campaigns if getAllCampaigns fails
+      try {
+        const fallbackResponse = await campaignAPI.getAvailableCampaigns();
+        const campaignsData = fallbackResponse.data || [];
+        setCampaigns(campaignsData.slice(0, 3));
+        
+        const now = new Date();
+        const activeCampaignsCount = campaignsData.filter(campaign => {
+          const startDate = new Date(campaign.startDate);
+          const endDate = new Date(campaign.endDate);
+          return campaign.isActive && startDate <= now && endDate >= now;
+        }).length;
+        
+        setStats(prevStats => ({
+          ...prevStats,
+          activeCampaigns: activeCampaignsCount
+        }));
+      } catch (fallbackErr) {
+        console.error('Fallback campaign fetch also failed:', fallbackErr);
+      }
     }
   };
 
@@ -102,10 +128,10 @@ const ResellerHome = () => {
     }
   };
 
-  const fetchRedemptionHistory = async () => {
+  const fetchRecentOrders = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/reseller/qrcodes/history', {
+      const response = await fetch('/api/reseller/order', {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
@@ -113,16 +139,20 @@ const ResellerHome = () => {
       });
       
       if (response.ok) {
-        const data = await response.json();
-        const history = data.redemptionHistory || [];
-        setRedemptionHistory(history.slice(0, 5)); // Get last 5 redemptions
+        const orders = await response.json();
+        setRecentOrders(orders.slice(0, 5)); // Get last 5 orders
+        
+        // Calculate total order value
+        const totalValue = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+        
         setStats(prevStats => ({
           ...prevStats,
-          totalRedemptions: history.length
+          totalOrders: orders.length,
+          totalOrderValue: totalValue
         }));
       }
     } catch (err) {
-      console.error('Error fetching redemption history:', err);
+      console.error('Error fetching orders:', err);
     }
   };
 
@@ -166,68 +196,20 @@ const ResellerHome = () => {
     }
   };
 
-  // QR Scanning functions
-  const handleQRScan = async (qrRawString) => {
-    console.log('QR Raw String received:', qrRawString);
-    setQrRawData(qrRawString);
-    setRedeemResult(null);
-    setRedeemMessage('');
-    try {
-      const info = await fetchQRInfo(qrRawString);
-      console.log('QR Info from fetchQRInfo:', info);
-      if (info.error) {
-        // If already redeemed, show direct message and do not allow redeem
-        if (info.errorCode === 'ALREADY_REDEEMED') {
-          setRedeemResult('error');
-          setRedeemMessage('This QR code has already been redeemed and can only be used once.');
-          setQrInfo(null);
-          setShowQRScanner(false);
-          return;
-        }
-        setRedeemResult('error');
-        setRedeemMessage(info.message);
-        setQrInfo(null);
-      } else {
-        setQrInfo(info);
-        setRedeemResult(null); // Ready to redeem, not success yet
-        setRedeemMessage('QR code scanned successfully! Ready to redeem.');
-      }
-    } catch (error) {
-      console.error('Error in handleQRScan:', error);
-      setRedeemResult('error');
-      setRedeemMessage('Failed to process QR code. Please try again.');
-      setQrInfo(null);
-    }
-    setShowQRScanner(false);
-  };
-
-  const handleRedeem = async () => {
-    if (!qrRawData) {
-      setRedeemResult('error');
-      setRedeemMessage('No QR code data available.');
-      return;
-    }
-    setRedeemResult('processing');
-    setRedeemMessage('Processing redemption...');
-    try {
-      const result = await redeemQRCode(qrRawData, resellerId);
-      console.log('Redemption result:', result);
-      if (result.error) {
-        setRedeemResult('error');
-        setRedeemMessage(result.message);
-      } else {
-        setRedeemResult('success');
-        setRedeemMessage(`QR code redeemed successfully! ${qrInfo && qrInfo.points ? qrInfo.points : ''} points have been added to your account.`);
-        setQrInfo(null);
-        setQrRawData(null);
-        
-        // Refresh data after successful redemption
-        await fetchAllData();
-      }
-    } catch (error) {
-      console.error('Error in handleRedeem:', error);
-      setRedeemResult('error');
-      setRedeemMessage('An unexpected error occurred during redemption.');
+  const getOrderStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'approved':
+        return 'bg-blue-100 text-blue-800';
+      case 'shipped':
+        return 'bg-purple-100 text-purple-800';
+      case 'delivered':
+        return 'bg-green-100 text-green-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -236,11 +218,11 @@ const ResellerHome = () => {
       {/* Header */}
       <div className="bg-white rounded-lg shadow p-6">
         <h1 className="text-3xl font-bold text-gray-800">Welcome back, Reseller!</h1>
-        <p className="text-gray-600 mt-2">Here's what's happening with your business today.</p>
+        <p className="text-gray-600 mt-2">Track your orders and manage your points from campaigns.</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="p-3 rounded-full bg-blue-100 text-blue-600">
@@ -280,11 +262,23 @@ const ResellerHome = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="p-3 rounded-full bg-orange-100 text-orange-600">
-              <span className="text-2xl">📋</span>
+              <FaShoppingCart className="text-2xl" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Redemptions</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalRedemptions}</p>
+              <p className="text-sm font-medium text-gray-600">Total Orders</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-indigo-100 text-indigo-600">
+              <FaChartLine className="text-2xl" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Order Value</p>
+              <p className="text-2xl font-bold text-gray-900">₹{stats.totalOrderValue.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -305,18 +299,16 @@ const ResellerHome = () => {
             </div>
           </Link>
 
-          
-
-          <button
-            onClick={() => setShowQRScanner(true)}
-            className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left w-full"
+          <Link
+            to="/reseller/orders"
+            className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <FaQrcode className="text-2xl mr-3 text-green-600" />
+            <FaShoppingCart className="text-2xl mr-3 text-blue-600" />
             <div>
-              <h3 className="font-medium text-gray-800">Quick QR Scan</h3>
-              <p className="text-sm text-gray-600">Scan and redeem immediately</p>
+              <h3 className="font-medium text-gray-800">View Orders</h3>
+              <p className="text-sm text-gray-600">Check your order history</p>
             </div>
-          </button>
+          </Link>
 
           <Link
             to="/reseller/vouchers"
@@ -330,13 +322,13 @@ const ResellerHome = () => {
           </Link>
 
           <Link
-            to="/reseller/qr-codes"
+            to="/reseller/points"
             className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <span className="text-2xl mr-3">📱</span>
+            <span className="text-2xl mr-3">📊</span>
             <div>
-              <h3 className="font-medium text-gray-800">Generate QR Code</h3>
-              <p className="text-sm text-gray-600">For voucher redemption</p>
+              <h3 className="font-medium text-gray-800">View Points</h3>
+              <p className="text-sm text-gray-600">Track your earnings</p>
             </div>
           </Link>
         </div>
@@ -362,7 +354,7 @@ const ResellerHome = () => {
             <div className="text-center py-4">
               <p className="text-sm text-red-600">{error}</p>
               <button 
-                onClick={fetchAllData} // Changed to fetchAllData to refresh all data
+                onClick={fetchAllData}
                 className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline"
               >
                 Try again
@@ -391,6 +383,37 @@ const ResellerHome = () => {
                           {campaign.assignment.isApproved ? 'Approved' : 'Pending Approval'}
                         </span>
                       )}
+                      {/* Show reward tiers if available */}
+                      {Array.isArray(campaign.rewardTiers) && campaign.rewardTiers.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-xs text-gray-500 mb-1">Reward Tiers:</p>
+                          <div className="space-y-1">
+                            {campaign.rewardTiers.slice(0, 2).map((tier, idx) => (
+                              <div key={tier.id || idx} className="text-xs">
+                                <span className="text-blue-600 font-medium">{tier.threshold} pts</span>
+                                <span className="text-gray-600"> → {tier.reward}</span>
+                              </div>
+                            ))}
+                            {campaign.rewardTiers.length > 2 && (
+                              <div className="text-xs text-gray-500">+{campaign.rewardTiers.length - 2} more tiers</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {/* Show voucher settings if available */}
+                      {(campaign.voucherGenerationThreshold || campaign.voucherValue) && (
+                        <div className="mt-2">
+                          <p className="text-xs text-gray-500 mb-1">Voucher Settings:</p>
+                          <div className="text-xs text-purple-600">
+                            {campaign.voucherGenerationThreshold && (
+                              <span className="mr-2">Threshold: {campaign.voucherGenerationThreshold} pts</span>
+                            )}
+                            {campaign.voucherValue && (
+                              <span>Value: ₹{campaign.voucherValue}</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="text-right ml-4">
                       <p className="font-medium text-blue-600">{campaign.points} points</p>
@@ -409,29 +432,27 @@ const ResellerHome = () => {
           )}
         </div>
 
-        {/* Recent Vouchers */}
+        {/* Recent Orders */}
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Recent Vouchers</h2>
-            <Link to="/reseller/vouchers" className="text-blue-600 hover:text-blue-800 text-sm">
+            <h2 className="text-xl font-semibold text-gray-800">Recent Orders</h2>
+            <Link to="/reseller/orders" className="text-blue-600 hover:text-blue-800 text-sm">
               View all
             </Link>
           </div>
-          {recentVouchers.length > 0 ? (
+          {recentOrders.length > 0 ? (
             <div className="space-y-3">
-              {recentVouchers.map((voucher) => (
-                <div key={voucher.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <h3 className="font-medium text-gray-800">{voucher.voucherCode || voucher.code}</h3>
-                    <p className="text-sm text-gray-600">Value: ₹{voucher.value}</p>
+              {recentOrders.map((order) => (
+                <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <h3 className="font-medium text-gray-800">{order.orderNumber}</h3>
+                    <p className="text-sm text-gray-600">₹{order.totalAmount?.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500">{new Date(order.orderDate).toLocaleDateString()}</p>
                   </div>
-                  <div className="text-right">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      voucher.isRedeemed 
-                        ? 'bg-red-100 text-red-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {voucher.isRedeemed ? 'Used' : 'Active'}
+                  <div className="text-right ml-4">
+                    <p className="font-bold text-green-600">+{order.totalPointsEarned || 0} points</p>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getOrderStatusColor(order.status)}`}>
+                      {order.status}
                     </span>
                   </div>
                 </div>
@@ -439,134 +460,52 @@ const ResellerHome = () => {
             </div>
           ) : (
             <div className="text-center py-4">
-              <p className="text-sm text-gray-600">No vouchers available</p>
+              <p className="text-sm text-gray-600">No orders yet</p>
+              <Link to="/reseller/orders" className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline">
+                Place your first order
+              </Link>
             </div>
           )}
         </div>
       </div>
 
-      {/* Recent Redemption History */}
+      {/* Recent Vouchers */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">Recent Redemption History</h2>
-          <Link to="/reseller/history" className="text-blue-600 hover:text-blue-800 text-sm">
+          <h2 className="text-xl font-semibold text-gray-800">Recent Vouchers</h2>
+          <Link to="/reseller/vouchers" className="text-blue-600 hover:text-blue-800 text-sm">
             View all
           </Link>
         </div>
-        {redemptionHistory.length > 0 ? (
+        {recentVouchers.length > 0 ? (
           <div className="space-y-3">
-            {redemptionHistory.map((redemption) => (
-              <div key={redemption.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex-1">
-                  <h3 className="font-medium text-gray-800">{redemption.customerName || 'Unknown Customer'}</h3>
-                  <p className="text-sm text-gray-600">{redemption.campaignName || 'Unknown Campaign'}</p>
-                  <p className="text-xs text-gray-500">{new Date(redemption.redeemedAt).toLocaleString()}</p>
+            {recentVouchers.map((voucher) => (
+              <div key={voucher.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <h3 className="font-medium text-gray-800">{voucher.voucherCode || voucher.code}</h3>
+                  <p className="text-sm text-gray-600">Value: ₹{voucher.value}</p>
                 </div>
-                <div className="text-right ml-4">
-                  <p className="font-bold text-green-600">+{redemption.points} points</p>
-                  <p className="text-xs text-gray-500">QR: {redemption.qrCode}</p>
+                <div className="text-right">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    voucher.isRedeemed 
+                      ? 'bg-red-100 text-red-800' 
+                      : 'bg-green-100 text-green-800'
+                  }`}>
+                    {voucher.isRedeemed ? 'Used' : 'Active'}
+                  </span>
                 </div>
               </div>
             ))}
           </div>
         ) : (
           <div className="text-center py-4">
-            <p className="text-sm text-gray-600">No redemption history available</p>
+            <p className="text-sm text-gray-600">No vouchers available</p>
+            <Link to="/reseller/vouchers" className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline">
+              Create your first voucher
+            </Link>
           </div>
         )}
       </div>
-
-      {/* QR Scanner Modal */}
-      {showQRScanner && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg relative max-w-md w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold">Scan Customer QR Code</h3>
-              <button onClick={() => setShowQRScanner(false)} className="text-gray-500 hover:text-gray-700">✖</button>
-            </div>
-            <QRScanner
-              onScan={handleQRScan}
-              onClose={() => setShowQRScanner(false)}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* QR Result Display - Success, Error, or Ready to Redeem */}
-      {((qrInfo && redeemResult === null) || redeemResult) && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow-lg relative max-w-md w-full">
-            {/* Determine error code and styling */}
-            {(() => {
-              let errorCode = null;
-              if (redeemResult === 'error' && redeemMessage) {
-                if (qrInfo && qrInfo.errorCode) errorCode = qrInfo.errorCode;
-                else if (redeemMessage.toLowerCase().includes('already been redeemed')) errorCode = 'ALREADY_REDEEMED';
-                else if (redeemMessage.toLowerCase().includes('invalid qr code')) errorCode = 'INVALID_QR_CODE';
-                else if (redeemMessage.toLowerCase().includes('campaign')) errorCode = 'CAMPAIGN_INACTIVE';
-              }
-              const colorClass = getErrorColor(errorCode);
-              const icon = getErrorIcon(errorCode);
-              return (
-                <div className={`p-4 rounded ${redeemResult === 'error' ? colorClass : 'bg-green-50 border-green-200 text-green-800'}`}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-2xl">{redeemResult === 'error' ? icon : '✅'}</span>
-                    <span className="font-semibold">{redeemResult === 'error' ? 'Error' : redeemResult === 'success' ? 'Success' : 'QR Code Scanned'}</span>
-                  </div>
-                  <p className="text-sm">{redeemMessage}</p>
-                  {(redeemResult === null && qrInfo) && (
-                    <div className="mt-3 space-y-1 text-xs text-blue-600">
-                      <p><strong>Product:</strong> {qrInfo.product}</p>
-                      <p><strong>Campaign:</strong> {qrInfo.campaignName}</p>
-                      <p><strong>Points:</strong> +{qrInfo.points}</p>
-                      <p><strong>Customer:</strong> {qrInfo.customerName || 'Unknown'}</p>
-                    </div>
-                  )}
-                  {(redeemResult === 'success' && qrInfo) && (
-                    <div className="mt-3 space-y-1 text-xs text-green-600">
-                      <p><strong>Product:</strong> {qrInfo.product}</p>
-                      <p><strong>Campaign:</strong> {qrInfo.campaignName}</p>
-                      <p><strong>Points Added:</strong> +{qrInfo.points}</p>
-                      <p><strong>Customer:</strong> {qrInfo.customerName || 'Unknown'}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-            <div className="mt-4 flex gap-2">
-              {redeemResult === 'success' ? (
-                <button 
-                  onClick={() => { setQrInfo(null); setQrRawData(null); setRedeemResult(null); setRedeemMessage(''); }}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                >
-                  Continue
-                </button>
-              ) : redeemResult === 'error' ? (
-                <button 
-                  onClick={() => { setRedeemResult(null); setRedeemMessage(''); }}
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                >
-                  Close
-                </button>
-              ) : redeemResult === 'processing' ? (
-                <button 
-                  disabled
-                  className="px-4 py-2 bg-gray-400 text-white rounded cursor-not-allowed"
-                >
-                  Processing...
-                </button>
-              ) : (
-                <button
-                  onClick={handleRedeem}
-                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-                >
-                  Redeem
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

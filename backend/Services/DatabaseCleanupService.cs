@@ -40,13 +40,14 @@ namespace backend.Services
                 result.RedemptionHistoryRemoved = dummyRedemptions.Count;
                 Console.WriteLine($"[CLEANUP] Removed {dummyRedemptions.Count} dummy redemption records");
 
-                // 3. Remove dummy QR codes
-                var dummyQRCodes = await _context.QRCodes
-                    .Where(qr => qr.Code.StartsWith("TEST-") || qr.Code.StartsWith("DUMMY-"))
+
+                // 3. Remove dummy vouchers with dummy QR codes (single-table QR code system)
+                var dummyVoucherQRCodes = await _context.Vouchers
+                    .Where(v => v.QrCode.StartsWith("TEST-") || v.QrCode.StartsWith("DUMMY-"))
                     .ToListAsync();
-                _context.QRCodes.RemoveRange(dummyQRCodes);
-                result.QRCodesRemoved = dummyQRCodes.Count;
-                Console.WriteLine($"[CLEANUP] Removed {dummyQRCodes.Count} dummy QR codes");
+                _context.Vouchers.RemoveRange(dummyVoucherQRCodes);
+                result.QRCodesRemoved = dummyVoucherQRCodes.Count;
+                Console.WriteLine($"[CLEANUP] Removed {dummyVoucherQRCodes.Count} dummy voucher QR codes");
 
                 // 4. Remove dummy campaigns (optional - be careful with this)
                 var dummyCampaigns = await _context.Campaigns
@@ -91,10 +92,10 @@ namespace backend.Services
                 Console.WriteLine($"[CLEANUP] Reset statistics for {allCampaignResellers.Count} campaign resellers");
 
                 // 8. Remove dummy orders
-                var dummyOrders = await _context.Orders
+                var dummyOrders = await _context.TempOrderPoints
                     .Where(o => o.OrderNumber.StartsWith("TEST-") || o.OrderNumber.StartsWith("DUMMY-"))
                     .ToListAsync();
-                _context.Orders.RemoveRange(dummyOrders);
+                _context.TempOrderPoints.RemoveRange(dummyOrders);
                 result.OrdersRemoved = dummyOrders.Count;
                 Console.WriteLine($"[CLEANUP] Removed {dummyOrders.Count} dummy orders");
 
