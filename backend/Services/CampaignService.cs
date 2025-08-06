@@ -29,6 +29,17 @@ namespace backend.Services
         {
             try
             {
+                // Validate voucher generation fields
+                if (createCampaignDto.VoucherGenerationThreshold == null || createCampaignDto.VoucherValue == null)
+                {
+                    return new ApiResponse<CampaignDto>
+                    {
+                        Success = false,
+                        Message = "Voucher generation threshold and value are required.",
+                        Errors = new List<string> { "Please enter both threshold and value for voucher generation." }
+                    };
+                }
+
                 // Check that all eligible product IDs exist in CampaignProducts table
                 var eligibleProductIds = createCampaignDto.EligibleProducts?.Select(ep => ep.CampaignProductId).ToList() ?? new List<int>();
                 if (eligibleProductIds.Any())
@@ -108,6 +119,23 @@ namespace backend.Services
                 }
 
                 _context.Campaigns.Add(campaign);
+                await _context.SaveChangesAsync();
+
+                // Auto-assign all resellers to this campaign
+                var allResellers = await _context.Users.Where(u => u.Role == "reseller").ToListAsync();
+                foreach (var reseller in allResellers)
+                {
+                    var campaignReseller = new CampaignReseller
+                    {
+                        CampaignId = campaign.Id,
+                        ResellerId = reseller.Id,
+                        IsApproved = true,
+                        ApprovedAt = DateTime.UtcNow,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    _context.CampaignResellers.Add(campaignReseller);
+                }
                 await _context.SaveChangesAsync();
 
                 // Load the created campaign
@@ -224,6 +252,17 @@ namespace backend.Services
         {
             try
             {
+                // Validate voucher generation fields
+                if (updateCampaignDto.VoucherGenerationThreshold == null || updateCampaignDto.VoucherValue == null)
+                {
+                    return new ApiResponse<CampaignDto>
+                    {
+                        Success = false,
+                        Message = "Voucher generation threshold and value are required.",
+                        Errors = new List<string> { "Please enter both threshold and value for voucher generation." }
+                    };
+                }
+
                 var campaign = await _context.Campaigns
                     .Include(c => c.EligibleProducts).ThenInclude(ep => ep.CampaignProduct)
                     .Include(c => c.VoucherProducts).ThenInclude(vp => vp.Product)

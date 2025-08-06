@@ -101,33 +101,14 @@ const CampaignCreate = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    // Name
-    if (!formData.name.trim()) newErrors.name = 'Campaign name is required';
-    else if (formData.name.length < 3) newErrors.name = 'Campaign name must be at least 3 characters';
-    else if (formData.name.length > 255) newErrors.name = 'Campaign name must be at most 255 characters';
-    // ProductType
+    if (!formData.name) newErrors.name = 'Campaign name is required';
     if (!formData.productType) newErrors.productType = 'Product type is required';
-    else if (formData.productType.length > 100) newErrors.productType = 'Product type must be at most 100 characters';
-    // Dates
     if (!formData.startDate) newErrors.startDate = 'Start date is required';
     if (!formData.endDate) newErrors.endDate = 'End date is required';
-    if (formData.startDate && formData.endDate) {
-      const start = new Date(formData.startDate);
-      const end = new Date(formData.endDate);
-      if (start >= end) newErrors.endDate = 'End date must be after start date';
-    }
-    // Description
-    if (!formData.description.trim()) newErrors.description = 'Description is required';
-    else if (formData.description.length < 10) newErrors.description = 'Description must be at least 10 characters';
-    else if (formData.description.length > 1000) newErrors.description = 'Description must be at most 1000 characters';
-    // Eligible Products
-    if (!selectedEligibleProducts || selectedEligibleProducts.length === 0) {
-      newErrors.eligibleProducts = 'At least one eligible product must be selected';
-    }
-    // Voucher fields
-    if (!formData.voucherValue || isNaN(formData.voucherValue) || parseFloat(formData.voucherValue) <= 0) newErrors.voucherValue = 'Voucher value is required and must be positive';
-    if (!formData.voucherGenerationThreshold || isNaN(formData.voucherGenerationThreshold) || parseInt(formData.voucherGenerationThreshold) <= 0) newErrors.voucherGenerationThreshold = 'Voucher generation threshold is required and must be positive';
-    if (!formData.voucherValidityDays || isNaN(formData.voucherValidityDays) || parseInt(formData.voucherValidityDays) <= 0) newErrors.voucherValidityDays = 'Voucher validity days is required and must be positive';
+    if (!formData.description) newErrors.description = 'Description is required';
+    if (!formData.voucherValue) newErrors.voucherValue = 'Voucher value is required';
+    if (!formData.voucherGenerationThreshold) newErrors.voucherGenerationThreshold = 'Voucher generation threshold is required';
+    if (!formData.voucherValidityDays) newErrors.voucherValidityDays = 'Voucher validity days is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -258,14 +239,14 @@ const CampaignCreate = () => {
     if (step === 0) {
       // Validate basic info
       const basicInfoErrors = {};
-      if (!formData.name.trim()) basicInfoErrors.name = 'Campaign name is required';
+      if (!formData.name) basicInfoErrors.name = 'Campaign name is required';
       if (!formData.productType) basicInfoErrors.productType = 'Product type is required';
       if (!formData.startDate) basicInfoErrors.startDate = 'Start date is required';
       if (!formData.endDate) basicInfoErrors.endDate = 'End date is required';
-      if (!formData.description.trim()) basicInfoErrors.description = 'Description is required';
-      if (!formData.voucherValue || isNaN(formData.voucherValue) || parseFloat(formData.voucherValue) <= 0) basicInfoErrors.voucherValue = 'Voucher value is required and must be positive';
-      if (!formData.voucherGenerationThreshold || isNaN(formData.voucherGenerationThreshold) || parseInt(formData.voucherGenerationThreshold) <= 0) basicInfoErrors.voucherGenerationThreshold = 'Voucher generation threshold is required and must be positive';
-      if (!formData.voucherValidityDays || isNaN(formData.voucherValidityDays) || parseInt(formData.voucherValidityDays) <= 0) basicInfoErrors.voucherValidityDays = 'Voucher validity days is required and must be positive';
+      if (!formData.description) basicInfoErrors.description = 'Description is required';
+      if (!formData.voucherValue) basicInfoErrors.voucherValue = 'Voucher value is required';
+      if (!formData.voucherGenerationThreshold) basicInfoErrors.voucherGenerationThreshold = 'Voucher generation threshold is required';
+      if (!formData.voucherValidityDays) basicInfoErrors.voucherValidityDays = 'Voucher validity days is required';
       
       if (Object.keys(basicInfoErrors).length > 0) {
         setErrors(basicInfoErrors);

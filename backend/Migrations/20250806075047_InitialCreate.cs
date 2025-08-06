@@ -217,6 +217,43 @@ namespace backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "CampaignPoints",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    CampaignId = table.Column<int>(type: "int", nullable: false),
+                    ResellerId = table.Column<int>(type: "int", nullable: false),
+                    TotalPointsEarned = table.Column<int>(type: "int", nullable: false),
+                    PointsUsedForVouchers = table.Column<int>(type: "int", nullable: false),
+                    AvailablePoints = table.Column<int>(type: "int", nullable: false),
+                    TotalOrderValue = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    TotalOrders = table.Column<int>(type: "int", nullable: false),
+                    TotalVouchersGenerated = table.Column<int>(type: "int", nullable: false),
+                    TotalVoucherValueGenerated = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    LastVoucherGeneratedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP(6)"),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CampaignPoints", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CampaignPoints_Campaigns_CampaignId",
+                        column: x => x.CampaignId,
+                        principalTable: "Campaigns",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_CampaignPoints_Users_ResellerId",
+                        column: x => x.ResellerId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "CampaignResellers",
                 columns: table => new
                 {
@@ -261,43 +298,68 @@ namespace backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "Orders",
+                name: "RewardTiers",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    OrderNumber = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    ResellerId = table.Column<int>(type: "int", nullable: false),
                     CampaignId = table.Column<int>(type: "int", nullable: false),
-                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    TotalPointsEarned = table.Column<int>(type: "int", nullable: false),
-                    Status = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    Threshold = table.Column<int>(type: "int", nullable: false),
+                    Reward = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ShippingAddress = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Notes = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    OrderDate = table.Column<DateTime>(type: "timestamp(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP(6)"),
-                    ApprovedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: true),
-                    ShippedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: true),
-                    DeliveredAt = table.Column<DateTime>(type: "timestamp(6)", nullable: true)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP(6)")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Orders", x => x.Id);
+                    table.PrimaryKey("PK_RewardTiers", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Orders_Campaigns_CampaignId",
+                        name: "FK_RewardTiers_Campaigns_CampaignId",
                         column: x => x.CampaignId,
                         principalTable: "Campaigns",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "TempOrderPoints",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    Date = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    ResellerId = table.Column<int>(type: "int", nullable: false),
+                    CampaignId = table.Column<int>(type: "int", nullable: false),
+                    Points = table.Column<int>(type: "int", nullable: false),
+                    OrderNumber = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Status = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    TotalPointsEarned = table.Column<int>(type: "int", nullable: false),
+                    ShippingAddress = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Notes = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ApprovedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    ShippedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DeliveredAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TempOrderPoints", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Orders_Users_ResellerId",
+                        name: "FK_TempOrderPoints_Campaigns_CampaignId",
+                        column: x => x.CampaignId,
+                        principalTable: "Campaigns",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TempOrderPoints_Users_ResellerId",
                         column: x => x.ResellerId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -320,7 +382,9 @@ namespace backend.Migrations
                     RedeemedByShopkeeperId = table.Column<int>(type: "int", nullable: true),
                     ExpiryDate = table.Column<DateTime>(type: "timestamp(6)", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP(6)"),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    QrCode = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
                 {
@@ -374,94 +438,6 @@ namespace backend.Migrations
                         principalTable: "Products",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "OrderItems",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    OrderId = table.Column<int>(type: "int", nullable: false),
-                    ProductId = table.Column<int>(type: "int", nullable: false),
-                    Quantity = table.Column<int>(type: "int", nullable: false),
-                    UnitPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    TotalPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    PointsEarned = table.Column<int>(type: "int", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_OrderItems", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_OrderItems_Orders_OrderId",
-                        column: x => x.OrderId,
-                        principalTable: "Orders",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_OrderItems_Products_ProductId",
-                        column: x => x.ProductId,
-                        principalTable: "Products",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "QRCodes",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    Code = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    CampaignId = table.Column<int>(type: "int", nullable: false),
-                    IsRedeemed = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    RedeemedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: true),
-                    Points = table.Column<int>(type: "int", nullable: false),
-                    ResellerId = table.Column<int>(type: "int", nullable: true),
-                    VoucherId = table.Column<int>(type: "int", nullable: true),
-                    RedeemedByShopkeeperId = table.Column<int>(type: "int", nullable: true),
-                    RedeemedByUserId = table.Column<int>(type: "int", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP(6)"),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp(6)", nullable: true),
-                    ExpiryDate = table.Column<DateTime>(type: "timestamp(6)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_QRCodes", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_QRCodes_Campaigns_CampaignId",
-                        column: x => x.CampaignId,
-                        principalTable: "Campaigns",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_QRCodes_Users_RedeemedByShopkeeperId",
-                        column: x => x.RedeemedByShopkeeperId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_QRCodes_Users_RedeemedByUserId",
-                        column: x => x.RedeemedByUserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_QRCodes_Users_ResellerId",
-                        column: x => x.ResellerId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_QRCodes_Vouchers_VoucherId",
-                        column: x => x.VoucherId,
-                        principalTable: "Vouchers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -532,6 +508,17 @@ namespace backend.Migrations
                 column: "CampaignProductId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_CampaignPoints_CampaignId_ResellerId",
+                table: "CampaignPoints",
+                columns: new[] { "CampaignId", "ResellerId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignPoints_ResellerId",
+                table: "CampaignPoints",
+                column: "ResellerId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_CampaignResellers_ApprovedByUserId",
                 table: "CampaignResellers",
                 column: "ApprovedByUserId");
@@ -578,26 +565,6 @@ namespace backend.Migrations
                 column: "ProductId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_OrderItems_OrderId",
-                table: "OrderItems",
-                column: "OrderId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_OrderItems_ProductId",
-                table: "OrderItems",
-                column: "ProductId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Orders_CampaignId",
-                table: "Orders",
-                column: "CampaignId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Orders_ResellerId",
-                table: "Orders",
-                column: "ResellerId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Products_Category",
                 table: "Products",
                 column: "Category");
@@ -606,31 +573,6 @@ namespace backend.Migrations
                 name: "IX_Products_ManufacturerId",
                 table: "Products",
                 column: "ManufacturerId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_QRCodes_CampaignId",
-                table: "QRCodes",
-                column: "CampaignId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_QRCodes_RedeemedByShopkeeperId",
-                table: "QRCodes",
-                column: "RedeemedByShopkeeperId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_QRCodes_RedeemedByUserId",
-                table: "QRCodes",
-                column: "RedeemedByUserId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_QRCodes_ResellerId",
-                table: "QRCodes",
-                column: "ResellerId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_QRCodes_VoucherId",
-                table: "QRCodes",
-                column: "VoucherId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RedemptionHistories_CampaignId",
@@ -656,6 +598,21 @@ namespace backend.Migrations
                 name: "IX_RedemptionHistories_VoucherId",
                 table: "RedemptionHistories",
                 column: "VoucherId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RewardTiers_CampaignId",
+                table: "RewardTiers",
+                column: "CampaignId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TempOrderPoints_CampaignId",
+                table: "TempOrderPoints",
+                column: "CampaignId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TempOrderPoints_ResellerId",
+                table: "TempOrderPoints",
+                column: "ResellerId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserPoints_UserId",
@@ -708,28 +665,28 @@ namespace backend.Migrations
                 name: "CampaignEligibleProducts");
 
             migrationBuilder.DropTable(
+                name: "CampaignPoints");
+
+            migrationBuilder.DropTable(
                 name: "CampaignResellers");
 
             migrationBuilder.DropTable(
                 name: "CampaignVoucherProducts");
 
             migrationBuilder.DropTable(
-                name: "OrderItems");
-
-            migrationBuilder.DropTable(
-                name: "QRCodes");
-
-            migrationBuilder.DropTable(
                 name: "RedemptionHistories");
+
+            migrationBuilder.DropTable(
+                name: "RewardTiers");
+
+            migrationBuilder.DropTable(
+                name: "TempOrderPoints");
 
             migrationBuilder.DropTable(
                 name: "UserPoints");
 
             migrationBuilder.DropTable(
                 name: "campaignproducts");
-
-            migrationBuilder.DropTable(
-                name: "Orders");
 
             migrationBuilder.DropTable(
                 name: "Products");

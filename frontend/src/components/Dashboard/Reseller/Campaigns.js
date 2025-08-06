@@ -10,6 +10,7 @@ const Campaigns = () => {
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [participating, setParticipating] = useState({});
 
   useEffect(() => {
     fetchCampaigns();
@@ -65,6 +66,31 @@ const Campaigns = () => {
       alert('Failed to fetch campaign details. Please try again.');
     } finally {
       setDetailsLoading(false);
+    }
+  };
+
+  const participateInCampaign = async (campaignId) => {
+    setParticipating(prev => ({ ...prev, [campaignId]: true }));
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/reseller/campaigns/${campaignId}/participate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        alert('Successfully participated in the campaign!');
+        fetchCampaigns();
+      } else {
+        alert(data.message || 'Failed to participate in campaign.');
+      }
+    } catch (err) {
+      alert('Network error. Please try again.');
+    } finally {
+      setParticipating(prev => ({ ...prev, [campaignId]: false }));
     }
   };
 
@@ -384,6 +410,13 @@ const Campaigns = () => {
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     View Details
+                  </button>
+                  <button 
+                    onClick={() => participateInCampaign(campaign.id)}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    disabled={participating[campaign.id] || (campaign.assignment && campaign.assignment.isApproved)}
+                  >
+                    {campaign.assignment && campaign.assignment.isApproved ? 'Participating' : (participating[campaign.id] ? 'Joining...' : 'Participate')}
                   </button>
                 </div>
               </div>

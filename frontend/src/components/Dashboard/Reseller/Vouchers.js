@@ -573,9 +573,23 @@ const Vouchers = () => {
           ...prev,
           [campaignId]: data
         }));
+      } else {
+        // Try to parse backend error message
+        let errorMsg = 'Failed to fetch voucher info.';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.message || errorMsg;
+        } catch {}
+        setVoucherInfo(prev => ({
+          ...prev,
+          [campaignId]: { error: true, message: errorMsg }
+        }));
       }
     } catch (err) {
-      console.error(`Error fetching voucher info for campaign ${campaignId}:`, err);
+      setVoucherInfo(prev => ({
+        ...prev,
+        [campaignId]: { error: true, message: 'Network error while fetching voucher info.' }
+      }));
     }
   };
 
