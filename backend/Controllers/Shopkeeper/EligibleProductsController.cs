@@ -53,29 +53,58 @@ namespace backend.Controllers.Shopkeeper
         [HttpGet("{campaignId}/eligible-products")]
         public async Task<IActionResult> GetEligibleProducts(int campaignId)
         {
-            var eligibleProducts = await _context.CampaignEligibleProducts
-                .Include(ep => ep.CampaignProduct)
-                .Where(ep => ep.CampaignId == campaignId && ep.IsActive)
+            // Use CampaignVoucherProduct for eligible products
+            var voucherProducts = await _context.CampaignVoucherProducts
+                .Include(vp => vp.Product)
+                .Where(vp => vp.CampaignId == campaignId && vp.IsActive)
                 .ToListAsync();
 
-            var result = eligibleProducts.Select(ep => new
+            var result = voucherProducts.Select(vp => new
             {
-                ep.CampaignProductId,
-                ProductName = ep.CampaignProduct != null ? ep.CampaignProduct.Name : string.Empty,
-                ep.PointCost,
-                ep.RedemptionLimit,
-                ep.IsActive
+                id = vp.ProductId,
+                name = vp.Product?.Name ?? "",
+                description = vp.Product?.Description ?? "",
+                brand = vp.Product?.Brand ?? "",
+                retailPrice = vp.Product?.RetailPrice ?? 0,
+                campaignVoucherProductId = vp.Id,
+                voucherValue = vp.VoucherValue,
+                isActive = vp.IsActive
             });
 
             return Ok(result);
         }
 
-        // GET: api/shopkeeper/products
-        [HttpGet("/api/shopkeeper/products")]
+        // GET: api/shopkeeper/campaigns/products
+        [HttpGet("products")]
         public async Task<ActionResult<IEnumerable<Product>>> GetAllProducts()
         {
             var products = await _context.Products.ToListAsync();
             return Ok(products);
         }
+        
+        // Add this method inside the EligibleProductsController class
+
+// GET: api/shopkeeper/campaigns/{campaignId}/campaignvoucherproducts
+[HttpGet("{campaignId}/campaignvoucherproducts")]
+public async Task<IActionResult> GetCampaignVoucherProducts(int campaignId)
+{
+    var voucherProducts = await _context.CampaignVoucherProducts
+        .Include(vp => vp.Product)
+        .Where(vp => vp.CampaignId == campaignId && vp.IsActive)
+        .ToListAsync();
+
+    var result = voucherProducts.Select(vp => new {
+        id = vp.ProductId,
+        name = vp.Product?.Name ?? "",
+        description = vp.Product?.Description ?? "",
+        brand = vp.Product?.Brand ?? "",
+        retailPrice = vp.Product?.RetailPrice ?? 0,
+        campaignVoucherProductId = vp.Id,
+        voucherValue = vp.VoucherValue,
+        isActive = vp.IsActive
+    });
+
+    return Ok(result);
+}
     }
-} 
+}

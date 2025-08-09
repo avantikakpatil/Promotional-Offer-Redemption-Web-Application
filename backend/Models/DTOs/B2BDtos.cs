@@ -128,6 +128,7 @@ namespace backend.Models.DTOs
     {
         [Required]
         public string QRCode { get; set; } = string.Empty;
+        public int? CampaignId { get; set; } // Added for shopkeeper QR validation
     }
 
     // Common DTOs

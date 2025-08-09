@@ -6,18 +6,16 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [campaigns, setCampaigns] = useState([]);
   const [campaignSuggestions, setCampaignSuggestions] = useState([]);
   const [calculatingPoints, setCalculatingPoints] = useState(false);
   const [syncingPoints, setSyncingPoints] = useState(false);
-  
+
   const { user } = useAuth();
   const resellerId = user?.id || 1;
 
   useEffect(() => {
     fetchOrders();
-    fetchCampaigns();
-    fetchOrderSuggestions();
+    fetchOrderSuggestionsFromProducts();
   }, []);
 
   const fetchOrders = async () => {
@@ -30,7 +28,7 @@ const Orders = () => {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setOrders(data);
@@ -45,77 +43,49 @@ const Orders = () => {
     }
   };
 
-  const fetchCampaigns = async () => {
+  // Fetch eligible products for order suggestions
+  const fetchOrderSuggestionsFromProducts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/reseller/order/available-campaigns', {
+      const response = await fetch('/api/reseller/order/eligible-products', {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setCampaigns(data);
-      }
-    } catch (err) {
-      console.error('Error fetching campaigns:', err);
-    }
-  };
 
-  const fetchOrderSuggestions = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/reseller/order/suggestions', {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
-      });
-      
       if (response.ok) {
         const data = await response.json();
-        setCampaignSuggestions(data.suggestions || []);
+        // data.campaigns: [{ campaign, products: [...] }]
+        const suggestions = [];
+        (data.campaigns || []).forEach(campaignGroup => {
+          const campaign = campaignGroup.campaign;
+          (campaignGroup.products || []).forEach(product => {
+            // Suggest a quantity to maximize benefit (e.g., 10 units or based on campaign rule)
+            const suggestedQuantity = 10; // TODO: Replace with campaign logic if available
+            const totalPoints = (product.pointCost || product.pointsPerUnit || 0) * suggestedQuantity;
+            const totalValue = (product.basePrice || product.resellerPrice || 0) * suggestedQuantity;
+            suggestions.push({
+              campaign,
+              product,
+              suggestion: {
+                suggestedQuantity,
+                totalValue,
+                totalPoints,
+                benefit: `Earn ${totalPoints} points with ₹${totalValue.toLocaleString()} order`,
+                recommendation: `Order ${suggestedQuantity} units to maximize points earning`
+              }
+            });
+          });
+        });
+        setCampaignSuggestions(suggestions);
       } else {
-        // Fallback to local generation if API fails
-        generateCampaignSuggestions();
+        setCampaignSuggestions([]);
       }
     } catch (err) {
-      console.error('Error fetching order suggestions:', err);
-      // Fallback to local generation if API fails
-      generateCampaignSuggestions();
+      console.error('Error fetching eligible products for suggestions:', err);
+      setCampaignSuggestions([]);
     }
-  };
-
-  const generateCampaignSuggestions = () => {
-    const suggestions = campaigns.map(campaign => {
-      // Generate random suggestion data for demonstration
-      const random = Math.random();
-      const suggestedQuantity = Math.floor(random * 10) + 1;
-      const suggestedProduct = {
-        name: `Product for ${campaign.name}`,
-        pointsPerUnit: Math.floor(random * 50) + 10,
-        resellerPrice: Math.floor(random * 1000) + 500,
-        suggestedQuantity: suggestedQuantity,
-        totalPoints: (Math.floor(random * 50) + 10) * suggestedQuantity,
-        totalValue: (Math.floor(random * 1000) + 500) * suggestedQuantity
-      };
-
-      return {
-        campaign: campaign,
-        product: suggestedProduct,
-        suggestion: {
-          suggestedQuantity: suggestedQuantity,
-          totalValue: suggestedProduct.totalValue,
-          totalPoints: suggestedProduct.totalPoints,
-          benefit: `Earn ${suggestedProduct.totalPoints} points with ₹${suggestedProduct.totalValue.toLocaleString()} order`,
-          recommendation: `Order ${suggestedQuantity} units to maximize points earning`
-        }
-      };
-    });
-
-    setCampaignSuggestions(suggestions);
   };
 
   const calculatePoints = async () => {
@@ -282,15 +252,15 @@ const Orders = () => {
                   <strong>Suggested Quantity:</strong> {suggestion.suggestion.suggestedQuantity}
                 </p>
                 <p className="text-gray-600">
-                  <strong>Price per Unit:</strong> ₹{suggestion.product.resellerPrice.toLocaleString()}
+                  <strong>Price per Unit:</strong> ₹{(suggestion.product.resellerPrice ?? suggestion.product.basePrice ?? 0).toLocaleString()}
                 </p>
                 <p className="text-gray-600">
-                  <strong>Points per Unit:</strong> {suggestion.product.pointsPerUnit}
+                  <strong>Points per Unit:</strong> {suggestion.product.pointsPerUnit ?? suggestion.product.pointCost ?? 0}
                 </p>
                 <div className="pt-2 border-t border-gray-100">
                   <p className="text-green-600 font-medium">{suggestion.suggestion.benefit}</p>
                   <p className="text-gray-500 text-xs">
-                    Total Value: ₹{suggestion.suggestion.totalValue.toLocaleString()}
+                    Total Value: ₹{(suggestion.suggestion.totalValue ?? 0).toLocaleString()}
                   </p>
                   <p className="text-blue-600 text-xs mt-1">
                     {suggestion.suggestion.recommendation}

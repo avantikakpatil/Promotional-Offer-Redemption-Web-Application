@@ -36,7 +36,9 @@ namespace backend.Controllers.Shopkeeper
                     using var doc = System.Text.Json.JsonDocument.Parse(validationDto.QRCode);
                     if (doc.RootElement.TryGetProperty("code", out var codeProp) && codeProp.ValueKind == System.Text.Json.JsonValueKind.String)
                     {
-                        codeToValidate = codeProp.GetString();
+                        var codeVal = codeProp.GetString();
+                        if (!string.IsNullOrEmpty(codeVal))
+                            codeToValidate = codeVal;
                     }
                 }
                 catch (Exception ex)
@@ -74,7 +76,7 @@ namespace backend.Controllers.Shopkeeper
             }
 
             var products = new List<object>();
-            if (eligibleProductIds.Any())
+            if (eligibleProductIds != null && eligibleProductIds.Any())
             {
                 var productList = await _context.Products
                     .Where(p => eligibleProductIds.Contains(p.Id) && p.IsActive)
@@ -99,6 +101,7 @@ namespace backend.Controllers.Shopkeeper
                 PointsRequired = voucher.PointsRequired,
                 ResellerName = voucher.Reseller?.Name,
                 CampaignName = voucher.Campaign?.Name,
+                CampaignId = voucher.CampaignId, // Ensure campaignId is always present
                 EligibleProducts = products,
                 ExpiryDate = voucher.ExpiryDate
             });
@@ -136,7 +139,7 @@ namespace backend.Controllers.Shopkeeper
                 }
             }
 
-            if (eligibleProductIds.Any() && redeemDto.SelectedProductIds != null && !redeemDto.SelectedProductIds.All(id => eligibleProductIds.Contains(id)))
+            if (eligibleProductIds != null && eligibleProductIds.Any() && redeemDto.SelectedProductIds != null && !redeemDto.SelectedProductIds.All(id => eligibleProductIds.Contains(id)))
                 return BadRequest("Some selected products are not eligible for this voucher");
 
             // Get selected products

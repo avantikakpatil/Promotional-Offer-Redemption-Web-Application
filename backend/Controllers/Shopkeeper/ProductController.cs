@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using backend.Data;
+using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using System.Threading.Tasks;
 using System;
@@ -8,12 +9,21 @@ namespace backend.Controllers.Shopkeeper
 {
     [ApiController]
     [Route("api/shopkeeper/products")]
+
     public class ProductController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
         public ProductController(ApplicationDbContext context)
         {
             _context = context;
+        }
+
+        // GET: api/shopkeeper/products
+        [HttpGet]
+        public async Task<IActionResult> GetAllProducts()
+        {
+            var products = await _context.Products.ToListAsync();
+            return Ok(products);
         }
 
         public class ShopkeeperProductDto
