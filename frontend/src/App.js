@@ -77,52 +77,18 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              
+
               {/* Redirect old routes to new dashboard structure */}
-              <Route
-                path="/reseller"
-                element={<Navigate to="/reseller/dashboard" replace />}
-              />
-              <Route
-                path="/reseller/campaigns"
-                element={<Navigate to="/reseller/dashboard/campaigns" replace />}
-              />
-              <Route
-                path="/reseller/order-products"
-                element={<Navigate to="/reseller/dashboard/order-products" replace />}
-              />
-              <Route
-                path="/reseller/orders"
-                element={<Navigate to="/reseller/dashboard/orders" replace />}
-              />
-              <Route
-                path="/reseller/vouchers"
-                element={<Navigate to="/reseller/dashboard/vouchers" replace />}
-              />
-              <Route
-                path="/reseller/points"
-                element={<Navigate to="/reseller/dashboard/points" replace />}
-              />
-              <Route
-                path="/reseller/qr-codes"
-                element={<Navigate to="/reseller/dashboard/qr-codes" replace />}
-              />
-              <Route
-                path="/reseller/history"
-                element={<Navigate to="/reseller/dashboard/history" replace />}
-              />
-              <Route
-                path="/reseller/settings"
-                element={<Navigate to="/reseller/dashboard/settings" replace />}
-              />
-              <Route
-                path="/reseller/dashboard/vouchers"
-                element={
-                  <ProtectedRoute allowedRoles={['reseller']}>
-                    <Vouchers />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/reseller" element={<Navigate to="/reseller/dashboard" replace />} />
+              <Route path="/reseller/campaigns" element={<Navigate to="/reseller/dashboard/campaigns" replace />} />
+              <Route path="/reseller/order-products" element={<Navigate to="/reseller/dashboard/order-products" replace />} />
+              <Route path="/reseller/orders" element={<Navigate to="/reseller/dashboard/orders" replace />} />
+              <Route path="/reseller/vouchers" element={<Navigate to="/reseller/dashboard/vouchers" replace />} />
+              <Route path="/reseller/points" element={<Navigate to="/reseller/dashboard/points" replace />} />
+              <Route path="/reseller/qr-codes" element={<Navigate to="/reseller/dashboard/qr-codes" replace />} />
+              <Route path="/reseller/history" element={<Navigate to="/reseller/dashboard/history" replace />} />
+              <Route path="/reseller/settings" element={<Navigate to="/reseller/dashboard/settings" replace />} />
+
               <Route
                 path="/shopkeeper/dashboard/*"
                 element={

@@ -113,8 +113,17 @@ namespace backend.Migrations
                     b.Property<int>("CampaignProductId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("FreeProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FreeProductQty")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("MinPurchaseQuantity")
+                        .HasColumnType("int");
 
                     b.Property<int>("PointCost")
                         .HasColumnType("int");
@@ -127,6 +136,8 @@ namespace backend.Migrations
                     b.HasIndex("CampaignId");
 
                     b.HasIndex("CampaignProductId");
+
+                    b.HasIndex("FreeProductId");
 
                     b.ToTable("CampaignEligibleProducts");
                 });
@@ -794,9 +805,15 @@ namespace backend.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("backend.Models.Product", "FreeProduct")
+                        .WithMany()
+                        .HasForeignKey("FreeProductId");
+
                     b.Navigation("Campaign");
 
                     b.Navigation("CampaignProduct");
+
+                    b.Navigation("FreeProduct");
                 });
 
             modelBuilder.Entity("backend.Models.CampaignFreeProductReward", b =>

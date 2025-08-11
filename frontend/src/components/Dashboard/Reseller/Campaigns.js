@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { campaignAPI } from '../../../services/api';
+import api from '../../../services/api';
 
 const Campaigns = () => {
   const [filter, setFilter] = useState('all');
@@ -11,9 +12,30 @@ const Campaigns = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [participating, setParticipating] = useState({});
+  const [productMap, setProductMap] = useState({});
+
+
+  // Fetch all campaign products and build a map of id -> name
+  const fetchAllProducts = async () => {
+    try {
+      const response = await api.get('/campaign-products');
+      if (Array.isArray(response.data)) {
+        const map = {};
+        response.data.forEach(p => { map[p.id] = p.name; });
+        setProductMap(map);
+      } else if (Array.isArray(response.data.products)) {
+        const map = {};
+        response.data.products.forEach(p => { map[p.id] = p.name; });
+        setProductMap(map);
+      }
+    } catch (err) {
+      setProductMap({});
+    }
+  };
 
   useEffect(() => {
     fetchCampaigns();
+    fetchAllProducts();
   }, []);
 
   const fetchCampaigns = async () => {
@@ -625,7 +647,9 @@ const Campaigns = () => {
                             {selectedCampaign.eligibleProducts.map((product, idx) => (
                               <div key={product.id || idx} className="p-3 bg-white rounded border">
                                 <div className="flex justify-between items-center">
-                                  <span className="font-medium text-green-700">Product ID: {product.campaignProductId}</span>
+                                  <span className="font-medium text-green-700">
+                                    Product: {productMap[product.campaignProductId] ? `${productMap[product.campaignProductId]} (ID: ${product.campaignProductId})` : `ID: ${product.campaignProductId}`}
+                                  </span>
                                   <span className={`px-2 py-1 text-xs rounded-full ${
                                     product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                                   }`}>
@@ -648,7 +672,9 @@ const Campaigns = () => {
                             {selectedCampaign.voucherProducts.map((product, idx) => (
                               <div key={product.id || idx} className="p-3 bg-white rounded border">
                                 <div className="flex justify-between items-center">
-                                  <span className="font-medium text-indigo-700">Product ID: {product.productId}</span>
+                                  <span className="font-medium text-indigo-700">
+                                    Product: {productMap[product.productId] ? `${productMap[product.productId]} (ID: ${product.productId})` : `ID: ${product.productId}`}
+                                  </span>
                                   <span className={`px-2 py-1 text-xs rounded-full ${
                                     product.isActive ? 'bg-indigo-100 text-indigo-800' : 'bg-red-100 text-red-800'
                                   }`}>

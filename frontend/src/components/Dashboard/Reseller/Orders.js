@@ -60,11 +60,30 @@ const Orders = () => {
         const suggestions = [];
         (data.campaigns || []).forEach(campaignGroup => {
           const campaign = campaignGroup.campaign;
+          const threshold = campaign.voucherGenerationThreshold || campaign.VoucherGenerationThreshold || 0;
           (campaignGroup.products || []).forEach(product => {
-            // Suggest a quantity to maximize benefit (e.g., 10 units or based on campaign rule)
-            const suggestedQuantity = 10; // TODO: Replace with campaign logic if available
-            const totalPoints = (product.pointCost || product.pointsPerUnit || 0) * suggestedQuantity;
-            const totalValue = (product.basePrice || product.resellerPrice || 0) * suggestedQuantity;
+            const pointsPerUnit = product.pointCost || product.pointsPerUnit || 0;
+            let suggestedQuantity = 1;
+            let vouchersToGenerate = 1;
+            if (pointsPerUnit > 0 && threshold > 0) {
+              // Suggest quantity to generate at least one voucher
+              suggestedQuantity = Math.ceil(threshold / pointsPerUnit);
+              // Optionally, suggest quantity for more than one voucher if order size is large
+              // For now, suggest just enough for one voucher
+            } else if (product.minPurchaseQuantity) {
+              suggestedQuantity = product.minPurchaseQuantity;
+            }
+            suggestedQuantity = Math.max(suggestedQuantity, 1);
+            let totalPoints = pointsPerUnit * suggestedQuantity;
+            let vouchersGenerated = threshold > 0 && pointsPerUnit > 0 ? Math.floor(totalPoints / threshold) : 0;
+            // If not enough for a voucher, suggest next possible quantity
+            if (threshold > 0 && pointsPerUnit > 0 && vouchersGenerated < 1) {
+              suggestedQuantity = Math.ceil(threshold / pointsPerUnit);
+              totalPoints = pointsPerUnit * suggestedQuantity;
+              vouchersGenerated = 1;
+            }
+            const pricePerUnit = product.resellerPrice ?? product.basePrice ?? 0;
+            const totalValue = pricePerUnit * suggestedQuantity;
             suggestions.push({
               campaign,
               product,
@@ -72,8 +91,13 @@ const Orders = () => {
                 suggestedQuantity,
                 totalValue,
                 totalPoints,
-                benefit: `Earn ${totalPoints} points with ₹${totalValue.toLocaleString()} order`,
-                recommendation: `Order ${suggestedQuantity} units to maximize points earning`
+                vouchersGenerated,
+                benefit: threshold > 0 && vouchersGenerated > 0
+                  ? `Earn ${totalPoints} points and get ${vouchersGenerated} voucher(s) with ₹${totalValue.toLocaleString()} order`
+                  : `Earn ${totalPoints} points with ₹${totalValue.toLocaleString()} order`,
+                recommendation: threshold > 0
+                  ? `Order ${suggestedQuantity} units to generate ${vouchersGenerated} voucher(s) (threshold: ${threshold} points)`
+                  : `Order ${suggestedQuantity} units to maximize points earning`
               }
             });
           });

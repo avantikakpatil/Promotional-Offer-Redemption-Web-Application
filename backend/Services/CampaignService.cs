@@ -127,6 +127,9 @@ namespace backend.Services
                     }
                 }
 
+                // Set default values for voucher campaigns if not provided
+                int defaultThreshold = 1;
+                decimal defaultValue = 1;
                 var campaign = new Campaign
                 {
                     Name = createCampaignDto.Name,
@@ -136,9 +139,9 @@ namespace backend.Services
                     Description = createCampaignDto.Description,
                     IsActive = createCampaignDto.IsActive,
                     ManufacturerId = manufacturerId,
-                    VoucherGenerationThreshold = createCampaignDto.RewardType == "voucher" ? createCampaignDto.VoucherGenerationThreshold : null,
-                    VoucherValue = createCampaignDto.RewardType == "voucher" ? createCampaignDto.VoucherValue : null,
-                    VoucherValidityDays = createCampaignDto.RewardType == "voucher" ? createCampaignDto.VoucherValidityDays : null,
+                    VoucherGenerationThreshold = createCampaignDto.RewardType == "voucher" ? (createCampaignDto.VoucherGenerationThreshold ?? defaultThreshold) : null,
+                    VoucherValue = createCampaignDto.RewardType == "voucher" ? (createCampaignDto.VoucherValue ?? defaultValue) : null,
+                    VoucherValidityDays = createCampaignDto.RewardType == "voucher" ? (createCampaignDto.VoucherValidityDays ?? 90) : null,
                     RewardType = createCampaignDto.RewardType,
                     CreatedAt = DateTime.UtcNow
                 };

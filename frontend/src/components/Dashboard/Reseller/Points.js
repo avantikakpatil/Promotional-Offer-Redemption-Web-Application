@@ -143,7 +143,7 @@ const Points = () => {
             <h1 className="text-3xl font-bold text-gray-800">My Points</h1>
             <p className="text-gray-600 mt-2">Track your points balance and campaign performance</p>
           </div>
-          <button
+          {/* <button
             onClick={refreshPointsData}
             disabled={refreshing || loading}
             className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
@@ -161,14 +161,14 @@ const Points = () => {
           >
             <FaGift className="mr-2" />
             Generate Vouchers
-          </button>
-          <button
+          </button> */}
+          {/* <button
             onClick={testPublicEndpoint}
             className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors ml-2"
           >
             <span className="mr-2">🧪</span>
             Test API
-          </button>
+          </button> */}
         </div>
       </div>
 

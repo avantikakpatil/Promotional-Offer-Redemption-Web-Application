@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchProductMap } from './fetchProductMap';
 import { Link } from 'react-router-dom';
 import api from '../../../services/api';
 import {
@@ -24,10 +25,17 @@ const ViewCampaigns = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
+  const [productMap, setProductMap] = useState({});
 
   useEffect(() => {
     fetchCampaigns();
+    fetchAllProducts();
   }, []);
+
+  const fetchAllProducts = async () => {
+    const map = await fetchProductMap();
+    setProductMap(map);
+  };
 
   const fetchCampaigns = async () => {
     try {
@@ -350,7 +358,9 @@ const ViewCampaigns = () => {
                       {campaign.eligibleProducts.map((product, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                           <div>
-                            <span className="text-sm font-medium text-gray-900">Product ID: {product.campaignProductId}</span>
+                            <span className="text-sm font-medium text-gray-900">
+                              Product: {productMap[product.campaignProductId] ? `${productMap[product.campaignProductId]} (ID: ${product.campaignProductId})` : `ID: ${product.campaignProductId}`}
+                            </span>
                             <div className="text-xs text-gray-600">
                               Points: {product.pointCost} | Limit: {product.redemptionLimit || 'No limit'}
                             </div>
@@ -379,7 +389,9 @@ const ViewCampaigns = () => {
                       {campaign.voucherProducts.map((product, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
                           <div>
-                            <span className="text-sm font-medium text-gray-900">Product ID: {product.productId}</span>
+                            <span className="text-sm font-medium text-gray-900">
+                              Product: {productMap[product.productId] ? `${productMap[product.productId]} (ID: ${product.productId})` : `ID: ${product.productId}`}
+                            </span>
                             <div className="text-xs text-gray-600">
                               Voucher Value: ₹{product.voucherValue}
                             </div>

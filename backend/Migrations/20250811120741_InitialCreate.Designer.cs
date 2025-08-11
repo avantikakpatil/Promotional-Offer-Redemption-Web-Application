@@ -12,7 +12,7 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250806075047_InitialCreate")]
+    [Migration("20250811120741_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -61,6 +61,11 @@ namespace backend.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
+
+                    b.Property<string>("RewardType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("datetime(6)");
@@ -111,8 +116,17 @@ namespace backend.Migrations
                     b.Property<int>("CampaignProductId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("FreeProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FreeProductQty")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("MinPurchaseQuantity")
+                        .HasColumnType("int");
 
                     b.Property<int>("PointCost")
                         .HasColumnType("int");
@@ -126,7 +140,44 @@ namespace backend.Migrations
 
                     b.HasIndex("CampaignProductId");
 
+                    b.HasIndex("FreeProductId");
+
                     b.ToTable("CampaignEligibleProducts");
+                });
+
+            modelBuilder.Entity("backend.Models.CampaignFreeProductReward", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("CampaignFreeProductRewards");
                 });
 
             modelBuilder.Entity("backend.Models.CampaignPoints", b =>
@@ -757,9 +808,34 @@ namespace backend.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("backend.Models.Product", "FreeProduct")
+                        .WithMany()
+                        .HasForeignKey("FreeProductId");
+
                     b.Navigation("Campaign");
 
                     b.Navigation("CampaignProduct");
+
+                    b.Navigation("FreeProduct");
+                });
+
+            modelBuilder.Entity("backend.Models.CampaignFreeProductReward", b =>
+                {
+                    b.HasOne("backend.Models.Campaign", "Campaign")
+                        .WithMany("FreeProductRewards")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("backend.Models.CampaignPoints", b =>
@@ -964,6 +1040,8 @@ namespace backend.Migrations
                     b.Navigation("CampaignResellers");
 
                     b.Navigation("EligibleProducts");
+
+                    b.Navigation("FreeProductRewards");
 
                     b.Navigation("RewardTiers");
 

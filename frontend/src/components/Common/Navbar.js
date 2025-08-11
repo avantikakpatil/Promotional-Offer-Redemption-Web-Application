@@ -4,10 +4,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import './Navbar.css';
 
+
 const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  
+
+  // Debug: Log user to check if present
+  console.log('[Navbar] user:', user);
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -29,7 +33,7 @@ const Navbar = () => {
   };
 
   if (!user) {
-    return null; // Don't show navbar on login/signup pages
+    return null;
   }
 
   return (

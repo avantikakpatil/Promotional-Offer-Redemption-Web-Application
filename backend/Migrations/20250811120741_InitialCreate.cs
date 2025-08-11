@@ -106,6 +106,8 @@ namespace backend.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     ManufacturerId = table.Column<int>(type: "int", nullable: false),
+                    RewardType = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     VoucherGenerationThreshold = table.Column<int>(type: "int", nullable: true),
                     VoucherValue = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     VoucherValidityDays = table.Column<int>(type: "int", nullable: true),
@@ -181,36 +183,6 @@ namespace backend.Migrations
                         name: "FK_UserPoints_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "CampaignEligibleProducts",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    CampaignId = table.Column<int>(type: "int", nullable: false),
-                    CampaignProductId = table.Column<int>(type: "int", nullable: false),
-                    PointCost = table.Column<int>(type: "int", nullable: false),
-                    RedemptionLimit = table.Column<int>(type: "int", nullable: true),
-                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_CampaignEligibleProducts", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_CampaignEligibleProducts_Campaigns_CampaignId",
-                        column: x => x.CampaignId,
-                        principalTable: "Campaigns",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_CampaignEligibleProducts_campaignproducts_CampaignProductId",
-                        column: x => x.CampaignProductId,
-                        principalTable: "campaignproducts",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
@@ -411,6 +383,75 @@ namespace backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "CampaignEligibleProducts",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    CampaignId = table.Column<int>(type: "int", nullable: false),
+                    CampaignProductId = table.Column<int>(type: "int", nullable: false),
+                    PointCost = table.Column<int>(type: "int", nullable: false),
+                    RedemptionLimit = table.Column<int>(type: "int", nullable: true),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    MinPurchaseQuantity = table.Column<int>(type: "int", nullable: true),
+                    FreeProductId = table.Column<int>(type: "int", nullable: true),
+                    FreeProductQty = table.Column<int>(type: "int", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CampaignEligibleProducts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CampaignEligibleProducts_Campaigns_CampaignId",
+                        column: x => x.CampaignId,
+                        principalTable: "Campaigns",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_CampaignEligibleProducts_Products_FreeProductId",
+                        column: x => x.FreeProductId,
+                        principalTable: "Products",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_CampaignEligibleProducts_campaignproducts_CampaignProductId",
+                        column: x => x.CampaignProductId,
+                        principalTable: "campaignproducts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "CampaignFreeProductRewards",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    CampaignId = table.Column<int>(type: "int", nullable: false),
+                    ProductId = table.Column<int>(type: "int", nullable: false),
+                    Quantity = table.Column<int>(type: "int", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CampaignFreeProductRewards", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CampaignFreeProductRewards_Campaigns_CampaignId",
+                        column: x => x.CampaignId,
+                        principalTable: "Campaigns",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_CampaignFreeProductRewards_Products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "Products",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "CampaignVoucherProducts",
                 columns: table => new
                 {
@@ -506,6 +547,21 @@ namespace backend.Migrations
                 name: "IX_CampaignEligibleProducts_CampaignProductId",
                 table: "CampaignEligibleProducts",
                 column: "CampaignProductId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignEligibleProducts_FreeProductId",
+                table: "CampaignEligibleProducts",
+                column: "FreeProductId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignFreeProductRewards_CampaignId",
+                table: "CampaignFreeProductRewards",
+                column: "CampaignId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignFreeProductRewards_ProductId",
+                table: "CampaignFreeProductRewards",
+                column: "ProductId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CampaignPoints_CampaignId_ResellerId",
@@ -663,6 +719,9 @@ namespace backend.Migrations
         {
             migrationBuilder.DropTable(
                 name: "CampaignEligibleProducts");
+
+            migrationBuilder.DropTable(
+                name: "CampaignFreeProductRewards");
 
             migrationBuilder.DropTable(
                 name: "CampaignPoints");
