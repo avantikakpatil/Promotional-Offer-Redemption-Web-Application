@@ -29,15 +29,47 @@ namespace backend.Services
         {
             try
             {
-                // Validate voucher generation fields
-                if (createCampaignDto.VoucherGenerationThreshold == null || createCampaignDto.VoucherValue == null)
+                // Validate reward type
+                if (string.IsNullOrWhiteSpace(createCampaignDto.RewardType) ||
+                    (createCampaignDto.RewardType != "voucher" && createCampaignDto.RewardType != "free_product"))
                 {
                     return new ApiResponse<CampaignDto>
                     {
                         Success = false,
-                        Message = "Voucher generation threshold and value are required.",
-                        Errors = new List<string> { "Please enter both threshold and value for voucher generation." }
+                        Message = "Invalid reward type. Must be 'voucher' or 'free_product'.",
+                        Errors = new List<string> { "RewardType must be either 'voucher' or 'free_product'" }
                     };
+                }
+
+                // Enforce only one reward type
+                if (createCampaignDto.RewardType == "voucher")
+                {
+                    if (createCampaignDto.VoucherGenerationThreshold == null || createCampaignDto.VoucherValue == null)
+                    {
+                        return new ApiResponse<CampaignDto>
+                        {
+                            Success = false,
+                            Message = "Voucher generation threshold and value are required.",
+                            Errors = new List<string> { "Please enter both threshold and value for voucher generation." }
+                        };
+                    }
+                }
+                else if (createCampaignDto.RewardType == "free_product")
+                {
+                    // Allow either separate FreeProductRewards (legacy) OR inline eligible product free reward config
+                    bool hasSeparateRewards = createCampaignDto.FreeProductRewards != null && createCampaignDto.FreeProductRewards.Any();
+                    bool hasInlineRewards = createCampaignDto.EligibleProducts != null &&
+                        createCampaignDto.EligibleProducts.Any(ep => ep.FreeProductId.HasValue && ep.MinPurchaseQuantity.HasValue && ep.FreeProductQty.HasValue);
+
+                    if (!hasSeparateRewards && !hasInlineRewards)
+                    {
+                        return new ApiResponse<CampaignDto>
+                        {
+                            Success = false,
+                            Message = "At least one free product reward is required.",
+                            Errors = new List<string> { "Specify free product reward on at least one eligible product or in FreeProductRewards." }
+                        };
+                    }
                 }
 
                 // Check that all eligible product IDs exist in CampaignProducts table
@@ -53,6 +85,27 @@ namespace backend.Services
                             Success = false,
                             Message = "One or more selected eligible products do not exist.",
                             Errors = new List<string> { $"Missing CampaignProductIds: {string.Join(", ", missingEligibleProductIds)}" }
+                        };
+                    }
+                }
+
+                // Validate free product IDs from inline eligible products (if any)
+                var inlineFreeProductIds = createCampaignDto.EligibleProducts?
+                    .Where(ep => ep.FreeProductId.HasValue)
+                    .Select(ep => ep.FreeProductId!.Value)
+                    .Distinct()
+                    .ToList() ?? new List<int>();
+                if (inlineFreeProductIds.Any())
+                {
+                    var existingFreeIds = await _context.Products.Where(p => inlineFreeProductIds.Contains(p.Id)).Select(p => p.Id).ToListAsync();
+                    var missingFreeIds = inlineFreeProductIds.Except(existingFreeIds).ToList();
+                    if (missingFreeIds.Any())
+                    {
+                        return new ApiResponse<CampaignDto>
+                        {
+                            Success = false,
+                            Message = "One or more selected free products do not exist.",
+                            Errors = new List<string> { $"Missing FreeProductIds: {string.Join(", ", missingFreeIds)}" }
                         };
                     }
                 }
@@ -83,9 +136,10 @@ namespace backend.Services
                     Description = createCampaignDto.Description,
                     IsActive = createCampaignDto.IsActive,
                     ManufacturerId = manufacturerId,
-                    VoucherGenerationThreshold = createCampaignDto.VoucherGenerationThreshold,
-                    VoucherValue = createCampaignDto.VoucherValue,
-                    VoucherValidityDays = createCampaignDto.VoucherValidityDays,
+                    VoucherGenerationThreshold = createCampaignDto.RewardType == "voucher" ? createCampaignDto.VoucherGenerationThreshold : null,
+                    VoucherValue = createCampaignDto.RewardType == "voucher" ? createCampaignDto.VoucherValue : null,
+                    VoucherValidityDays = createCampaignDto.RewardType == "voucher" ? createCampaignDto.VoucherValidityDays : null,
+                    RewardType = createCampaignDto.RewardType,
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -99,13 +153,16 @@ namespace backend.Services
                             CampaignProductId = ep.CampaignProductId,
                             PointCost = ep.PointCost,
                             RedemptionLimit = ep.RedemptionLimit,
-                            IsActive = ep.IsActive
+                            IsActive = ep.IsActive,
+                            MinPurchaseQuantity = ep.MinPurchaseQuantity,
+                            FreeProductId = ep.FreeProductId,
+                            FreeProductQty = ep.FreeProductQty
                         });
                     }
                 }
 
-                // Add voucher products for redemption
-                if (createCampaignDto.VoucherProducts != null)
+                // Add voucher products for redemption (if voucher type)
+                if (createCampaignDto.RewardType == "voucher" && createCampaignDto.VoucherProducts != null)
                 {
                     foreach (var vp in createCampaignDto.VoucherProducts)
                     {
@@ -114,6 +171,20 @@ namespace backend.Services
                             ProductId = vp.ProductId,
                             VoucherValue = vp.VoucherValue,
                             IsActive = vp.IsActive
+                        });
+                    }
+                }
+
+                // Add free product rewards (if free_product type)
+                if (createCampaignDto.RewardType == "free_product" && createCampaignDto.FreeProductRewards != null)
+                {
+                    foreach (var fr in createCampaignDto.FreeProductRewards)
+                    {
+                        campaign.FreeProductRewards.Add(new CampaignFreeProductReward
+                        {
+                            ProductId = fr.ProductId,
+                            Quantity = fr.Quantity,
+                            IsActive = fr.IsActive
                         });
                     }
                 }
@@ -252,15 +323,42 @@ namespace backend.Services
         {
             try
             {
-                // Validate voucher generation fields
-                if (updateCampaignDto.VoucherGenerationThreshold == null || updateCampaignDto.VoucherValue == null)
+                // Validate reward type
+                if (string.IsNullOrWhiteSpace(updateCampaignDto.RewardType) ||
+                    (updateCampaignDto.RewardType != "voucher" && updateCampaignDto.RewardType != "free_product"))
                 {
                     return new ApiResponse<CampaignDto>
                     {
                         Success = false,
-                        Message = "Voucher generation threshold and value are required.",
-                        Errors = new List<string> { "Please enter both threshold and value for voucher generation." }
+                        Message = "Invalid reward type. Must be 'voucher' or 'free_product'.",
+                        Errors = new List<string> { "RewardType must be either 'voucher' or 'free_product'" }
                     };
+                }
+
+                // Enforce only one reward type
+                if (string.Equals(updateCampaignDto.RewardType, "voucher", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (updateCampaignDto.VoucherGenerationThreshold == null || updateCampaignDto.VoucherValue == null)
+                    {
+                        return new ApiResponse<CampaignDto>
+                        {
+                            Success = false,
+                            Message = "Voucher generation threshold and value are required.",
+                            Errors = new List<string> { "Please enter both threshold and value for voucher generation." }
+                        };
+                    }
+                }
+                else if (string.Equals(updateCampaignDto.RewardType, "free_product", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (updateCampaignDto.FreeProductRewards == null || !updateCampaignDto.FreeProductRewards.Any())
+                    {
+                        return new ApiResponse<CampaignDto>
+                        {
+                            Success = false,
+                            Message = "At least one free product reward is required.",
+                            Errors = new List<string> { "Please specify at least one free product and quantity." }
+                        };
+                    }
                 }
 
                 var campaign = await _context.Campaigns
@@ -285,10 +383,13 @@ namespace backend.Services
                 campaign.EndDate = updateCampaignDto.EndDate;
                 campaign.Description = updateCampaignDto.Description;
                 campaign.IsActive = updateCampaignDto.IsActive;
-                campaign.VoucherGenerationThreshold = updateCampaignDto.VoucherGenerationThreshold;
-                campaign.VoucherValue = updateCampaignDto.VoucherValue;
-                campaign.VoucherValidityDays = updateCampaignDto.VoucherValidityDays;
                 campaign.UpdatedAt = DateTime.UtcNow;
+
+                // Update reward type
+                campaign.RewardType = updateCampaignDto.RewardType;
+                campaign.VoucherGenerationThreshold = updateCampaignDto.RewardType == "voucher" ? updateCampaignDto.VoucherGenerationThreshold : null;
+                campaign.VoucherValue = updateCampaignDto.RewardType == "voucher" ? updateCampaignDto.VoucherValue : null;
+                campaign.VoucherValidityDays = updateCampaignDto.RewardType == "voucher" ? updateCampaignDto.VoucherValidityDays : null;
 
                 // Update eligible products
                 if (updateCampaignDto.EligibleProducts != null)
@@ -304,27 +405,51 @@ namespace backend.Services
                             CampaignProductId = ep.CampaignProductId,
                             PointCost = ep.PointCost,
                             RedemptionLimit = ep.RedemptionLimit,
-                            IsActive = ep.IsActive
+                            IsActive = ep.IsActive,
+                            MinPurchaseQuantity = ep.MinPurchaseQuantity,
+                            FreeProductId = ep.FreeProductId,
+                            FreeProductQty = ep.FreeProductQty
                         });
                     }
                 }
 
-                // Update voucher products
-                if (updateCampaignDto.VoucherProducts != null)
+                // Remove and update voucher products if reward type is voucher
+                if (string.Equals(updateCampaignDto.RewardType, "voucher", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Remove existing voucher products
                     _context.CampaignVoucherProducts.RemoveRange(campaign.VoucherProducts);
-
-                    // Add new voucher products
-                    foreach (var vp in updateCampaignDto.VoucherProducts)
+                    if (updateCampaignDto.VoucherProducts != null)
                     {
-                        campaign.VoucherProducts.Add(new CampaignVoucherProduct
+                        foreach (var vp in updateCampaignDto.VoucherProducts)
                         {
-                            ProductId = vp.ProductId,
-                            VoucherValue = vp.VoucherValue,
-                            IsActive = vp.IsActive
-                        });
+                            campaign.VoucherProducts.Add(new CampaignVoucherProduct
+                            {
+                                ProductId = vp.ProductId,
+                                VoucherValue = vp.VoucherValue,
+                                IsActive = vp.IsActive
+                            });
+                        }
                     }
+                    // Remove any free product rewards
+                    _context.CampaignFreeProductRewards.RemoveRange(campaign.FreeProductRewards);
+                }
+                // Remove and update free product rewards if reward type is free_product
+                else if (string.Equals(updateCampaignDto.RewardType, "free_product", StringComparison.OrdinalIgnoreCase))
+                {
+                    _context.CampaignFreeProductRewards.RemoveRange(campaign.FreeProductRewards);
+                    if (updateCampaignDto.FreeProductRewards != null)
+                    {
+                        foreach (var fr in updateCampaignDto.FreeProductRewards)
+                        {
+                            campaign.FreeProductRewards.Add(new CampaignFreeProductReward
+                            {
+                                ProductId = fr.ProductId,
+                                Quantity = fr.Quantity,
+                                IsActive = fr.IsActive
+                            });
+                        }
+                    }
+                    // Remove any voucher products
+                    _context.CampaignVoucherProducts.RemoveRange(campaign.VoucherProducts);
                 }
 
                 await _context.SaveChangesAsync();
@@ -439,17 +564,25 @@ namespace backend.Services
                 Description = campaign.Description,
                 IsActive = campaign.IsActive,
                 ManufacturerId = campaign.ManufacturerId,
+                RewardType = campaign.RewardType,
                 VoucherGenerationThreshold = campaign.VoucherGenerationThreshold,
                 VoucherValue = campaign.VoucherValue,
                 VoucherValidityDays = campaign.VoucherValidityDays,
-                CreatedAt = campaign.CreatedAt,
-                UpdatedAt = campaign.UpdatedAt,
+                FreeProductRewards = campaign.FreeProductRewards?.Select(fr => new CampaignFreeProductRewardDto
+                {
+                    ProductId = fr.ProductId,
+                    Quantity = fr.Quantity,
+                    IsActive = fr.IsActive
+                }).ToList() ?? new List<CampaignFreeProductRewardDto>(),
                 EligibleProducts = campaign.EligibleProducts?.Select(ep => new CampaignEligibleProductDto
                 {
                     CampaignProductId = ep.CampaignProductId,
                     PointCost = ep.PointCost,
                     RedemptionLimit = ep.RedemptionLimit,
-                    IsActive = ep.IsActive
+                    IsActive = ep.IsActive,
+                    MinPurchaseQuantity = ep.MinPurchaseQuantity,
+                    FreeProductId = ep.FreeProductId,
+                    FreeProductQty = ep.FreeProductQty
                 }).ToList() ?? new List<CampaignEligibleProductDto>(),
                 VoucherProducts = campaign.VoucherProducts?.Select(vp => new CampaignVoucherProductDto
                 {

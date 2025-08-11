@@ -31,6 +31,14 @@ namespace backend.Models
         [Required]
         public int ManufacturerId { get; set; }
 
+        // Reward type: "voucher" or "free_product"
+        [Required]
+        [StringLength(20)]
+        public string RewardType { get; set; } = "voucher";
+
+        // Free product rewards (if RewardType == "free_product")
+        public virtual ICollection<CampaignFreeProductReward> FreeProductRewards { get; set; } = new List<CampaignFreeProductReward>();
+
         // Voucher Generation Settings
         public int? VoucherGenerationThreshold { get; set; } // Points required to generate voucher
         

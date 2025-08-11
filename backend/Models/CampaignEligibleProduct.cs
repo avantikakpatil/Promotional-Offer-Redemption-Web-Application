@@ -21,11 +21,21 @@ namespace backend.Models
 
         public bool IsActive { get; set; } = true;
 
+        // Free product reward configuration (optional, per eligible product)
+        public int? MinPurchaseQuantity { get; set; }
+
+        public int? FreeProductId { get; set; }
+
+        public int? FreeProductQty { get; set; }
+
         // Navigation properties
         [ForeignKey("CampaignId")]
         public virtual Campaign? Campaign { get; set; }
 
         [ForeignKey("CampaignProductId")]
         public virtual CampaignProduct? CampaignProduct { get; set; }
+
+        [ForeignKey("FreeProductId")]
+        public virtual Product? FreeProduct { get; set; }
     }
 } 

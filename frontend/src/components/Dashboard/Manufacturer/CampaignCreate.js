@@ -3,13 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Package, Target, Info, AlertCircle, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
 import { productAPI, campaignAPI } from '../../../services/api';
 
-const steps = [
-  { label: 'Basic Info' },
-  { label: 'Eligible Products' },
-];
-
 const CampaignCreate = () => {
   const navigate = useNavigate();
+  // 1. Add rewardType to formData state
   const [formData, setFormData] = useState({
     name: '',
     productType: '',
@@ -19,7 +15,8 @@ const CampaignCreate = () => {
     isActive: true,
     voucherValue: '',
     voucherGenerationThreshold: '',
-    voucherValidityDays: ''
+    voucherValidityDays: '',
+    rewardType: 'voucher', // default
   });
 
   const [errors, setErrors] = useState({});
@@ -30,6 +27,14 @@ const CampaignCreate = () => {
   const [categories, setCategories] = useState([]);
   const [categoryProducts, setCategoryProducts] = useState([]);
   const [manufacturerProducts, setManufacturerProducts] = useState([]);
+  // 2. Add state for free product rewards
+  // const [selectedFreeProducts, setSelectedFreeProducts] = useState([]); // Removed
+
+  // Move steps definition here
+  const steps = [
+    { label: 'Basic Info' },
+    { label: 'Eligible Products' },
+  ];
 
   // Configuration for API base URL
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5162';
@@ -99,6 +104,7 @@ const CampaignCreate = () => {
     return [...eligibleIds].filter(id => voucherIds.has(id));
   };
 
+  // 4. Update validateForm to check required fields based on rewardType
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name) newErrors.name = 'Campaign name is required';
@@ -106,9 +112,21 @@ const CampaignCreate = () => {
     if (!formData.startDate) newErrors.startDate = 'Start date is required';
     if (!formData.endDate) newErrors.endDate = 'End date is required';
     if (!formData.description) newErrors.description = 'Description is required';
-    if (!formData.voucherValue) newErrors.voucherValue = 'Voucher value is required';
-    if (!formData.voucherGenerationThreshold) newErrors.voucherGenerationThreshold = 'Voucher generation threshold is required';
-    if (!formData.voucherValidityDays) newErrors.voucherValidityDays = 'Voucher validity days is required';
+    if (formData.rewardType === 'voucher') {
+      if (!formData.voucherValue) newErrors.voucherValue = 'Voucher value is required';
+      if (!formData.voucherGenerationThreshold) newErrors.voucherGenerationThreshold = 'Voucher generation threshold is required';
+      if (!formData.voucherValidityDays) newErrors.voucherValidityDays = 'Voucher validity days is required';
+    }
+    selectedEligibleProducts.forEach(ep => {
+      if (ep.freeProductId) {
+        if (!ep.minPurchaseQuantity || ep.minPurchaseQuantity < 1) {
+          newErrors[`minPurchaseQuantity_${ep.productId}`] = 'Min purchase quantity must be at least 1';
+        }
+        if (!ep.freeProductQty || ep.freeProductQty < 1) {
+          newErrors[`freeProductQty_${ep.productId}`] = 'Free product quantity must be at least 1';
+        }
+      }
+    });
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -136,7 +154,7 @@ const CampaignCreate = () => {
     if (checked) {
       setSelectedEligibleProducts((prev) => [
         ...prev,
-        { productId: product.id, productName: product.name, pointCost: '', redemptionLimit: '', isActive: true },
+        { productId: product.id, productName: product.name, pointCost: '', redemptionLimit: '', isActive: true, minPurchaseQuantity: '', freeProductId: '', freeProductQty: '' },
       ]);
     } else {
       setSelectedEligibleProducts((prev) => prev.filter((ep) => ep.productId !== product.id));
@@ -162,6 +180,48 @@ const CampaignCreate = () => {
     );
   };
 
+  // 3. Add handler for free product selection and quantity
+  // const handleFreeProductSelect = (product, checked) => { // Removed
+  //   if (checked) {
+  //     setSelectedFreeProducts((prev) => [
+  //       ...prev,
+  //       {
+  //         productId: product.id,
+  //         productName: product.name,
+  //         quantity: 1,
+  //         triggerQuantity: 1,
+  //         triggerProductIds: selectedEligibleProducts.map(ep => ep.productId), // default: all eligible
+  //         isActive: true
+  //       },
+  //     ]);
+  //   } else {
+  //     setSelectedFreeProducts((prev) => prev.filter((fp) => fp.productId !== product.id));
+  //   }
+  // };
+  // const handleFreeProductChange = (productId, field, value) => { // Removed
+  //   setSelectedFreeProducts((prev) =>
+  //     prev.map((fp) =>
+  //       fp.productId === productId ? { ...fp, [field]: value } : fp
+  //     )
+  //   );
+  // };
+
+  // Add handler for selecting trigger campaign products for a free product
+  // const handleTriggerProductSelect = (freeProductId, campaignProductId, checked) => { // Removed
+  //   setSelectedFreeProducts((prev) =>
+  //     prev.map(fp =>
+  //       fp.productId === freeProductId
+  //         ? {
+  //             ...fp,
+  //             triggerProductIds: checked
+  //               ? [...(fp.triggerProductIds || []), campaignProductId]
+  //               : (fp.triggerProductIds || []).filter(id => id !== campaignProductId)
+  //         }
+  //       : fp
+  //   )
+  // );
+
+  // 5. Update handleSubmit to send correct payload
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -202,21 +262,33 @@ const CampaignCreate = () => {
         endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
         description: formData.description,
         isActive: formData.isActive,
+        rewardType: formData.rewardType,
         eligibleProducts: filteredEligibleProducts.length > 0 ? filteredEligibleProducts.map(ep => ({
           campaignProductId: ep.productId, // from campaignproducts table
           pointCost: ep.pointCost ? parseInt(ep.pointCost) : 0,
           redemptionLimit: ep.redemptionLimit ? parseInt(ep.redemptionLimit) : null,
-          isActive: ep.isActive
+          isActive: ep.isActive,
+          minPurchaseQuantity: ep.minPurchaseQuantity ? parseInt(ep.minPurchaseQuantity) : undefined,
+          freeProductId: ep.freeProductId ? parseInt(ep.freeProductId) : undefined,
+          freeProductQty: ep.freeProductId ? parseInt(ep.freeProductQty) : undefined,
         })) : undefined,
-        voucherProducts: filteredVoucherProducts.length > 0 ? filteredVoucherProducts.map(vp => ({
+        voucherProducts: formData.rewardType === 'voucher' && filteredVoucherProducts.length > 0 ? filteredVoucherProducts.map(vp => ({
           productId: vp.productId, // from products table
           voucherValue: vp.voucherValue ? parseFloat(vp.voucherValue) : 0,
           isActive: vp.isActive
         })) : undefined,
-        voucherValue: formData.voucherValue ? parseFloat(formData.voucherValue) : null,
-        voucherGenerationThreshold: formData.voucherGenerationThreshold ? parseInt(formData.voucherGenerationThreshold) : null,
-        voucherValidityDays: formData.voucherValidityDays ? parseInt(formData.voucherValidityDays) : null
+        voucherValue: formData.rewardType === 'voucher' ? (formData.voucherValue ? parseFloat(formData.voucherValue) : null) : undefined,
+        voucherGenerationThreshold: formData.rewardType === 'voucher' ? (formData.voucherGenerationThreshold ? parseInt(formData.voucherGenerationThreshold) : null) : undefined,
+        voucherValidityDays: formData.rewardType === 'voucher' ? (formData.voucherValidityDays ? parseInt(formData.voucherValidityDays) : null) : undefined,
+        freeProductRewards: formData.rewardType === 'free_product' && filteredEligibleProducts.some(ep => ep.freeProductId)
+          ? filteredEligibleProducts.filter(ep => ep.freeProductId).map(ep => ({
+              productId: parseInt(ep.freeProductId),
+              quantity: ep.freeProductQty ? parseInt(ep.freeProductQty) : 1,
+              isActive: true,
+            }))
+          : undefined,
       };
+      console.log('Submitting campaign payload:', campaignData);
 
       const response = await campaignAPI.createCampaign(campaignData);
 
@@ -229,36 +301,42 @@ const CampaignCreate = () => {
       }
     } catch (error) {
       console.error('Error creating campaign:', error);
-      alert(`Error creating campaign: ${error.message}`);
+      if (error.response && error.response.data) {
+        const data = error.response.data;
+        console.error('Server response:', data);
+        alert(`[${error.response.status}] ${data.message || 'Request failed'}${Array.isArray(data.errors) && data.errors.length ? '\n- ' + data.errors.join('\n- ') : ''}`);
+      } else {
+        alert(`Error creating campaign: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // 2. Adjust nextStep and prevStep to respect dynamic steps
   const nextStep = () => {
     if (step === 0) {
-      // Validate basic info
+      // Basic info validation before moving to Step 2
       const basicInfoErrors = {};
       if (!formData.name) basicInfoErrors.name = 'Campaign name is required';
       if (!formData.productType) basicInfoErrors.productType = 'Product type is required';
       if (!formData.startDate) basicInfoErrors.startDate = 'Start date is required';
       if (!formData.endDate) basicInfoErrors.endDate = 'End date is required';
       if (!formData.description) basicInfoErrors.description = 'Description is required';
-      if (!formData.voucherValue) basicInfoErrors.voucherValue = 'Voucher value is required';
-      if (!formData.voucherGenerationThreshold) basicInfoErrors.voucherGenerationThreshold = 'Voucher generation threshold is required';
-      if (!formData.voucherValidityDays) basicInfoErrors.voucherValidityDays = 'Voucher validity days is required';
-      
+      if (formData.rewardType === 'voucher') {
+        if (!formData.voucherValue) basicInfoErrors.voucherValue = 'Voucher value is required';
+        if (!formData.voucherGenerationThreshold) basicInfoErrors.voucherGenerationThreshold = 'Voucher generation threshold is required';
+        if (!formData.voucherValidityDays) basicInfoErrors.voucherValidityDays = 'Voucher validity days is required';
+      }
       if (Object.keys(basicInfoErrors).length > 0) {
         setErrors(basicInfoErrors);
         return;
       }
     }
-    
     if (step < steps.length - 1) {
       setStep(step + 1);
     }
   };
-
   const prevStep = () => {
     if (step > 0) {
       setStep(step - 1);
@@ -296,6 +374,7 @@ const CampaignCreate = () => {
     </div>
   );
 
+  // 4. In renderStep, only show Step 1 for free_product, both steps for voucher
   const renderStep = () => {
     switch (step) {
       case 0:
@@ -306,6 +385,34 @@ const CampaignCreate = () => {
               <h2 className="text-xl font-semibold text-gray-900">Basic Campaign Information</h2>
             </div>
             <div className="mb-4 text-gray-500 text-sm">Fill in the basic details for your campaign. <span className='text-blue-600'>(Step 1 of 2)</span></div>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Reward Type *</label>
+              <div className="flex space-x-6">
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="rewardType"
+                    value="voucher"
+                    checked={formData.rewardType === 'voucher'}
+                    onChange={handleInputChange}
+                    className="form-radio text-blue-600"
+                  />
+                  <span className="ml-2">Voucher (₹)</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="rewardType"
+                    value="free_product"
+                    checked={formData.rewardType === 'free_product'}
+                    onChange={handleInputChange}
+                    className="form-radio text-green-600"
+                  />
+                  <span className="ml-2">Free Product(s)</span>
+                </label>
+              </div>
+              {errors.rewardType && <p className="mt-1 text-sm text-red-600">{errors.rewardType}</p>}
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -378,60 +485,68 @@ const CampaignCreate = () => {
 
 
 
-              <div>
-                <label htmlFor="voucherValue" className="block text-sm font-medium text-gray-700 mb-2">
-                  Voucher Value (₹) *
-                </label>
-                <input
-                  type="number"
-                  name="voucherValue"
-                  id="voucherValue"
-                  value={formData.voucherValue}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.voucherValue ? 'border-red-500' : 'border-gray-300'}`}
-                  placeholder="e.g., 100"
-                  min="0.01"
-                  step="0.01"
-                  required
-                />
-                {errors.voucherValue && <p className="mt-1 text-sm text-red-600">{errors.voucherValue}</p>}
-              </div>
+              {/* Conditionally render voucher fields if rewardType is voucher */}
+              {formData.rewardType === 'voucher' && (
+                <>
+                  <div>
+                    <label htmlFor="voucherValue" className="block text-sm font-medium text-gray-700 mb-2">
+                      Voucher Value (₹) *
+                    </label>
+                    <input
+                      type="number"
+                      name="voucherValue"
+                      id="voucherValue"
+                      value={formData.voucherValue}
+                      onChange={handleInputChange}
+                      className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.voucherValue ? 'border-red-500' : 'border-gray-300'}`}
+                      placeholder="e.g., 100"
+                      min="0.01"
+                      step="0.01"
+                      required
+                    />
+                    {errors.voucherValue && <p className="mt-1 text-sm text-red-600">{errors.voucherValue}</p>}
+                  </div>
 
-              <div>
-                <label htmlFor="voucherGenerationThreshold" className="block text-sm font-medium text-gray-700 mb-2">
-                  Voucher Generation Threshold (Points) *
-                </label>
-                <input
-                  type="number"
-                  name="voucherGenerationThreshold"
-                  id="voucherGenerationThreshold"
-                  value={formData.voucherGenerationThreshold}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.voucherGenerationThreshold ? 'border-red-500' : 'border-gray-300'}`}
-                  placeholder="e.g., 50"
-                  min="1"
-                  required
-                />
-                {errors.voucherGenerationThreshold && <p className="mt-1 text-sm text-red-600">{errors.voucherGenerationThreshold}</p>}
-              </div>
+                  <div>
+                    <label htmlFor="voucherGenerationThreshold" className="block text-sm font-medium text-gray-700 mb-2">
+                      Voucher Generation Threshold (Points) *
+                    </label>
+                    <input
+                      type="number"
+                      name="voucherGenerationThreshold"
+                      id="voucherGenerationThreshold"
+                      value={formData.voucherGenerationThreshold}
+                      onChange={handleInputChange}
+                      className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.voucherGenerationThreshold ? 'border-red-500' : 'border-gray-300'}`}
+                      placeholder="e.g., 50"
+                      min="1"
+                      required
+                    />
+                    {errors.voucherGenerationThreshold && <p className="mt-1 text-sm text-red-600">{errors.voucherGenerationThreshold}</p>}
+                  </div>
 
-              <div>
-                <label htmlFor="voucherValidityDays" className="block text-sm font-medium text-gray-700 mb-2">
-                  Voucher Validity (Days) *
-                </label>
-                <input
-                  type="number"
-                  name="voucherValidityDays"
-                  id="voucherValidityDays"
-                  value={formData.voucherValidityDays}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.voucherValidityDays ? 'border-red-500' : 'border-gray-300'}`}
-                  placeholder="e.g., 30"
-                  min="1"
-                  required
-                />
-                {errors.voucherValidityDays && <p className="mt-1 text-sm text-red-600">{errors.voucherValidityDays}</p>}
-              </div>
+                  <div>
+                    <label htmlFor="voucherValidityDays" className="block text-sm font-medium text-gray-700 mb-2">
+                      Voucher Validity (Days) *
+                    </label>
+                    <input
+                      type="number"
+                      name="voucherValidityDays"
+                      id="voucherValidityDays"
+                      value={formData.voucherValidityDays}
+                      onChange={handleInputChange}
+                      className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.voucherValidityDays ? 'border-red-500' : 'border-gray-300'}`}
+                      placeholder="e.g., 30"
+                      min="1"
+                      required
+                    />
+                    {errors.voucherValidityDays && <p className="mt-1 text-sm text-red-600">{errors.voucherValidityDays}</p>}
+                  </div>
+                </>
+              )}
+
+              {/* Conditionally render free product selection if rewardType is free_product */}
+              {/* Free product configuration is handled per eligible product in Step 2 */}
 
               <div className="md:col-span-2">
                 <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
@@ -546,6 +661,13 @@ const CampaignCreate = () => {
                           <th className="px-3 py-2 text-left font-medium text-gray-700">SKU</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Base Price (₹)</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Points Per Purchase</th>
+                          {formData.rewardType === 'free_product' && (
+                            <>
+                              <th className="px-3 py-2 text-left font-medium text-gray-700">Min Purchase Qty</th>
+                              <th className="px-3 py-2 text-left font-medium text-gray-700">Free Product</th>
+                              <th className="px-3 py-2 text-left font-medium text-gray-700">Free Product Qty</th>
+                            </>
+                          )}
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Action</th>
                         </tr>
                       </thead>
@@ -569,6 +691,42 @@ const CampaignCreate = () => {
                                   required
                                 />
                               </td>
+                              {formData.rewardType === 'free_product' && (
+                                <>
+                                  <td className="px-3 py-2">
+                                    <input
+                                      type="number"
+                                      value={selectedProduct.minPurchaseQuantity || ''}
+                                      onChange={e => handleEligibleProductChange(selectedProduct.productId, 'minPurchaseQuantity', e.target.value)}
+                                      className="w-20 px-2 py-1 border rounded text-sm"
+                                      placeholder="Min Qty"
+                                      min="1"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <select
+                                      value={selectedProduct.freeProductId || ''}
+                                      onChange={e => handleEligibleProductChange(selectedProduct.productId, 'freeProductId', e.target.value)}
+                                      className="w-32 px-2 py-1 border rounded text-sm"
+                                    >
+                                      <option value="">Select Free Product</option>
+                                      {manufacturerProducts.map(fp => (
+                                        <option key={fp.id} value={fp.id}>{fp.name}</option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <input
+                                      type="number"
+                                      value={selectedProduct.freeProductQty || ''}
+                                      onChange={e => handleEligibleProductChange(selectedProduct.productId, 'freeProductQty', e.target.value)}
+                                      className="w-20 px-2 py-1 border rounded text-sm"
+                                      placeholder="Free Qty"
+                                      min="1"
+                                    />
+                                  </td>
+                                </>
+                              )}
                               <td className="px-3 py-2">
                                 <button
                                   onClick={() => handleEligibleProductSelect(product, false)}
@@ -587,7 +745,8 @@ const CampaignCreate = () => {
               </div>
             )}
 
-            {/* Section 3: Voucher Redemption Products */}
+            {/* Section 3: Voucher Redemption Products (only for voucher campaigns) */}
+            {formData.rewardType === 'voucher' && (
             <div className="mb-8">
               <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
                 <Target className="h-4 w-4 mr-2 text-purple-600" />
@@ -650,9 +809,10 @@ const CampaignCreate = () => {
                 )}
               </div>
             </div>
+            )}
 
-            {/* Section 4: Selected Voucher Redemption Products */}
-            {selectedVoucherProducts.length > 0 && (
+            {/* Section 4: Selected Voucher Redemption Products (only for voucher campaigns) */}
+            {formData.rewardType === 'voucher' && selectedVoucherProducts.length > 0 && (
               <div className="mb-6">
                 <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
                   <Target className="h-4 w-4 mr-2 text-purple-600" />
@@ -742,6 +902,7 @@ const CampaignCreate = () => {
     }
   };
 
+  // 3. In renderNavButtons, show 'Create Campaign' on step 0 if rewardType is free_product
   const renderNavButtons = () => (
     <div className="flex justify-between mt-8">
       <button
@@ -766,8 +927,7 @@ const CampaignCreate = () => {
         >
           Cancel
         </button>
-        
-        {step === steps.length - 1 ? (
+        {(step === steps.length - 1) ? (
           <button
             type="button"
             onClick={handleSubmit}

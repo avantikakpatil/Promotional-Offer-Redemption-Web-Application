@@ -26,6 +26,7 @@ namespace backend.Data
         public DbSet<RewardTier> RewardTiers { get; set; }
         public DbSet<CampaignPoints> CampaignPoints { get; set; }
         public DbSet<TempOrderPoints> TempOrderPoints { get; set; }
+        public DbSet<CampaignFreeProductReward> CampaignFreeProductRewards { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

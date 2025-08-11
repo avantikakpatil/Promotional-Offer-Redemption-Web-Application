@@ -24,6 +24,14 @@ namespace backend.Models.DTOs
 
         public bool IsActive { get; set; } = true;
 
+        // Reward type: "voucher" or "free_product"
+        [Required]
+        [StringLength(20)]
+        public string RewardType { get; set; } = "voucher";
+
+        // Free product rewards (if RewardType == "free_product")
+        public List<CampaignFreeProductRewardDto>? FreeProductRewards { get; set; }
+
         // Eligible products for points earning
         [MinLength(1, ErrorMessage = "At least one eligible product is required")]
         public List<CampaignEligibleProductDto>? EligibleProducts { get; set; }
@@ -54,6 +62,8 @@ namespace backend.Models.DTOs
         public DateTime? UpdatedAt { get; set; }
         public List<CampaignEligibleProductDto>? EligibleProducts { get; set; }
         public List<CampaignVoucherProductDto>? VoucherProducts { get; set; }
+        public string RewardType { get; set; } = "voucher";
+        public List<CampaignFreeProductRewardDto>? FreeProductRewards { get; set; }
     }
 
     public class CampaignEligibleProductDto
@@ -62,12 +72,22 @@ namespace backend.Models.DTOs
         public int PointCost { get; set; }
         public int? RedemptionLimit { get; set; }
         public bool IsActive { get; set; } = true;
+        public int? MinPurchaseQuantity { get; set; }
+        public int? FreeProductId { get; set; }
+        public int? FreeProductQty { get; set; }
     }
 
     public class CampaignVoucherProductDto
     {
         public int ProductId { get; set; }
         public decimal VoucherValue { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    public class CampaignFreeProductRewardDto
+    {
+        public int ProductId { get; set; }
+        public int Quantity { get; set; }
         public bool IsActive { get; set; } = true;
     }
 
