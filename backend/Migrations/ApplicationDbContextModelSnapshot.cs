@@ -376,6 +376,45 @@ namespace backend.Migrations
                     b.ToTable("CampaignVoucherProducts");
                 });
 
+            modelBuilder.Entity("backend.Models.FreeProductVoucher", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("EligibleProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FreeProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FreeProductQty")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int>("ResellerId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignId");
+
+                    b.HasIndex("ResellerId");
+
+                    b.ToTable("FreeProductVouchers");
+                });
+
             modelBuilder.Entity("backend.Models.Product", b =>
                 {
                     b.Property<int>("Id")
@@ -597,6 +636,38 @@ namespace backend.Migrations
                     b.HasIndex("ResellerId");
 
                     b.ToTable("TempOrderPoints");
+                });
+
+            modelBuilder.Entity("backend.Models.TempOrderPointsItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("EligibleProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TempOrderPointsId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TempOrderPointsId1")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TempOrderPointsId");
+
+                    b.HasIndex("TempOrderPointsId1");
+
+                    b.ToTable("TempOrderPointsItems");
                 });
 
             modelBuilder.Entity("backend.Models.User", b =>
@@ -899,6 +970,25 @@ namespace backend.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("backend.Models.FreeProductVoucher", b =>
+                {
+                    b.HasOne("backend.Models.Campaign", "Campaign")
+                        .WithMany()
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.User", "Reseller")
+                        .WithMany()
+                        .HasForeignKey("ResellerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("Reseller");
+                });
+
             modelBuilder.Entity("backend.Models.Product", b =>
                 {
                     b.HasOne("backend.Models.User", "Manufacturer")
@@ -978,6 +1068,21 @@ namespace backend.Migrations
                     b.Navigation("Reseller");
                 });
 
+            modelBuilder.Entity("backend.Models.TempOrderPointsItem", b =>
+                {
+                    b.HasOne("backend.Models.TempOrderPoints", "TempOrderPoints")
+                        .WithMany()
+                        .HasForeignKey("TempOrderPointsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.TempOrderPoints", null)
+                        .WithMany("Items")
+                        .HasForeignKey("TempOrderPointsId1");
+
+                    b.Navigation("TempOrderPoints");
+                });
+
             modelBuilder.Entity("backend.Models.User", b =>
                 {
                     b.HasOne("backend.Models.User", "AssignedManufacturer")
@@ -1043,6 +1148,11 @@ namespace backend.Migrations
                     b.Navigation("RewardTiers");
 
                     b.Navigation("VoucherProducts");
+                });
+
+            modelBuilder.Entity("backend.Models.TempOrderPoints", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("backend.Models.User", b =>

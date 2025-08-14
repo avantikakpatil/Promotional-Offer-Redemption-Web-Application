@@ -316,5 +316,86 @@ namespace backend.Controllers
 
             return rewards[random.Next(rewards.Length)];
         }
+
+        // POST: api/dummy/create-free-product-vouchers
+        [HttpPost("create-free-product-vouchers")]
+        public async Task<IActionResult> CreateFreeProductVouchers()
+        {
+            try
+            {
+                // Check if free product vouchers already exist
+                var existingCount = await _context.FreeProductVouchers.CountAsync();
+                if (existingCount > 0)
+                {
+                    return Ok(new { message = $"Free product vouchers already exist ({existingCount} records)" });
+                }
+
+                // Get some campaigns and resellers
+                var campaigns = await _context.Campaigns.Take(3).ToListAsync();
+                var resellers = await _context.Users.Where(u => u.Role == "reseller").Take(2).ToListAsync();
+
+                if (!campaigns.Any() || !resellers.Any())
+                {
+                    return BadRequest(new { message = "No campaigns or resellers found. Please create them first." });
+                }
+
+                var freeProductVouchers = new List<FreeProductVoucher>();
+                var random = new Random();
+
+                foreach (var reseller in resellers)
+                {
+                    // Create 2-4 free product vouchers for each reseller
+                    var voucherCount = random.Next(2, 5);
+                    
+                    for (int i = 0; i < voucherCount; i++)
+                    {
+                        var campaign = campaigns[random.Next(campaigns.Count)];
+                        var freeProductId = random.Next(1, 13); // Product IDs 1-12
+                        var eligibleProductId = random.Next(1, 13); // Product IDs 1-12
+                        var quantity = random.Next(1, 4); // 1-3 products
+
+                        var messages = new[]
+                        {
+                            "Congratulations! You've earned a free product voucher.",
+                            "Special reward for your loyalty!",
+                            "Enjoy your free product on us!",
+                            "Thank you for being a valued customer!",
+                            "Here's a little something extra for you!"
+                        };
+
+                        freeProductVouchers.Add(new FreeProductVoucher
+                        {
+                            ResellerId = reseller.Id,
+                            CampaignId = campaign.Id,
+                            FreeProductId = freeProductId,
+                            EligibleProductId = eligibleProductId,
+                            FreeProductQty = quantity,
+                            Message = messages[random.Next(messages.Length)],
+                            CreatedAt = DateTime.UtcNow.AddDays(-random.Next(1, 30)) // Random date within last 30 days
+                        });
+                    }
+                }
+
+                // Add to database
+                await _context.FreeProductVouchers.AddRangeAsync(freeProductVouchers);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { 
+                    success = true,
+                    message = $"Successfully created {freeProductVouchers.Count} free product vouchers",
+                    count = freeProductVouchers.Count,
+                    resellersCount = resellers.Count,
+                    campaignsCount = campaigns.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { 
+                    success = false,
+                    message = "Error creating free product vouchers",
+                    error = ex.Message 
+                });
+            }
+        }
     }
 } 

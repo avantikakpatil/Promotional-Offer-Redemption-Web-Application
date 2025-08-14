@@ -15,17 +15,25 @@ const Campaigns = () => {
   const [productMap, setProductMap] = useState({});
 
 
-  // Fetch all campaign products and build a map of id -> name
+  // Fetch all campaign products and build a map of id -> name, sku, brand
   const fetchAllProducts = async () => {
     try {
       const response = await api.get('/campaign-products');
       if (Array.isArray(response.data)) {
         const map = {};
-        response.data.forEach(p => { map[p.id] = p.name; });
+        response.data.forEach(p => {
+          map[p.id] = p.name;
+          map[p.id + '_sku'] = p.sku;
+          map[p.id + '_brand'] = p.brand;
+        });
         setProductMap(map);
       } else if (Array.isArray(response.data.products)) {
         const map = {};
-        response.data.products.forEach(p => { map[p.id] = p.name; });
+        response.data.products.forEach(p => {
+          map[p.id] = p.name;
+          map[p.id + '_sku'] = p.sku;
+          map[p.id + '_brand'] = p.brand;
+        });
         setProductMap(map);
       }
     } catch (err) {
@@ -389,8 +397,52 @@ const Campaigns = () => {
                       {Array.isArray(campaign.eligibleProducts) && campaign.eligibleProducts.length > 0 && (
                         <div className="p-2 bg-green-50 rounded">
                           <div className="text-xs font-medium text-green-700 mb-1">Eligible Products:</div>
-                          <div className="text-xs text-green-600">
-                            {campaign.eligibleProducts.length} product(s) for points earning
+                          <div className="space-y-1">
+                            {campaign.eligibleProducts.map((product, idx) => (
+                              <div key={product.id || idx} className="p-2 bg-white rounded border mb-1">
+                                <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                                  <span className="font-medium text-green-700">
+                                    Product: {productMap[product.campaignProductId] ? `${productMap[product.campaignProductId]} (ID: ${product.campaignProductId})` : `ID: ${product.campaignProductId}`}
+                                    {productMap[product.campaignProductId + '_sku'] && (
+                                      <span className="ml-2 text-xs text-gray-500">SKU: {productMap[product.campaignProductId + '_sku']}</span>
+                                    )}
+                                    {productMap[product.campaignProductId + '_brand'] && (
+                                      <span className="ml-2 text-xs text-gray-500">Brand: {productMap[product.campaignProductId + '_brand']}</span>
+                                    )}
+                                  </span>
+                                  <span className={`px-2 py-1 text-xs rounded-full ${
+                                    product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {product.isActive ? 'Active' : 'Inactive'}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-green-600 mt-1">
+                                  Points: {product.pointCost} | Limit: {product.redemptionLimit || 'No limit'}
+                                </div>
+                                {(product.minPurchaseQuantity !== undefined && product.minPurchaseQuantity !== null) ||
+                                  (product.freeProductId !== undefined && product.freeProductId !== null) ||
+                                  (product.freeProductQty !== undefined && product.freeProductQty !== null) ? (
+                                  <div className="text-xs text-green-700 mt-1 pl-2 border-l-2 border-green-200">
+                                    {product.minPurchaseQuantity !== undefined && product.minPurchaseQuantity !== null && (
+                                      <span>Min Purchase Qty: <b>{product.minPurchaseQuantity}</b> </span>
+                                    )}
+                                    {product.freeProductId !== undefined && product.freeProductId !== null && (
+                                      <span> | Free Product: <b>{productMap[product.freeProductId] ? `${productMap[product.freeProductId]} (ID: ${product.freeProductId})` : `ID: ${product.freeProductId}`}</b>
+                                        {productMap[product.freeProductId + '_sku'] && (
+                                          <span className="ml-2 text-xs text-gray-500">SKU: {productMap[product.freeProductId + '_sku']}</span>
+                                        )}
+                                        {productMap[product.freeProductId + '_brand'] && (
+                                          <span className="ml-2 text-xs text-gray-500">Brand: {productMap[product.freeProductId + '_brand']}</span>
+                                        )}
+                                      </span>
+                                    )}
+                                    {product.freeProductQty !== undefined && product.freeProductQty !== null && (
+                                      <span> | Free Qty: <b>{product.freeProductQty}</b></span>
+                                    )}
+                                  </div>
+                                ) : null}
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
@@ -659,13 +711,34 @@ const Campaigns = () => {
                                 <div className="text-sm text-green-600 mt-1">
                                   Points: {product.pointCost} | Limit: {product.redemptionLimit || 'No limit'}
                                 </div>
+                                {(product.minPurchaseQuantity || product.freeProductId || product.freeProductQty) && (
+                                  <div className="text-xs text-green-700 mt-1 pl-2 border-l-2 border-green-200">
+                                    {product.minPurchaseQuantity !== undefined && product.minPurchaseQuantity !== null && (
+                                      <span>Min Purchase Qty: <b>{product.minPurchaseQuantity}</b> </span>
+                                    )}
+                                    {product.freeProductId !== undefined && product.freeProductId !== null && (
+                                      <span> | Free Product: <b>{productMap[product.freeProductId] ? `${productMap[product.freeProductId]} (ID: ${product.freeProductId})` : `ID: ${product.freeProductId}`}</b>
+                                        {productMap[product.freeProductId + '_sku'] && (
+                                          <span className="ml-2 text-xs text-gray-500">SKU: {productMap[product.freeProductId + '_sku']}</span>
+                                        )}
+                                        {productMap[product.freeProductId + '_brand'] && (
+                                          <span className="ml-2 text-xs text-gray-500">Brand: {productMap[product.freeProductId + '_brand']}</span>
+                                        )}
+                                      </span>
+                                    )}
+                                    {product.freeProductQty !== undefined && product.freeProductQty !== null && (
+                                      <span> | Free Qty: <b>{product.freeProductQty}</b></span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {Array.isArray(selectedCampaign.voucherProducts) && selectedCampaign.voucherProducts.length > 0 && (
+                      {/* Show voucher products if rewardType is voucher, else show free products if rewardType is free_product */}
+                      {selectedCampaign.rewardType === 'voucher' && Array.isArray(selectedCampaign.voucherProducts) && selectedCampaign.voucherProducts.length > 0 && (
                         <div className="bg-indigo-50 p-4 rounded-lg">
                           <h4 className="text-lg font-semibold text-indigo-800 mb-3">Voucher Products</h4>
                           <div className="space-y-2">
@@ -683,6 +756,36 @@ const Campaigns = () => {
                                 </div>
                                 <div className="text-sm text-indigo-600 mt-1">
                                   Voucher Value: ₹{product.voucherValue}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {selectedCampaign.rewardType === 'free_product' && Array.isArray(selectedCampaign.eligibleProducts) && selectedCampaign.eligibleProducts.some(p => p.freeProductId) && (
+                        <div className="bg-yellow-50 p-4 rounded-lg">
+                          <h4 className="text-lg font-semibold text-yellow-800 mb-3">Free Product Rewards</h4>
+                          <div className="space-y-2">
+                            {selectedCampaign.eligibleProducts.filter(p => p.freeProductId).map((product, idx) => (
+                              <div key={product.id || idx} className="p-3 bg-white rounded border">
+                                <div className="flex justify-between items-center">
+                                  <span className="font-medium text-yellow-700">
+                                    Free Product: {productMap[product.freeProductId] ? `${productMap[product.freeProductId]} (ID: ${product.freeProductId})` : `ID: ${product.freeProductId}`}
+                                    {productMap[product.freeProductId + '_sku'] && (
+                                      <span className="ml-2 text-xs text-gray-500">SKU: {productMap[product.freeProductId + '_sku']}</span>
+                                    )}
+                                    {productMap[product.freeProductId + '_brand'] && (
+                                      <span className="ml-2 text-xs text-gray-500">Brand: {productMap[product.freeProductId + '_brand']}</span>
+                                    )}
+                                  </span>
+                                  <span className={`px-2 py-1 text-xs rounded-full ${
+                                    product.isActive ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {product.isActive ? 'Active' : 'Inactive'}
+                                  </span>
+                                </div>
+                                <div className="text-sm text-yellow-700 mt-1">
+                                  Min Purchase Qty: {product.minPurchaseQuantity || '-'} | Free Qty: {product.freeProductQty || '-'}
                                 </div>
                               </div>
                             ))}

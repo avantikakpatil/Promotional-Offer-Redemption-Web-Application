@@ -26,11 +26,26 @@ namespace backend.Data
         public DbSet<RewardTier> RewardTiers { get; set; }
         public DbSet<CampaignPoints> CampaignPoints { get; set; }
         public DbSet<TempOrderPoints> TempOrderPoints { get; set; }
-        public DbSet<CampaignFreeProductReward> CampaignFreeProductRewards { get; set; }
+        public DbSet<TempOrderPointsItem> TempOrderPointsItems { get; set; }
+    public DbSet<CampaignFreeProductReward> CampaignFreeProductRewards { get; set; }
+    public DbSet<FreeProductVoucher> FreeProductVouchers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+            // FreeProductVoucher configuration
+            builder.Entity<FreeProductVoucher>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.FreeProductQty).IsRequired();
+                entity.Property(e => e.FreeProductId).IsRequired();
+                // EligibleProductId is optional (nullable)
+                entity.Property(e => e.EligibleProductId).IsRequired(false);
+                entity.Property(e => e.ResellerId).IsRequired();
+                entity.Property(e => e.CampaignId).IsRequired();
+                entity.Property(e => e.Message).HasMaxLength(500);
+                entity.Property(e => e.CreatedAt).IsRequired();
+            });
 
             // Configure User entity
             builder.Entity<User>(entity =>
@@ -366,7 +381,24 @@ namespace backend.Data
                       .WithMany()
                       .HasForeignKey(e => e.CampaignId)
                       .OnDelete(DeleteBehavior.Restrict);
-            });
+                
+                    // Add relationship to TempOrderPointsItem
+                    entity.HasMany<TempOrderPointsItem>()
+                          .WithOne(i => i.TempOrderPoints)
+                          .HasForeignKey(i => i.TempOrderPointsId)
+                          .OnDelete(DeleteBehavior.Cascade);
+                });
+
+                // TempOrderPointsItem configuration
+                builder.Entity<TempOrderPointsItem>(entity =>
+                {
+                    entity.HasKey(e => e.Id);
+                    entity.Property(e => e.Quantity).IsRequired();
+                    entity.Property(e => e.ProductId).IsRequired();
+                    entity.Property(e => e.EligibleProductId).IsRequired();
+                    entity.Property(e => e.TempOrderPointsId).IsRequired();
+                });
+            // ...existing code...
             // Configure indexes for better performance
             builder.Entity<Campaign>()
                 .HasIndex(e => e.ManufacturerId)

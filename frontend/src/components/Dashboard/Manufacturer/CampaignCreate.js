@@ -268,9 +268,9 @@ const CampaignCreate = () => {
           pointCost: ep.pointCost ? parseInt(ep.pointCost) : 0,
           redemptionLimit: ep.redemptionLimit ? parseInt(ep.redemptionLimit) : null,
           isActive: ep.isActive,
-          minPurchaseQuantity: ep.minPurchaseQuantity ? parseInt(ep.minPurchaseQuantity) : undefined,
-          freeProductId: ep.freeProductId ? parseInt(ep.freeProductId) : undefined,
-          freeProductQty: ep.freeProductId ? parseInt(ep.freeProductQty) : undefined,
+          minPurchaseQuantity: ep.minPurchaseQuantity ? parseInt(ep.minPurchaseQuantity) : null,
+          freeProductId: ep.freeProductId ? parseInt(ep.freeProductId) : null,
+          freeProductQty: ep.freeProductId ? parseInt(ep.freeProductQty) : null,
         })) : undefined,
         voucherProducts: formData.rewardType === 'voucher' && filteredVoucherProducts.length > 0 ? filteredVoucherProducts.map(vp => ({
           productId: vp.productId, // from products table

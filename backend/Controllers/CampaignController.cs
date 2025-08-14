@@ -51,7 +51,10 @@ namespace backend.Controllers
                             campaignProductId = ep.CampaignProductId,
                             pointCost = ep.PointCost,
                             redemptionLimit = ep.RedemptionLimit,
-                            isActive = ep.IsActive
+                            isActive = ep.IsActive,
+                            minPurchaseQuantity = ep.MinPurchaseQuantity,
+                            freeProductId = ep.FreeProductId,
+                            freeProductQty = ep.FreeProductQty
                         }).ToList(),
                         voucherProducts = c.VoucherProducts.Select(vp => new
                         {

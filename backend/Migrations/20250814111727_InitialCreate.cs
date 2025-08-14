@@ -270,6 +270,39 @@ namespace backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "FreeProductVouchers",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ResellerId = table.Column<int>(type: "int", nullable: false),
+                    CampaignId = table.Column<int>(type: "int", nullable: false),
+                    FreeProductId = table.Column<int>(type: "int", nullable: false),
+                    EligibleProductId = table.Column<int>(type: "int", nullable: true),
+                    FreeProductQty = table.Column<int>(type: "int", nullable: false),
+                    Message = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FreeProductVouchers", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_FreeProductVouchers_Campaigns_CampaignId",
+                        column: x => x.CampaignId,
+                        principalTable: "Campaigns",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_FreeProductVouchers_Users_ResellerId",
+                        column: x => x.ResellerId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "RewardTiers",
                 columns: table => new
                 {
@@ -483,6 +516,35 @@ namespace backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "TempOrderPointsItems",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    TempOrderPointsId = table.Column<int>(type: "int", nullable: false),
+                    ProductId = table.Column<int>(type: "int", nullable: false),
+                    EligibleProductId = table.Column<int>(type: "int", nullable: false),
+                    Quantity = table.Column<int>(type: "int", nullable: false),
+                    TempOrderPointsId1 = table.Column<int>(type: "int", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TempOrderPointsItems", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TempOrderPointsItems_TempOrderPoints_TempOrderPointsId",
+                        column: x => x.TempOrderPointsId,
+                        principalTable: "TempOrderPoints",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_TempOrderPointsItems_TempOrderPoints_TempOrderPointsId1",
+                        column: x => x.TempOrderPointsId1,
+                        principalTable: "TempOrderPoints",
+                        principalColumn: "Id");
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "RedemptionHistories",
                 columns: table => new
                 {
@@ -621,6 +683,16 @@ namespace backend.Migrations
                 column: "ProductId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_FreeProductVouchers_CampaignId",
+                table: "FreeProductVouchers",
+                column: "CampaignId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FreeProductVouchers_ResellerId",
+                table: "FreeProductVouchers",
+                column: "ResellerId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Products_Category",
                 table: "Products",
                 column: "Category");
@@ -669,6 +741,16 @@ namespace backend.Migrations
                 name: "IX_TempOrderPoints_ResellerId",
                 table: "TempOrderPoints",
                 column: "ResellerId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TempOrderPointsItems_TempOrderPointsId",
+                table: "TempOrderPointsItems",
+                column: "TempOrderPointsId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TempOrderPointsItems_TempOrderPointsId1",
+                table: "TempOrderPointsItems",
+                column: "TempOrderPointsId1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserPoints_UserId",
@@ -733,13 +815,16 @@ namespace backend.Migrations
                 name: "CampaignVoucherProducts");
 
             migrationBuilder.DropTable(
+                name: "FreeProductVouchers");
+
+            migrationBuilder.DropTable(
                 name: "RedemptionHistories");
 
             migrationBuilder.DropTable(
                 name: "RewardTiers");
 
             migrationBuilder.DropTable(
-                name: "TempOrderPoints");
+                name: "TempOrderPointsItems");
 
             migrationBuilder.DropTable(
                 name: "UserPoints");
@@ -752,6 +837,9 @@ namespace backend.Migrations
 
             migrationBuilder.DropTable(
                 name: "Vouchers");
+
+            migrationBuilder.DropTable(
+                name: "TempOrderPoints");
 
             migrationBuilder.DropTable(
                 name: "Campaigns");

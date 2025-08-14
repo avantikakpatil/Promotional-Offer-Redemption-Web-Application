@@ -48,5 +48,6 @@ namespace backend.Models
 
         [ForeignKey("CampaignId")]
         public virtual Campaign? Campaign { get; set; }
+        public virtual ICollection<TempOrderPointsItem>? Items { get; set; }
     }
 }

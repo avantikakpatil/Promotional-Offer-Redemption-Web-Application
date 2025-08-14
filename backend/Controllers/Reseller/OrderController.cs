@@ -22,6 +22,58 @@ namespace backend.Controllers.Reseller
             _campaignPointsService = campaignPointsService;
         }
 
+        // POST: api/reseller/order/campaign/{campaignId}/purge-free-product-vouchers?resellerId=3
+        [HttpPost("campaign/{campaignId}/purge-free-product-vouchers")]
+        public async Task<IActionResult> PurgeFreeProductVouchers(int campaignId, [FromQuery] int? resellerId)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (currentUserId == null && resellerId == null)
+                return Unauthorized();
+
+            var targetResellerId = resellerId ?? currentUserId!.Value;
+
+            var toDelete = await _context.FreeProductVouchers
+                .Where(v => v.CampaignId == campaignId && v.ResellerId == targetResellerId)
+                .ToListAsync();
+
+            if (toDelete.Count == 0)
+                return Ok(new { success = true, deleted = 0, message = "No free product vouchers to delete" });
+
+            _context.FreeProductVouchers.RemoveRange(toDelete);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { success = true, deleted = toDelete.Count, campaignId, resellerId = targetResellerId });
+        }
+
+            // GET: api/reseller/free-product-vouchers?resellerId=123
+            [HttpGet("/api/reseller/free-product-vouchers")]
+            public async Task<IActionResult> GetFreeProductVouchers([FromQuery] int resellerId)
+            {
+                            var vouchers = await _context.FreeProductVouchers
+                .Where(v => v.ResellerId == resellerId)
+                .OrderByDescending(v => v.CreatedAt)
+                .Select(v => new
+                {
+                    v.Id,
+                    v.CampaignId,
+                    v.FreeProductId,
+                    v.EligibleProductId,
+                    v.FreeProductQty,
+                    v.Message,
+                    v.CreatedAt,
+                    Campaign = new { v.Campaign.Name },
+                    FreeProduct = _context.Products
+                        .Where(p => p.Id == v.FreeProductId)
+                        .Select(p => new { p.Name, p.SKU })
+                        .FirstOrDefault(),
+                    EligibleProduct = _context.Products
+                        .Where(p => p.Id == v.EligibleProductId)
+                        .Select(p => new { p.Name, p.SKU })
+                        .FirstOrDefault()
+                })
+                .ToListAsync();
+                return Ok(new { success = true, freeProductVouchers = vouchers });
+            }
         // GET: api/reseller/order
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetOrders()
@@ -100,12 +152,15 @@ namespace backend.Controllers.Reseller
                 .Include(c => c.Manufacturer)
                 .Include(c => c.EligibleProducts)
                 .Include(c => c.VoucherProducts)
+                .Include(c => c.FreeProductRewards)
+                    .ThenInclude(fpr => fpr.Product)
                 .Where(c => c.IsActive)
                 .Select(c => new
                 {
                     id = c.Id,
                     name = c.Name,
                     productType = c.ProductType,
+                    rewardType = c.RewardType,
                     startDate = c.StartDate,
                     endDate = c.EndDate,
                     description = c.Description,
@@ -130,6 +185,19 @@ namespace backend.Controllers.Reseller
                         productId = vp.ProductId,
                         voucherValue = vp.VoucherValue,
                         isActive = vp.IsActive
+                    }).ToList(),
+                    freeProductRewards = c.FreeProductRewards.Select(fpr => new
+                    {
+                        id = fpr.Id,
+                        productId = fpr.ProductId,
+                        quantity = fpr.Quantity,
+                        isActive = fpr.IsActive,
+                        product = new
+                        {
+                            id = fpr.Product.Id,
+                            name = fpr.Product.Name,
+                            sku = fpr.Product.SKU
+                        }
                     }).ToList(),
                     manufacturer = new
                     {
@@ -170,6 +238,7 @@ namespace backend.Controllers.Reseller
                 c.id,
                 c.name,
                 c.productType,
+                c.rewardType,
                 c.startDate,
                 c.endDate,
                 c.description,
@@ -180,6 +249,7 @@ namespace backend.Controllers.Reseller
                 c.voucherValidityDays,
                 c.eligibleProducts,
                 c.voucherProducts,
+                c.freeProductRewards,
                 c.manufacturer,
                 c.assignment,
                 rewardTiers = rewardTiers.Where(rt => rt.campaignId == c.id).ToList()
@@ -320,6 +390,30 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
         _context.TempOrderPoints.Add(order);
         await _context.SaveChangesAsync();
 
+            // Save order items
+            if (request.Items != null && request.Items.Count > 0)
+            {
+                foreach (var item in request.Items)
+                {
+                    var eligibleProduct = await _context.CampaignEligibleProducts
+                        .Include(ep => ep.CampaignProduct)
+                        .FirstOrDefaultAsync(ep => ep.Id == item.EligibleProductId && ep.CampaignId == item.CampaignId);
+                    if (eligibleProduct == null || eligibleProduct.CampaignProduct == null)
+                    {
+                        continue; // Already validated above, skip here
+                    }
+                    var orderItem = new TempOrderPointsItem
+                    {
+                        TempOrderPointsId = order.Id,
+                        ProductId = eligibleProduct.CampaignProductId,
+                        EligibleProductId = eligibleProduct.Id,
+                        Quantity = item.Quantity
+                    };
+                    _context.TempOrderPointsItems.Add(orderItem);
+                }
+                await _context.SaveChangesAsync();
+            }
+
         await _campaignPointsService.UpdateCampaignPoints(order.CampaignId, resellerId.Value);
 
         return Ok(new
@@ -362,11 +456,8 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
 
             try
             {
-                // Check if reseller is assigned to this campaign
-                var assignment = await _context.CampaignResellers
-                    .FirstOrDefaultAsync(cr => cr.CampaignId == campaignId && cr.ResellerId == resellerId);
-                if (assignment == null || !assignment.IsApproved)
-                    return BadRequest(new { message = "You are not assigned to this campaign or not approved" });
+                // Relaxed policy: allow all resellers to view voucher info for any active campaign
+                // (no assignment/approval check)
 
                 var eligibleProducts = await _context.CampaignEligibleProducts
                     .Include(cep => cep.CampaignProduct)
@@ -530,107 +621,218 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
             try
             {
                 // Check if campaign exists and is active
-                var campaign = await _context.Campaigns.FindAsync(campaignId);
+                var campaign = await _context.Campaigns
+                    .Include(c => c.EligibleProducts)
+                    .Include(c => c.FreeProductRewards)
+                        .ThenInclude(fpr => fpr.Product)
+                    .FirstOrDefaultAsync(c => c.Id == campaignId);
                 if (campaign == null || !campaign.IsActive)
                     return BadRequest(new { message = "Campaign not found or inactive" });
 
-                // Check if reseller is assigned to this campaign
-                var assignment = await _context.CampaignResellers
-                    .FirstOrDefaultAsync(cr => cr.CampaignId == campaignId && cr.ResellerId == resellerId);
-                if (assignment == null || !assignment.IsApproved)
-                    return BadRequest(new { message = "You are not assigned to this campaign or not approved" });
+                // Relaxed policy: allow voucher generation for all resellers on any active campaign
+                // (no assignment/approval check)
 
-                // Check if campaign has voucher settings configured
-                if (!campaign.VoucherGenerationThreshold.HasValue || !campaign.VoucherValue.HasValue)
-                    return BadRequest(new { message = "Voucher generation is not configured for this campaign" });
-
-                // Get current campaign points
-                var campaignPoints = await _campaignPointsService.GetCampaignPoints(campaignId, resellerId.Value);
-                if (campaignPoints == null)
-                    return NotFound(new { message = "Campaign points not found" });
-
-                // Check if enough points are available
-                if (campaignPoints.AvailablePoints < campaign.VoucherGenerationThreshold.Value)
+                // Handle voucher campaigns
+                if (campaign.RewardType == "voucher")
                 {
-                    return BadRequest(new
+                    // Force-enable voucher generation for all campaigns
+                    var threshold = campaign.VoucherGenerationThreshold ?? 50; // Default 50 points
+                    var value = campaign.VoucherValue ?? 100; // Default ₹100
+                    var validityDays = campaign.VoucherValidityDays ?? 90;
+
+                    // Get current campaign points
+                    var campaignPoints = await _campaignPointsService.GetCampaignPoints(campaignId, resellerId.Value);
+                    if (campaignPoints == null)
+                        return NotFound(new { message = "Campaign points not found" });
+
+                    // Check if enough points are available
+                    if (campaignPoints.AvailablePoints < threshold)
                     {
-                        message = "Insufficient points to generate voucher",
-                        required = campaign.VoucherGenerationThreshold.Value,
-                        available = campaignPoints.AvailablePoints,
-                    });
-                }
-
-                // Calculate how many vouchers can be generated
-                int vouchersToGenerate = campaignPoints.AvailablePoints / campaign.VoucherGenerationThreshold.Value;
-                int pointsToUse = vouchersToGenerate * campaign.VoucherGenerationThreshold.Value;
-
-                // Generate vouchers
-                var generatedVouchers = new List<object>();
-                for (int i = 0; i < vouchersToGenerate; i++)
-                {
-                    var voucherCode = GenerateVoucherCode();
-                    // Generate 8-character uppercase hex string
-                    var random = new Random();
-                    var hex = random.Next(0x10000000, 0x7FFFFFFF).ToString("X8");
-                    var qrCode = $"QR-{voucherCode}-{hex}";
-                    var voucher = new Voucher
-                    {
-                        VoucherCode = voucherCode,
-                        QrCode = qrCode, // Set QRCode field to the required format
-                        Value = campaign.VoucherValue.Value,
-                        CampaignId = campaignId,
-                        ResellerId = resellerId.Value,
-                        ExpiryDate = DateTime.UtcNow.AddDays(campaign.VoucherValidityDays ?? 90),
-                        CreatedAt = DateTime.UtcNow,
-                        PointsRequired = campaign.VoucherGenerationThreshold ?? 0
-                    };
-
-                    _context.Vouchers.Add(voucher);
-                    generatedVouchers.Add(new
-                    {
-                        voucherCode = voucher.VoucherCode,
-                        qrCode = voucher.QrCode,
-                        value = voucher.Value,
-                        expiryDate = voucher.ExpiryDate,
-                        pointsRequired = voucher.PointsRequired
-                    });
-                }
-
-                // Update CampaignPoints
-                campaignPoints.PointsUsedForVouchers += pointsToUse;
-                campaignPoints.AvailablePoints = campaignPoints.TotalPointsEarned - campaignPoints.PointsUsedForVouchers;
-                campaignPoints.TotalVouchersGenerated += vouchersToGenerate;
-                campaignPoints.TotalVoucherValueGenerated += vouchersToGenerate * campaign.VoucherValue.Value;
-                campaignPoints.LastVoucherGeneratedAt = DateTime.UtcNow;
-                campaignPoints.UpdatedAt = DateTime.UtcNow;
-
-                await _context.SaveChangesAsync();
-
-                return Ok(new
-                {
-                    success = true,
-                    message = $"Successfully generated {vouchersToGenerate} voucher(s)",
-                    voucherDetails = new
-                    {
-                        vouchersGenerated = vouchersToGenerate,
-                        pointsUsed = pointsToUse,
-                        totalValue = vouchersToGenerate * campaign.VoucherValue.Value,
-                        voucherValue = campaign.VoucherValue.Value,
-                        validityDays = campaign.VoucherValidityDays ?? 90
-                    },
-                    generatedVouchers = generatedVouchers,
-                    campaignPoints = new
-                    {
-                        campaignId = campaignPoints.CampaignId,
-                        campaignName = campaignPoints.Campaign?.Name,
-                        totalPointsEarned = campaignPoints.TotalPointsEarned,
-                        pointsUsedForVouchers = campaignPoints.PointsUsedForVouchers,
-                        availablePoints = campaignPoints.AvailablePoints,
-                        totalVouchersGenerated = campaignPoints.TotalVouchersGenerated,
-                        totalVoucherValueGenerated = campaignPoints.TotalVoucherValueGenerated,
-                        lastVoucherGeneratedAt = campaignPoints.LastVoucherGeneratedAt
+                        return BadRequest(new
+                        {
+                            message = "Insufficient points to generate voucher",
+                            required = threshold,
+                            available = campaignPoints.AvailablePoints,
+                        });
                     }
-                });
+
+                    // Check if there are enough points to generate at least one voucher
+                    if (campaignPoints.AvailablePoints < threshold)
+                    {
+                        return BadRequest(new
+                        {
+                            message = "Insufficient points to generate voucher",
+                            required = threshold,
+                            available = campaignPoints.AvailablePoints,
+                        });
+                    }
+
+                    // Calculate how many vouchers can be generated
+                    int vouchersToGenerate = campaignPoints.AvailablePoints / threshold;
+                    int pointsToUse = vouchersToGenerate * threshold;
+
+                    // Generate vouchers
+                    var generatedVouchers = new List<object>();
+                    for (int i = 0; i < vouchersToGenerate; i++)
+                    {
+                        var voucherCode = GenerateVoucherCode();
+                        var random = new Random();
+                        var hex = random.Next(0x10000000, 0x7FFFFFFF).ToString("X8");
+                        var qrCode = $"QR-{voucherCode}-{hex}";
+                        var voucher = new Voucher
+                        {
+                            VoucherCode = voucherCode,
+                            QrCode = qrCode,
+                            Value = value,
+                            CampaignId = campaignId,
+                            ResellerId = resellerId.Value,
+                            ExpiryDate = DateTime.UtcNow.AddDays(validityDays),
+                            CreatedAt = DateTime.UtcNow,
+                            PointsRequired = threshold
+                        };
+
+                        _context.Vouchers.Add(voucher);
+                        generatedVouchers.Add(new
+                        {
+                            voucherCode = voucher.VoucherCode,
+                            qrCode = voucher.QrCode,
+                            value = voucher.Value,
+                            expiryDate = voucher.ExpiryDate,
+                            pointsRequired = voucher.PointsRequired
+                        });
+                    }
+
+                    // Update CampaignPoints
+                    campaignPoints.PointsUsedForVouchers += pointsToUse;
+                    campaignPoints.AvailablePoints = campaignPoints.TotalPointsEarned - campaignPoints.PointsUsedForVouchers;
+                    campaignPoints.TotalVouchersGenerated += vouchersToGenerate;
+                    campaignPoints.TotalVoucherValueGenerated += vouchersToGenerate * value;
+                    campaignPoints.LastVoucherGeneratedAt = DateTime.UtcNow;
+                    campaignPoints.UpdatedAt = DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync();
+
+                    return Ok(new
+                    {
+                        success = true,
+                        message = $"Successfully generated {vouchersToGenerate} voucher(s)",
+                        voucherDetails = new
+                        {
+                            vouchersGenerated = vouchersToGenerate,
+                            pointsUsed = pointsToUse,
+                            totalValue = vouchersToGenerate * value,
+                            voucherValue = value,
+                            validityDays = validityDays
+                        },
+                        generatedVouchers = generatedVouchers,
+                        campaignPoints = new
+                        {
+                            campaignId = campaignPoints.CampaignId,
+                            campaignName = campaignPoints.Campaign?.Name,
+                            totalPointsEarned = campaignPoints.TotalPointsEarned,
+                            pointsUsedForVouchers = campaignPoints.PointsUsedForVouchers,
+                            availablePoints = campaignPoints.AvailablePoints,
+                            totalVouchersGenerated = campaignPoints.TotalVouchersGenerated,
+                            totalVoucherValueGenerated = campaignPoints.TotalVoucherValueGenerated,
+                            lastVoucherGeneratedAt = campaignPoints.LastVoucherGeneratedAt
+                        }
+                    });
+                }
+
+                // Handle free product campaigns
+                if (campaign.RewardType == "free_product")
+                {
+                    // Find eligible products with free product rewards configured per eligible product
+                    var eligibleProducts = campaign.EligibleProducts
+                        .Where(ep => ep.IsActive && ep.FreeProductId.HasValue && ep.MinPurchaseQuantity.HasValue && ep.FreeProductQty.HasValue)
+                        .ToList();
+                    if (!eligibleProducts.Any())
+                        return BadRequest(new { message = "No eligible products with free product rewards configured for this campaign" });
+
+                    // Check if reseller has any order items under this campaign
+                    var hasQualifyingOrders = await _context.TempOrderPointsItems
+                        .Where(i => i.TempOrderPoints.ResellerId == resellerId.Value && i.TempOrderPoints.CampaignId == campaignId)
+                        .AnyAsync();
+                    if (!hasQualifyingOrders)
+                        return BadRequest(new { message = "You need to place orders for this campaign to qualify for free products" });
+
+                    var generatedFreeProductRewards = new List<object>();
+                    int totalFreeProductsGiven = 0;
+
+                    foreach (var ep in eligibleProducts)
+                    {
+                        // Total units purchased for this eligible product by reseller in this campaign
+                        var totalUnitsPurchased = await _context.TempOrderPointsItems
+                            .Where(i => i.EligibleProductId == ep.Id)
+                            .Join(_context.TempOrderPoints,
+                                  item => item.TempOrderPointsId,
+                                  order => order.Id,
+                                  (item, order) => new { item, order })
+                            .Where(x => x.order.ResellerId == resellerId.Value && x.order.CampaignId == campaignId)
+                            .SumAsync(x => x.item.Quantity);
+
+                        int minPurchaseQty = ep.MinPurchaseQuantity ?? 0;
+                        int freeProductQty = ep.FreeProductQty ?? 0;
+                        if (minPurchaseQty <= 0 || freeProductQty <= 0)
+                            continue;
+
+                        // Total free products earned so far based on all orders to date
+                        int totalFreeEarned = (totalUnitsPurchased / minPurchaseQty) * freeProductQty;
+
+                        // Subtract already issued free products for this eligible product to avoid duplicates
+                        int alreadyIssued = await _context.FreeProductVouchers
+                            .Where(v => v.ResellerId == resellerId.Value
+                                     && v.CampaignId == campaignId
+                                     && v.FreeProductId == ep.FreeProductId
+                                     && v.EligibleProductId == ep.CampaignProductId)
+                            .SumAsync(v => (int?)v.FreeProductQty) ?? 0;
+
+                        int freeProductsToGive = totalFreeEarned - alreadyIssued;
+
+                        if (freeProductsToGive > 0 && ep.FreeProductId.HasValue)
+                        {
+                            var fpVoucher = new FreeProductVoucher
+                            {
+                                ResellerId = resellerId.Value,
+                                CampaignId = campaignId,
+                                FreeProductId = ep.FreeProductId.Value,
+                                // Store the eligible product reference; use CampaignProductId as before
+                                EligibleProductId = ep.CampaignProductId,
+                                FreeProductQty = freeProductsToGive,
+                                Message = $"You have earned {totalFreeEarned} free product(s) for ordering {totalUnitsPurchased} units. Previously issued: {alreadyIssued}. Issuing now: {freeProductsToGive}. Reward: {freeProductQty} free product(s) for every {minPurchaseQty} units.",
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            _context.FreeProductVouchers.Add(fpVoucher);
+                            generatedFreeProductRewards.Add(new
+                            {
+                                freeProductId = ep.FreeProductId,
+                                freeProductQty = freeProductsToGive,
+                                eligibleProductId = ep.CampaignProductId,
+                                minPurchaseQuantity = minPurchaseQty,
+                                message = fpVoucher.Message,
+                                totalUnitsPurchased,
+                                totalFreeEarned,
+                                alreadyIssued
+                            });
+                            totalFreeProductsGiven += freeProductsToGive;
+                        }
+                    }
+
+                    await _context.SaveChangesAsync();
+
+                    return Ok(new
+                    {
+                        success = true,
+                        message = $"Calculated {totalFreeProductsGiven} free product(s) earned",
+                        voucherDetails = new
+                        {
+                            totalFreeProductsGiven = totalFreeProductsGiven,
+                            freeProductRewards = generatedFreeProductRewards
+                        }
+                    });
+                }
+
+                return BadRequest(new { message = "Unsupported campaign reward type" });
             }
             catch (Exception ex)
             {
@@ -650,7 +852,10 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
             try
             {
                 // Check if campaign exists and is active
-                var campaign = await _context.Campaigns.FindAsync(campaignId);
+                var campaign = await _context.Campaigns
+                    .Include(c => c.FreeProductRewards)
+                        .ThenInclude(fpr => fpr.Product)
+                    .FirstOrDefaultAsync(c => c.Id == campaignId);
                 if (campaign == null || !campaign.IsActive)
                     return BadRequest(new { message = "Campaign not found or inactive" });
 
@@ -660,55 +865,167 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
                 if (assignment == null || !assignment.IsApproved)
                     return BadRequest(new { message = "You are not assigned to this campaign or not approved" });
 
-                // Get current campaign points
-                var campaignPoints = await _campaignPointsService.GetCampaignPoints(campaignId, resellerId.Value);
-
-                // Calculate voucher generation info
-                var canGenerateVouchers = false;
-                var vouchersCanGenerate = 0;
-                var pointsNeeded = 0;
-
-                if (campaign.VoucherGenerationThreshold.HasValue && campaign.VoucherValue.HasValue && campaignPoints != null)
+                // Handle different campaign types
+                if (campaign.RewardType == "voucher")
                 {
-                    vouchersCanGenerate = campaignPoints.AvailablePoints / campaign.VoucherGenerationThreshold.Value;
-                    canGenerateVouchers = vouchersCanGenerate > 0;
-                    pointsNeeded = campaign.VoucherGenerationThreshold.Value - (campaignPoints.AvailablePoints % campaign.VoucherGenerationThreshold.Value);
-                    if (pointsNeeded == campaign.VoucherGenerationThreshold.Value)
-                        pointsNeeded = 0; // Can generate at least one voucher
+                    // Get current campaign points for voucher campaigns
+                    var campaignPoints = await _campaignPointsService.GetCampaignPoints(campaignId, resellerId.Value);
+
+                    // Always report voucher generation as configured, use defaults if missing
+                    var threshold = campaign.VoucherGenerationThreshold ?? 50;
+                    var value = campaign.VoucherValue ?? 100;
+                    var validityDays = campaign.VoucherValidityDays ?? 90;
+
+                    var canGenerateVouchers = false;
+                    var vouchersCanGenerate = 0;
+                    var pointsNeeded = 0;
+
+                    if (campaignPoints != null)
+                    {
+                        vouchersCanGenerate = campaignPoints.AvailablePoints / threshold;
+                        canGenerateVouchers = vouchersCanGenerate > 0;
+                        pointsNeeded = threshold - (campaignPoints.AvailablePoints % threshold);
+                        if (pointsNeeded == threshold)
+                            pointsNeeded = 0;
+                    }
+
+                    return Ok(new
+                    {
+                        campaign = new
+                        {
+                            id = campaign.Id,
+                            name = campaign.Name,
+                            description = campaign.Description,
+                            rewardType = campaign.RewardType,
+                            manufacturer = campaign.Manufacturer?.Name
+                        },
+                        voucherSettings = new
+                        {
+                            threshold = threshold,
+                            value = value,
+                            validityDays = validityDays,
+                            isConfigured = true // Always true
+                        },
+                        currentStatus = campaignPoints != null ? new
+                        {
+                            totalPointsEarned = campaignPoints.TotalPointsEarned,
+                            pointsUsedForVouchers = campaignPoints.PointsUsedForVouchers,
+                            availablePoints = campaignPoints.AvailablePoints,
+                            totalVouchersGenerated = campaignPoints.TotalVouchersGenerated,
+                            totalVoucherValueGenerated = campaignPoints.TotalVoucherValueGenerated
+                        } : null,
+                        voucherGeneration = new
+                        {
+                            canGenerate = canGenerateVouchers,
+                            vouchersCanGenerate = vouchersCanGenerate,
+                            pointsNeeded = pointsNeeded,
+                            nextVoucherValue = value
+                        }
+                    });
+                }
+                else if (campaign.RewardType == "free_product")
+                {
+                    // Ensure we have eligible products loaded with campaign product details
+                    await _context.Entry(campaign)
+                        .Collection(c => c.EligibleProducts)
+                        .Query()
+                        .Include(ep => ep.CampaignProduct)
+                        .LoadAsync();
+
+                    var rules = campaign.EligibleProducts
+                        .Where(ep => ep.IsActive && ep.FreeProductId.HasValue && ep.MinPurchaseQuantity.HasValue && ep.FreeProductQty.HasValue)
+                        .ToList();
+
+                    var ruleDtos = new List<object>();
+                    int totalCanGenerateNow = 0;
+                    int totalOrderedQuantityAll = 0;
+
+                    foreach (var ep in rules)
+                    {
+                        // Units purchased for this eligible product by this reseller in this campaign
+                        var totalUnitsPurchased = await _context.TempOrderPointsItems
+                            .Where(i => i.EligibleProductId == ep.Id)
+                            .Join(_context.TempOrderPoints,
+                                  item => item.TempOrderPointsId,
+                                  order => order.Id,
+                                  (item, order) => new { item, order })
+                            .Where(x => x.order.ResellerId == resellerId.Value && x.order.CampaignId == campaignId)
+                            .SumAsync(x => x.item.Quantity);
+
+                        totalOrderedQuantityAll += totalUnitsPurchased;
+
+                        int minQty = ep.MinPurchaseQuantity ?? 0;
+                        int freeQty = ep.FreeProductQty ?? 0;
+                        int earned = (minQty > 0) ? (totalUnitsPurchased / minQty) * freeQty : 0;
+
+                        int alreadyIssued = await _context.FreeProductVouchers
+                            .Where(v => v.ResellerId == resellerId.Value
+                                     && v.CampaignId == campaignId
+                                     && v.FreeProductId == ep.FreeProductId
+                                     && v.EligibleProductId == ep.CampaignProductId)
+                            .SumAsync(v => (int?)v.FreeProductQty) ?? 0;
+
+                        int toGiveNow = Math.Max(0, earned - alreadyIssued);
+                        totalCanGenerateNow += toGiveNow;
+
+                        // Load free product details
+                        var freeProduct = await _context.Products.FirstOrDefaultAsync(p => p.Id == ep.FreeProductId);
+
+                        ruleDtos.Add(new
+                        {
+                            eligibleProduct = new
+                            {
+                                id = ep.CampaignProductId,
+                                name = ep.CampaignProduct?.Name,
+                                sku = ep.CampaignProduct?.SKU
+                            },
+                            freeProduct = new
+                            {
+                                id = ep.FreeProductId,
+                                name = freeProduct?.Name,
+                                sku = freeProduct?.SKU
+                            },
+                            minPurchaseQuantity = minQty,
+                            freeProductQty = freeQty,
+                            totalUnitsPurchased,
+                            freeProductsEarned = earned,
+                            alreadyIssued,
+                            freeProductsToGive = toGiveNow
+                        });
+                    }
+
+                    return Ok(new
+                    {
+                        campaign = new
+                        {
+                            id = campaign.Id,
+                            name = campaign.Name,
+                            description = campaign.Description,
+                            rewardType = campaign.RewardType,
+                            manufacturer = campaign.Manufacturer?.Name
+                        },
+                        freeProductSettings = new
+                        {
+                            rules = ruleDtos,
+                            isConfigured = rules.Any()
+                        },
+                        currentStatus = new
+                        {
+                            totalQuantityOrdered = totalOrderedQuantityAll,
+                            freeProductsEarned = ruleDtos.Sum(r => (int)r.GetType().GetProperty("freeProductsEarned").GetValue(r) ),
+                            totalFreeProductVouchersGenerated = await _context.FreeProductVouchers.Where(v => v.CampaignId == campaignId && v.ResellerId == resellerId.Value).SumAsync(v => (int?)v.FreeProductQty) ?? 0
+                        },
+                        voucherGeneration = new
+                        {
+                            canGenerate = totalCanGenerateNow > 0,
+                            vouchersCanGenerate = totalCanGenerateNow,
+                            pointsNeeded = 0,
+                            nextVoucherValue = 0
+                        }
+                    });
                 }
 
-                return Ok(new
-                {
-                    campaign = new
-                    {
-                        id = campaign.Id,
-                        name = campaign.Name,
-                        description = campaign.Description,
-                        manufacturer = campaign.Manufacturer?.Name
-                    },
-                    voucherSettings = new
-                    {
-                        threshold = campaign.VoucherGenerationThreshold,
-                        value = campaign.VoucherValue,
-                        validityDays = campaign.VoucherValidityDays ?? 90,
-                        isConfigured = campaign.VoucherGenerationThreshold.HasValue && campaign.VoucherValue.HasValue
-                    },
-                    currentStatus = campaignPoints != null ? new
-                    {
-                        totalPointsEarned = campaignPoints.TotalPointsEarned,
-                        pointsUsedForVouchers = campaignPoints.PointsUsedForVouchers,
-                        availablePoints = campaignPoints.AvailablePoints,
-                        totalVouchersGenerated = campaignPoints.TotalVouchersGenerated,
-                        totalVoucherValueGenerated = campaignPoints.TotalVoucherValueGenerated
-                    } : null,
-                    voucherGeneration = new
-                    {
-                        canGenerate = canGenerateVouchers,
-                        vouchersCanGenerate = vouchersCanGenerate,
-                        pointsNeeded = pointsNeeded,
-                        nextVoucherValue = campaign.VoucherValue ?? 0
-                    }
-                });
+                return BadRequest(new { message = "Unsupported campaign reward type" });
             }
             catch (Exception ex)
             {
@@ -861,7 +1178,7 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
                 var approvedCampaigns = await _context.CampaignResellers
                     .Include(cr => cr.Campaign)
                     .ThenInclude(c => c.Manufacturer)
-                    .Where(cr => cr.ResellerId == resellerId && cr.IsApproved && cr.Campaign.IsActive)
+                    .Where(cr => cr.ResellerId == resellerId && cr.IsApproved && cr.Campaign != null && cr.Campaign.IsActive)
                     .Select(cr => cr.Campaign)
                     .ToListAsync();
 
@@ -871,7 +1188,7 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
                 {
                     // Get products for this campaign's manufacturer
                     var products = await _context.Products
-                        .Where(p => p.ManufacturerId == campaign.ManufacturerId && p.IsActive)
+                        .Where(p => campaign != null && p.ManufacturerId == campaign.ManufacturerId && p.IsActive)
                         .Take(3) // Limit to 3 products per campaign
                         .ToListAsync();
 
@@ -886,14 +1203,14 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
                         {
                             campaign = new
                             {
-                                id = campaign.Id,
-                                name = campaign.Name,
-                                description = campaign.Description,
+                                id = campaign != null ? campaign.Id : 0,
+                                name = campaign != null ? campaign.Name : string.Empty,
+                                description = campaign != null ? campaign.Description : string.Empty,
                                 manufacturer = new
                                 {
-                                    id = campaign.Manufacturer.Id,
-                                    name = campaign.Manufacturer.Name,
-                                    businessName = campaign.Manufacturer.BusinessName
+                                    id = (campaign != null && campaign.Manufacturer != null) ? campaign.Manufacturer.Id : 0,
+                                    name = (campaign != null && campaign.Manufacturer != null) ? campaign.Manufacturer.Name : string.Empty,
+                                    businessName = (campaign != null && campaign.Manufacturer != null) ? campaign.Manufacturer.BusinessName : string.Empty
                                 }
                             },
                             product = new

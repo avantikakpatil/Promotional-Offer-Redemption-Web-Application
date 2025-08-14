@@ -5,6 +5,7 @@ import { generateQRCodeDataURL } from '../../../utils/qrGenerator';
 const VouchersWithQR = () => {
   const [vouchers, setVouchers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [freeProductVouchers, setFreeProductVouchers] = useState([]);
   const [downloading, setDownloading] = useState({});
   const [printing, setPrinting] = useState({});
   const [feedback, setFeedback] = useState({});
@@ -12,8 +13,47 @@ const VouchersWithQR = () => {
   const [qrDataURLs, setQrDataURLs] = useState({});
   const cardRefs = useRef({});
 
+  const fetchFreeProductVouchers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const resellerId = user.id; // Get resellerId from user object
+      
+      if (!resellerId) {
+        console.log('No resellerId found in user data');
+        setFreeProductVouchers([]);
+        return;
+      }
+      
+      console.log('Calling API for free product vouchers:', `/api/reseller/free-product-vouchers?resellerId=${resellerId}`);
+      const response = await fetch(`/api/reseller/free-product-vouchers?resellerId=${resellerId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('API response status:', response.status);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Fetched freeProductVouchers:', data.freeProductVouchers);
+        console.log('Data structure:', JSON.stringify(data, null, 2));
+        console.log('freeProductVouchers length:', data.freeProductVouchers?.length || 0);
+        setFreeProductVouchers(data.freeProductVouchers || []);
+      } else {
+        console.log('API call failed:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.log('Error response:', errorText);
+        setFreeProductVouchers([]);
+      }
+    } catch (err) {
+      console.error('Error fetching free product vouchers:', err);
+      setFreeProductVouchers([]);
+    }
+  };
+
   useEffect(() => {
     fetchVouchers();
+    fetchFreeProductVouchers();
   }, []);
 
   useEffect(() => {
@@ -306,10 +346,22 @@ const VouchersWithQR = () => {
   }
 
   return (
-    <div className="space-y-6">
+  <div className="space-y-6">
       {/* Filter Controls */}
       <div className="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-lg">
-        <span className="text-sm font-medium text-gray-700 py-2">Filter by status:</span>
+        <div className="flex items-center gap-4 w-full mb-2">
+          <span className="text-sm font-medium text-gray-700">Filter by status:</span>
+          <button
+            onClick={() => {
+              fetchVouchers();
+              fetchFreeProductVouchers();
+            }}
+            className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm"
+          >
+            <RefreshCw size={14} />
+            Refresh All
+          </button>
+        </div>
         {[
           { key: 'all', label: 'All Vouchers', count: vouchers.length },
           { key: 'active', label: 'Active', count: vouchers.filter(v => getVoucherStatus(v).status === 'active').length },
@@ -330,7 +382,8 @@ const VouchersWithQR = () => {
         ))}
       </div>
 
-      {/* Vouchers Grid */}
+
+      {/* Vouchers Grid (restored to original rendering) */}
       {filteredVouchers.length === 0 ? (
         <div className="text-center text-gray-500 py-12">
           <QrCode className="mx-auto mb-4 text-gray-400" size={64} />
@@ -348,7 +401,6 @@ const VouchersWithQR = () => {
             const voucherStatus = getVoucherStatus(voucher);
             const StatusIcon = voucherStatus.icon;
             const qrDisplayData = voucher.qrCode && voucher.qrCode.trim() ? voucher.qrCode : voucher.voucherCode;
-            
             return (
               <div
                 key={voucher.id}
@@ -508,6 +560,102 @@ const VouchersWithQR = () => {
           })}
         </div>
       )}
+
+      {/* Free Product Vouchers Section */}
+      {freeProductVouchers.length > 0 && (
+        <div className="mt-10">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <Package size={20} className="text-blue-600" /> 
+              Free Product Vouchers ({freeProductVouchers.length})
+            </h3>
+            <button
+              onClick={fetchFreeProductVouchers}
+              className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm"
+            >
+              <RefreshCw size={14} />
+              Refresh
+            </button>
+          </div>
+          
+          
+          
+                     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+             {freeProductVouchers.map(fpv => (
+               <div key={fpv.id} className="bg-white rounded-xl shadow-lg border border-blue-200 overflow-hidden">
+                 {/* Header */}
+                 <div className="bg-gradient-to-r from-blue-500 to-blue-700 p-4 text-white">
+                   <div className="flex items-center justify-between">
+                     <div>
+                       <h3 className="font-bold text-lg">FREE PRODUCT VOUCHER</h3>
+                       <p className="text-blue-100 text-sm">ID: {fpv.id}</p>
+                     </div>
+                     <Package className="text-blue-200" size={32} />
+                   </div>
+                 </div>
+
+                 {/* Main Content */}
+                 <div className="p-6 space-y-4">
+                   {/* Product Details */}
+                   <div className="text-center">
+                     <div className="text-3xl font-bold text-green-600 mb-2">
+                       {fpv.freeProductQty} x {fpv.freeProduct?.name || `Product ${fpv.freeProductId}`}
+                     </div>
+                     <div className="space-y-1 text-sm text-gray-600">
+                       <div>Free: {fpv.freeProduct?.name || `Product ${fpv.freeProductId}`} ({fpv.freeProduct?.sku || 'N/A'})</div>
+                       <div>Eligible: {fpv.eligibleProduct?.name || `Product ${fpv.eligibleProductId}`} ({fpv.eligibleProduct?.sku || 'N/A'})</div>
+                     </div>
+                   </div>
+
+                   {/* Message */}
+                   {fpv.message && (
+                     <div className="bg-blue-50 rounded-lg p-3">
+                       <div className="text-xs text-gray-600 mb-1 font-medium">Message:</div>
+                       <div className="text-sm text-blue-700">
+                         {fpv.message}
+                       </div>
+                     </div>
+                   )}
+
+                   {/* Campaign Info */}
+                   <div className="flex items-center text-sm text-gray-600">
+                     <Tag className="mr-2" size={16} />
+                     <span className="font-medium">Campaign:</span>
+                     <span className="ml-1">{fpv.campaign?.name || `Campaign ${fpv.campaignId}`}</span>
+                   </div>
+
+                   {/* Created Date */}
+                   <div className="text-xs text-gray-500 flex items-center">
+                     <Calendar className="mr-1" size={12} />
+                     <span>Created: {formatDate(fpv.createdAt)}</span>
+                   </div>
+
+                   {/* Status Badge */}
+                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                     <CheckCircle size={12} />
+                     Active
+                   </div>
+                 </div>
+               </div>
+             ))}
+           </div>
+        </div>
+      )}
+
+      {/* No Free Product Vouchers Message */}
+      {freeProductVouchers.length === 0 && (
+        <div className="mt-10 text-center text-gray-500 py-12">
+          <Package className="mx-auto mb-4 text-gray-400" size={64} />
+          <p className="text-lg">No free product vouchers found.</p>
+          <p className="text-sm text-gray-400 mb-4">Debug: freeProductVouchers state length is {freeProductVouchers.length}</p>
+          <button
+            onClick={fetchFreeProductVouchers}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Refresh Free Product Vouchers
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -519,6 +667,7 @@ const Vouchers = () => {
   const [error, setError] = useState('');
   const [generatingVoucher, setGeneratingVoucher] = useState({});
   const [voucherInfo, setVoucherInfo] = useState({});
+  const [freeProductRewards, setFreeProductRewards] = useState({});
   const [view, setView] = useState('generate');
 
   useEffect(() => {
@@ -606,15 +755,21 @@ const Vouchers = () => {
         }
       });
 
+      const data = await response.json();
       if (response.ok) {
-        const data = await response.json();
-        alert(`Success! Generated ${data.voucherDetails.vouchersGenerated} voucher(s) worth ₹${data.voucherDetails.totalValue}`);
-        
+        // Handle free product rewards
+        if (data.voucherDetails && data.voucherDetails.freeProductRewards) {
+          setFreeProductRewards(prev => ({ ...prev, [campaignId]: data.voucherDetails.freeProductRewards }));
+          alert(`Success! You earned free products. See details below.`);
+        } else if (data.voucherDetails) {
+          alert(`Success! Generated ${data.voucherDetails.vouchersGenerated} voucher(s) worth ₹${data.voucherDetails.totalValue}`);
+        } else {
+          alert('Success! Voucher generated.');
+        }
         // Refresh voucher info
         await fetchVoucherInfo(campaignId);
       } else {
-        const errorData = await response.json();
-        alert(`Error: ${errorData.message}`);
+        alert(`Error: ${data.message}`);
       }
     } catch (err) {
       console.error('Error generating voucher:', err);
@@ -635,6 +790,26 @@ const Vouchers = () => {
 
   const getStatusColor = (canGenerate) => {
     return canGenerate ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+  };
+
+  const getButtonColor = (canGenerate, isFreeProduct = false) => {
+    if (!canGenerate) {
+      return 'bg-red-400 text-white cursor-not-allowed';
+    }
+    return isFreeProduct ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50' : 'bg-green-600 text-white hover:bg-green-700 disabled:opacity-50';
+  };
+
+  const getCannotGenerateReason = (info, isFreeProduct = false) => {
+    if (!info?.voucherGeneration) return 'Voucher generation not configured';
+    
+    const pointsNeeded = info.voucherGeneration.pointsNeeded || 0;
+    const threshold = info.voucherSettings?.threshold || 0;
+    
+    if (isFreeProduct) {
+      return `You need ${pointsNeeded} more units to generate a free product voucher`;
+    } else {
+      return `You need ${pointsNeeded} more points to generate a voucher`;
+    }
   };
 
   return (
@@ -712,174 +887,382 @@ const Vouchers = () => {
             </div>
           )}
 
-          {/* Campaigns List */}
-          {!loading && !error && (
-            <div className="space-y-6">
-              {campaigns.map((campaign) => {
-                const info = voucherInfo[campaign.id];
-                const canGenerate = info?.voucherGeneration?.canGenerate || false;
-                const vouchersCanGenerate = info?.voucherGeneration?.vouchersCanGenerate || 0;
-                const pointsNeeded = info?.voucherGeneration?.pointsNeeded || 0;
-                const nextVoucherValue = info?.voucherGeneration?.nextVoucherValue || 0;
+                     {/* Regular Vouchers Campaigns */}
+           {!loading && !error && (
+             <div className="space-y-6">
+               <h2 className="text-2xl font-bold text-gray-800 mb-4">Regular Voucher Campaigns</h2>
+               {/* Debug info */}
+               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                 <h4 className="font-semibold text-yellow-800 mb-2">Debug: Campaign Types</h4>
+                 <div className="text-xs text-yellow-700">
+                   {campaigns.map(c => `${c.name}: rewardType = "${c.rewardType}"`).join(', ')}
+                 </div>
+               </div>
+               {campaigns.filter(campaign => campaign.rewardType !== 'free_product').map((campaign) => {
+                 const info = voucherInfo[campaign.id];
+                 const canGenerate = info?.voucherGeneration?.canGenerate || false;
+                 const vouchersCanGenerate = info?.voucherGeneration?.vouchersCanGenerate || 0;
+                 const pointsNeeded = info?.voucherGeneration?.pointsNeeded || 0;
+                 const nextVoucherValue = info?.voucherGeneration?.nextVoucherValue || 0;
 
-                return (
-                  <div key={campaign.id} className="bg-white rounded-lg shadow-lg">
-                    <div className="p-6 border-b border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h2 className="text-xl font-semibold text-gray-800">{campaign.name}</h2>
-                          <p className="text-gray-600 mt-1">{campaign.description}</p>
-                          <p className="text-sm text-gray-500 mt-1">
-                            Manufacturer: {campaign.manufacturer?.name}
-                          </p>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(canGenerate)}`}>
-                          {canGenerate ? 'Can Generate Vouchers' : 'Cannot Generate Vouchers'}
-                        </span>
-                      </div>
-                    </div>
+                 return (
+                   <div key={campaign.id} className="bg-white rounded-lg shadow-lg">
+                     <div className="p-6 border-b border-gray-200">
+                       <div className="flex items-center justify-between">
+                         <div>
+                           <h2 className="text-xl font-semibold text-gray-800">{campaign.name}</h2>
+                           <p className="text-gray-600 mt-1">{campaign.description}</p>
+                           <p className="text-sm text-gray-500 mt-1">
+                             Manufacturer: {campaign.manufacturer?.name}
+                           </p>
+                         </div>
+                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(canGenerate)}`}>
+                           {canGenerate ? 'Can Generate Vouchers' : 'Cannot Generate Vouchers'}
+                         </span>
+                       </div>
+                     </div>
 
-                    <div className="p-6">
-                      {/* Voucher Settings */}
-                      {info?.voucherSettings?.isConfigured ? (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                          <div className="bg-green-50 rounded-lg p-4">
-                            <div className="flex items-center">
-                              <DollarSign className="text-green-600 mr-3" size={20} />
-                              <div>
-                                <p className="text-sm font-medium text-gray-600">Voucher Value</p>
-                                <p className="text-2xl font-bold text-green-600">
-                                  ₹{info.voucherSettings.value}
-                                </p>
-                              </div>
+                     <div className="p-6">
+                       {/* Voucher Settings */}
+                       {info?.voucherSettings?.isConfigured ? (
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                           <div className="bg-green-50 rounded-lg p-4">
+                             <div className="flex items-center">
+                               <DollarSign className="text-green-600 mr-3" size={20} />
+                               <div>
+                                 <p className="text-sm font-medium text-gray-600">Voucher Value</p>
+                                 <p className="text-2xl font-bold text-green-600">
+                                   ₹{info.voucherSettings.value}
+                                 </p>
+                               </div>
+                             </div>
+                           </div>
+                           <div className="bg-purple-50 rounded-lg p-4">
+                             <div className="flex items-center">
+                               <Calendar className="text-purple-600 mr-3" size={20} />
+                               <div>
+                                 <p className="text-sm font-medium text-gray-600">Valid For</p>
+                                 <p className="text-2xl font-bold text-purple-600">
+                                   {info.voucherSettings.validityDays} days
+                                 </p>
+                               </div>
+                             </div>
+                           </div>
+                         </div>
+                       ) : (
+                         <div className="bg-yellow-50 rounded-lg p-4 mb-6">
+                           <div className="flex items-center">
+                             <AlertTriangle className="text-yellow-600 mr-3" size={20} />
+                             <div>
+                               <p className="text-sm font-medium text-yellow-800">
+                                 Voucher generation not configured
+                               </p>
+                               <p className="text-sm text-yellow-700">
+                                 The manufacturer has not set up voucher generation for this campaign.
+                               </p>
+                             </div>
+                           </div>
+                         </div>
+                       )}
+
+                       {/* Current Status */}
+                       {info?.currentStatus && (
+                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                           <div className="text-center">
+                             <p className="text-sm font-medium text-gray-600">Total Points Earned</p>
+                             <p className="text-xl font-bold text-gray-900">
+                               {info.currentStatus.totalPointsEarned}
+                             </p>
+                           </div>
+                           <div className="text-center">
+                             <p className="text-sm font-medium text-gray-600">Points Used</p>
+                             <p className="text-xl font-bold text-red-600">
+                               {info.currentStatus.pointsUsedForVouchers}
+                             </p>
+                           </div>
+                           <div className="text-center">
+                             <p className="text-sm font-medium text-gray-600">Available Points</p>
+                             <p className="text-xl font-bold text-green-600">
+                               {info.currentStatus.availablePoints}
+                             </p>
+                           </div>
+                           <div className="text-center">
+                             <p className="text-sm font-medium text-gray-600">Vouchers Generated</p>
+                             <p className="text-xl font-bold text-blue-600">
+                               {info.currentStatus.totalVouchersGenerated}
+                             </p>
+                           </div>
+                         </div>
+                       )}
+
+                       {/* Voucher Generation */}
+                       {info?.voucherSettings?.isConfigured && (
+                         <div className="bg-gray-50 rounded-lg p-4">
+                           <div className="flex items-center justify-between">
+                             <div>
+                               <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                                 Voucher Generation
+                               </h3>
+                               {canGenerate ? (
+                                 <div className="space-y-2">
+                                   <p className="text-sm text-gray-600">
+                                     You can generate{' '}
+                                     <span className="font-semibold text-green-600">
+                                       {vouchersCanGenerate}
+                                     </span>{' '}
+                                     voucher(s)
+                                   </p>
+                                   <p className="text-sm text-gray-600">
+                                     Each voucher will be worth{' '}
+                                     <span className="font-semibold text-green-600">
+                                       ₹{nextVoucherValue}
+                                     </span>
+                                   </p>
+                                 </div>
+                                                               ) : (
+                                  <div className="space-y-2">
+                                    <p className="text-sm text-gray-600">
+                                      {getCannotGenerateReason(info, false)}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      Each voucher requires{' '}
+                                      <span className="font-semibold text-red-600">
+                                        {info.voucherSettings.threshold}
+                                      </span>{' '}
+                                      points
+                                    </p>
+                                  </div>
+                                )}
+                             </div>
+                             <button
+                               onClick={() => generateVoucher(campaign.id)}
+                               disabled={!canGenerate || generatingVoucher[campaign.id]}
+                               className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${getButtonColor(canGenerate, false)}`}
+                             >
+                               {generatingVoucher[campaign.id] ? (
+                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                               ) : (
+                                 <Gift size={16} />
+                               )}
+                               {generatingVoucher[campaign.id] ? 'Generating...' : 'Generate Voucher'}
+                             </button>
+                           </div>
+                         </div>
+                       )}
+                     </div>
+                   </div>
+                 );
+               })}
+             </div>
+           )}
+
+           {/* Free Product Campaigns */}
+           {!loading && !error && campaigns.filter(campaign => campaign.rewardType === 'free_product').length > 0 && (
+             <div className="space-y-6 mt-8">
+               <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                 <Package size={24} className="text-blue-600" />
+                 Free Product Campaigns
+               </h2>
+               {campaigns.filter(campaign => campaign.rewardType === 'free_product').map((campaign) => {
+                 const info = voucherInfo[campaign.id];
+                 const rules = info?.freeProductSettings?.rules || [];
+                 const canGenerate = info?.voucherGeneration?.canGenerate || false;
+                 const vouchersCanGenerate = info?.voucherGeneration?.vouchersCanGenerate || 0;
+                 const totalQuantityOrdered = info?.currentStatus?.totalQuantityOrdered || 0;
+
+                 const singleRule = rules.length === 1;
+                 const displayFreeProductQty = singleRule ? (rules[0].freeProductQty || 0) : null;
+                 const displayFreeProductName = singleRule ? (rules[0].freeProduct?.name || 'Free Product') : 'Multiple';
+                 const displayRequiredQty = singleRule ? (rules[0].minPurchaseQuantity || 0) : null;
+                 const displayEligibleName = singleRule ? (rules[0].eligibleProduct?.name || 'Eligible Product') : 'Multiple';
+
+                 const sumEarned = rules.reduce((acc, r) => acc + (r.freeProductsEarned || 0), 0);
+                 const sumIssued = rules.reduce((acc, r) => acc + (r.alreadyIssued || 0), 0);
+
+                 const freeProductCannotReason = !canGenerate ? (() => {
+                   const needs = rules.map(r => {
+                     const minQty = r.minPurchaseQuantity || 0;
+                     const purchased = r.totalUnitsPurchased || 0;
+                     if (minQty <= 0) return null;
+                     const remainder = purchased % minQty;
+                     const unitsNeeded = remainder === 0 ? minQty : (minQty - remainder);
+                     return {
+                       unitsNeeded,
+                       eligible: r.eligibleProduct?.name || 'eligible product',
+                       freeProduct: r.freeProduct?.name || 'free product',
+                       freeQty: r.freeProductQty || 1
+                     };
+                   }).filter(Boolean).sort((a,b) => a.unitsNeeded - b.unitsNeeded);
+                   if (needs.length === 0) return 'Place an order for eligible products to earn free products';
+                   const n = needs[0];
+                   return `You need ${n.unitsNeeded} more units of ${n.eligible} to earn ${n.freeQty} x ${n.freeProduct}`;
+                 })() : '';
+
+                 return (
+                   <div key={campaign.id} className="bg-white rounded-lg shadow-lg border-l-4 border-blue-500">
+                     <div className="p-6 border-b border-gray-200">
+                       <div className="flex items-center justify-between">
+                         <div>
+                           <h2 className="text-xl font-semibold text-gray-800">{campaign.name}</h2>
+                           <p className="text-gray-600 mt-1">{campaign.description}</p>
+                           <p className="text-sm text-gray-500 mt-1">
+                             Manufacturer: {campaign.manufacturer?.name}
+                           </p>
+                         </div>
+                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(canGenerate)}`}>
+                           {canGenerate ? 'Can Generate Free Products' : 'Cannot Generate Free Products'}
+                         </span>
+                       </div>
+                     </div>
+
+                     <div className="p-6">
+                       {/* Free Product Settings */}
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                         <div className="bg-blue-50 rounded-lg p-4">
+                           <div className="flex items-center">
+                             <Package className="text-blue-600 mr-3" size={20} />
+                             <div>
+                               <p className="text-sm font-medium text-gray-600">Free Product</p>
+                               {singleRule ? (
+                                 <p className="text-lg font-bold text-blue-600">
+                                   {displayFreeProductQty} x {displayFreeProductName}
+                                 </p>
+                               ) : (
+                                 <p className="text-lg font-bold text-blue-600">Multiple</p>
+                               )}
+                             </div>
+                           </div>
+                         </div>
+                         <div className="bg-green-50 rounded-lg p-4">
+                           <div className="flex items-center">
+                             <Star className="text-green-600 mr-3" size={20} />
+                             <div>
+                               <p className="text-sm font-medium text-gray-600">Required Quantity</p>
+                               {singleRule ? (
+                                 <p className="text-lg font-bold text-green-600">{displayRequiredQty} units</p>
+                               ) : (
+                                 <p className="text-lg font-bold text-green-600">Varies by product</p>
+                               )}
+                             </div>
+                           </div>
+                         </div>
+                         <div className="bg-purple-50 rounded-lg p-4">
+                           <div className="flex items-center">
+                             <Tag className="text-purple-600 mr-3" size={20} />
+                             <div>
+                               <p className="text-sm font-medium text-gray-600">Eligible Product</p>
+                               {singleRule ? (
+                                 <p className="text-lg font-bold text-purple-600">{displayEligibleName}</p>
+                               ) : (
+                                 <p className="text-lg font-bold text-purple-600">Multiple</p>
+                               )}
+                             </div>
+                           </div>
+                         </div>
+                       </div>
+
+                        {/* Rules List (when multiple) */}
+                        {!singleRule && rules.length > 0 && (
+                          <div className="mb-6">
+                            <div className="text-sm font-medium text-gray-700 mb-2">Rules:</div>
+                            <ul className="text-sm text-gray-700 list-disc pl-6 space-y-1">
+                              {rules.map((r, idx) => (
+                                <li key={idx}>
+                                  Buy {r.minPurchaseQuantity} of {r.eligibleProduct?.name || 'eligible product'} → get {r.freeProductQty} x {r.freeProduct?.name || 'free product'}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                                               {/* Current Status */}
+                        {info?.currentStatus && (
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                            <div className="text-center">
+                              <p className="text-sm font-medium text-gray-600">Total Quantity Ordered</p>
+                              <p className="text-xl font-bold text-gray-900">{totalQuantityOrdered} units</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-sm font-medium text-gray-600">Free Products Earned</p>
+                              <p className="text-xl font-bold text-blue-600">{sumEarned} vouchers</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-sm font-medium text-gray-600">Already Issued</p>
+                              <p className="text-xl font-bold text-red-600">{sumIssued} vouchers</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-sm font-medium text-gray-600">Available To Generate</p>
+                              <p className="text-xl font-bold text-green-600">{vouchersCanGenerate} vouchers</p>
                             </div>
                           </div>
-                          <div className="bg-purple-50 rounded-lg p-4">
-                            <div className="flex items-center">
-                              <Calendar className="text-purple-600 mr-3" size={20} />
-                              <div>
-                                <p className="text-sm font-medium text-gray-600">Valid For</p>
-                                <p className="text-2xl font-bold text-purple-600">
-                                  {info.voucherSettings.validityDays} days
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bg-yellow-50 rounded-lg p-4 mb-6">
-                          <div className="flex items-center">
-                            <AlertTriangle className="text-yellow-600 mr-3" size={20} />
-                            <div>
-                              <p className="text-sm font-medium text-yellow-800">
-                                Voucher generation not configured
-                              </p>
-                              <p className="text-sm text-yellow-700">
-                                The manufacturer has not set up voucher generation for this campaign.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                        )}
 
-                      {/* Current Status */}
-                      {info?.currentStatus && (
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                          <div className="text-center">
-                            <p className="text-sm font-medium text-gray-600">Total Points Earned</p>
-                            <p className="text-xl font-bold text-gray-900">
-                              {info.currentStatus.totalPointsEarned}
-                            </p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-sm font-medium text-gray-600">Points Used</p>
-                            <p className="text-xl font-bold text-red-600">
-                              {info.currentStatus.pointsUsedForVouchers}
-                            </p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-sm font-medium text-gray-600">Available Points</p>
-                            <p className="text-xl font-bold text-green-600">
-                              {info.currentStatus.availablePoints}
-                            </p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-sm font-medium text-gray-600">Vouchers Generated</p>
-                            <p className="text-xl font-bold text-blue-600">
-                              {info.currentStatus.totalVouchersGenerated}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Voucher Generation */}
-                      {info?.voucherSettings?.isConfigured && (
-                        <div className="bg-gray-50 rounded-lg p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                                Voucher Generation
-                              </h3>
+                       {/* Free Product Generation */}
+                       <div className="bg-blue-50 rounded-lg p-4">
+                         <div className="flex items-center justify-between">
+                           <div>
+                             <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                               Free Product Generation
+                             </h3>
                               {canGenerate ? (
-                                <div className="space-y-2">
-                                  <p className="text-sm text-gray-600">
-                                    You can generate{' '}
-                                    <span className="font-semibold text-green-600">
-                                      {vouchersCanGenerate}
-                                    </span>{' '}
-                                    voucher(s)
-                                  </p>
-                                  <p className="text-sm text-gray-600">
-                                    Each voucher will be worth{' '}
-                                    <span className="font-semibold text-green-600">
-                                      ₹{nextVoucherValue}
+                               <div className="space-y-2">
+                                 <p className="text-sm text-gray-600">
+                                   You can generate{' '}
+                                   <span className="font-semibold text-green-600">{vouchersCanGenerate}</span> free product voucher(s)
+                                 </p>
+                                 <p className="text-sm text-gray-600">
+                                    Each voucher will give you{' '}
+                                    <span className="font-semibold text-blue-700">
+                                      {singleRule ? (`${displayFreeProductQty} x ${displayFreeProductName}`) : 'as per rule'}
                                     </span>
-                                  </p>
-                                </div>
-                              ) : (
+                                 </p>
+                                 <p className="text-sm text-gray-600">
+                                    {singleRule ? (
+                                      <>
+                                        For ordering{' '}
+                                        <span className="font-semibold text-purple-600">{displayRequiredQty} units of {displayEligibleName}</span>
+                                      </>
+                                    ) : (
+                                      'See rules above for details'
+                                    )}
+                                 </p>
+                               </div>
+                                                           ) : (
                                 <div className="space-y-2">
+                                  <p className="text-sm text-gray-600">{freeProductCannotReason}</p>
                                   <p className="text-sm text-gray-600">
-                                    You need{' '}
-                                    <span className="font-semibold text-red-600">
-                                      {pointsNeeded}
-                                    </span>{' '}
-                                    more points to generate a voucher
-                                  </p>
-                                  <p className="text-sm text-gray-600">
-                                    Each voucher requires{' '}
-                                    <span className="font-semibold text-red-600">
-                                      {info.voucherSettings.threshold}
-                                    </span>{' '}
-                                    points
+                                    {singleRule ? (
+                                      <>
+                                        Each voucher requires{' '}
+                                        <span className="font-semibold text-red-600">{displayRequiredQty} units of {displayEligibleName}</span>
+                                      </>
+                                    ) : (
+                                      'Follow the rules above to qualify'
+                                    )}
                                   </p>
                                 </div>
                               )}
-                            </div>
-                            <button
+                           </div>
+                                                       <button
                               onClick={() => generateVoucher(campaign.id)}
                               disabled={!canGenerate || generatingVoucher[campaign.id]}
-                              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
-                                canGenerate
-                                  ? 'bg-green-600 text-white hover:bg-green-700 disabled:opacity-50'
-                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              }`}
+                              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${getButtonColor(canGenerate, true)}`}
                             >
-                              {generatingVoucher[campaign.id] ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                              ) : (
-                                <Gift size={16} />
-                              )}
-                              {generatingVoucher[campaign.id] ? 'Generating...' : 'Generate Voucher'}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                             {generatingVoucher[campaign.id] ? (
+                               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                             ) : (
+                               <Package size={16} />
+                             )}
+                             {generatingVoucher[campaign.id] ? 'Generating...' : 'Generate Free Product'}
+                           </button>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                 );
+               })}
+             </div>
+           )}
         </>
       )}
 
