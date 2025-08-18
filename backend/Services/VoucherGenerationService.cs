@@ -86,15 +86,18 @@ namespace backend.Services
                 }
                 else
                 {
-                    // Fetch eligible product IDs for the campaign
-                    var campaign = await _context.Campaigns
-                        .Include(c => c.EligibleProducts)
-                        .FirstOrDefaultAsync(c => c.Id == campaignId);
+                    // If campaign is voucher_restricted, restrict to campaign's voucher products; else unrestricted
                     string eligibleProductsJson = null;
-                    if (campaign != null && campaign.EligibleProducts != null && campaign.EligibleProducts.Any())
+                    var campaign = await _context.Campaigns
+                        .Include(c => c.VoucherProducts)
+                        .FirstOrDefaultAsync(c => c.Id == campaignId);
+                    if (campaign != null && string.Equals(campaign.RewardType, "voucher_restricted", StringComparison.OrdinalIgnoreCase))
                     {
-                        var productIds = campaign.EligibleProducts.Select(ep => ep.CampaignProductId).ToList();
-                        eligibleProductsJson = System.Text.Json.JsonSerializer.Serialize(productIds);
+                        var productIds = campaign.VoucherProducts?.Where(vp => vp.IsActive).Select(vp => vp.ProductId).Distinct().ToList() ?? new List<int>();
+                        if (productIds.Any())
+                        {
+                            eligibleProductsJson = System.Text.Json.JsonSerializer.Serialize(productIds);
+                        }
                     }
                     var voucherExpiry = now.AddDays(90); // Default 90 days
                     var voucherCode = $"QR-VCH-{now:yyyyMMdd}-{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
@@ -205,22 +208,33 @@ namespace backend.Services
             return updatedCount;
         }
 
-        // Backfill eligible products for all existing vouchers that do not have them
+        // Backfill eligible products: if campaign is voucher_restricted, set allowed product list; otherwise leave unrestricted
         public async Task<int> BackfillVoucherEligibleProductsAsync()
         {
-            var vouchers = await _context.Vouchers.ToListAsync();
             int updatedCount = 0;
-            foreach (var voucher in vouchers)
+            var vouchers = await _context.Vouchers
+                .Include(v => v.Campaign)
+                .ToListAsync();
+            foreach (var v in vouchers)
             {
-                if (string.IsNullOrEmpty(voucher.EligibleProducts))
+                if (v.Campaign != null && string.Equals(v.Campaign.RewardType, "voucher_restricted", StringComparison.OrdinalIgnoreCase))
                 {
                     var campaign = await _context.Campaigns
-                        .Include(c => c.EligibleProducts)
-                        .FirstOrDefaultAsync(c => c.Id == voucher.CampaignId);
-                    if (campaign != null && campaign.EligibleProducts != null && campaign.EligibleProducts.Any())
+                        .Include(c => c.VoucherProducts)
+                        .FirstOrDefaultAsync(c => c.Id == v.CampaignId);
+                    var productIds = campaign?.VoucherProducts?.Where(vp => vp.IsActive).Select(vp => vp.ProductId).Distinct().ToList() ?? new List<int>();
+                    if (productIds.Any())
                     {
-                        var productIds = campaign.EligibleProducts.Select(ep => ep.CampaignProductId).ToList();
-                        voucher.EligibleProducts = System.Text.Json.JsonSerializer.Serialize(productIds);
+                        v.EligibleProducts = System.Text.Json.JsonSerializer.Serialize(productIds);
+                        updatedCount++;
+                    }
+                }
+                else
+                {
+                    // Make unrestricted for non-restricted campaigns
+                    if (!string.IsNullOrEmpty(v.EligibleProducts))
+                    {
+                        v.EligibleProducts = null;
                         updatedCount++;
                     }
                 }

@@ -112,10 +112,13 @@ const CampaignCreate = () => {
     if (!formData.startDate) newErrors.startDate = 'Start date is required';
     if (!formData.endDate) newErrors.endDate = 'End date is required';
     if (!formData.description) newErrors.description = 'Description is required';
-    if (formData.rewardType === 'voucher') {
+    if (formData.rewardType === 'voucher' || formData.rewardType === 'voucher_restricted') {
       if (!formData.voucherValue) newErrors.voucherValue = 'Voucher value is required';
       if (!formData.voucherGenerationThreshold) newErrors.voucherGenerationThreshold = 'Voucher generation threshold is required';
       if (!formData.voucherValidityDays) newErrors.voucherValidityDays = 'Voucher validity days is required';
+    }
+    if (formData.rewardType === 'voucher_restricted' && selectedVoucherProducts.length === 0) {
+      newErrors.voucherProducts = 'Select at least one voucher redemption product';
     }
     selectedEligibleProducts.forEach(ep => {
       if (ep.freeProductId) {
@@ -272,14 +275,14 @@ const CampaignCreate = () => {
           freeProductId: ep.freeProductId ? parseInt(ep.freeProductId) : null,
           freeProductQty: ep.freeProductId ? parseInt(ep.freeProductQty) : null,
         })) : undefined,
-        voucherProducts: formData.rewardType === 'voucher' && filteredVoucherProducts.length > 0 ? filteredVoucherProducts.map(vp => ({
+        voucherProducts: (formData.rewardType === 'voucher' || formData.rewardType === 'voucher_restricted') && filteredVoucherProducts.length > 0 ? filteredVoucherProducts.map(vp => ({
           productId: vp.productId, // from products table
           voucherValue: vp.voucherValue ? parseFloat(vp.voucherValue) : 0,
           isActive: vp.isActive
         })) : undefined,
-        voucherValue: formData.rewardType === 'voucher' ? (formData.voucherValue ? parseFloat(formData.voucherValue) : null) : undefined,
-        voucherGenerationThreshold: formData.rewardType === 'voucher' ? (formData.voucherGenerationThreshold ? parseInt(formData.voucherGenerationThreshold) : null) : undefined,
-        voucherValidityDays: formData.rewardType === 'voucher' ? (formData.voucherValidityDays ? parseInt(formData.voucherValidityDays) : null) : undefined,
+        voucherValue: (formData.rewardType === 'voucher' || formData.rewardType === 'voucher_restricted') ? (formData.voucherValue ? parseFloat(formData.voucherValue) : null) : undefined,
+        voucherGenerationThreshold: (formData.rewardType === 'voucher' || formData.rewardType === 'voucher_restricted') ? (formData.voucherGenerationThreshold ? parseInt(formData.voucherGenerationThreshold) : null) : undefined,
+        voucherValidityDays: (formData.rewardType === 'voucher' || formData.rewardType === 'voucher_restricted') ? (formData.voucherValidityDays ? parseInt(formData.voucherValidityDays) : null) : undefined,
         freeProductRewards: formData.rewardType === 'free_product' && filteredEligibleProducts.some(ep => ep.freeProductId)
           ? filteredEligibleProducts.filter(ep => ep.freeProductId).map(ep => ({
               productId: parseInt(ep.freeProductId),
@@ -384,7 +387,7 @@ const CampaignCreate = () => {
               <Info className="h-5 w-5 text-blue-600" />
               <h2 className="text-xl font-semibold text-gray-900">Basic Campaign Information</h2>
             </div>
-            <div className="mb-4 text-gray-500 text-sm">Fill in the basic details for your campaign. <span className='text-blue-600'>(Step 1 of 2)</span></div>
+            <div className="mb-4 text-gray-500 text-sm">Fill in the basic details for your campaign. <span className='text-blue-600'>(Step 1 of {steps.length})</span></div>
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">Reward Type *</label>
               <div className="flex space-x-6">
@@ -398,6 +401,17 @@ const CampaignCreate = () => {
                     className="form-radio text-blue-600"
                   />
                   <span className="ml-2">Voucher (₹)</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="rewardType"
+                    value="voucher_restricted"
+                    checked={formData.rewardType === 'voucher_restricted'}
+                    onChange={handleInputChange}
+                    className="form-radio text-purple-600"
+                  />
+                  <span className="ml-2">Voucher (Restricted Redemption)</span>
                 </label>
                 <label className="inline-flex items-center">
                   <input
@@ -485,12 +499,12 @@ const CampaignCreate = () => {
 
 
 
-              {/* Conditionally render voucher fields if rewardType is voucher */}
-              {formData.rewardType === 'voucher' && (
+              {/* Conditionally render voucher fields for voucher and voucher_restricted */}
+              {(formData.rewardType === 'voucher' || formData.rewardType === 'voucher_restricted') && (
                 <>
                   <div>
                     <label htmlFor="voucherValue" className="block text-sm font-medium text-gray-700 mb-2">
-                      Voucher Value (₹) *
+                      {formData.rewardType === 'voucher' ? 'Voucher Value (₹) *' : 'Voucher Value (Points) *'}
                     </label>
                     <input
                       type="number"
@@ -499,9 +513,9 @@ const CampaignCreate = () => {
                       value={formData.voucherValue}
                       onChange={handleInputChange}
                       className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.voucherValue ? 'border-red-500' : 'border-gray-300'}`}
-                      placeholder="e.g., 100"
-                      min="0.01"
-                      step="0.01"
+                      placeholder={formData.rewardType === 'voucher' ? 'e.g., 100' : 'e.g., 1000'}
+                      min="1"
+                      step="1"
                       required
                     />
                     {errors.voucherValue && <p className="mt-1 text-sm text-red-600">{errors.voucherValue}</p>}
@@ -586,65 +600,67 @@ const CampaignCreate = () => {
         return (
           <div className="bg-white shadow-lg rounded-xl p-6 border border-gray-200">
             <h3 className="text-lg font-semibold mb-2">Product Selection for Campaign</h3>
-            <div className="mb-4 text-gray-500 text-sm">Select products from the chosen category and assign points for this campaign. <span className='text-blue-600'>(Step 2 of 2)</span></div>
+            <div className="mb-4 text-gray-500 text-sm">Select products and configure based on reward type. <span className='text-blue-600'>(Step 2 of 2)</span></div>
             
-            {/* Section 1: Available Products from Selected Category */}
-            <div className="mb-8">
-              <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
-                <Package className="h-4 w-4 mr-2 text-blue-600" />
-                Available Products (for Points Earning, from Campaign Products Table) - {formData.productType || 'Select Category'}
-              </h4>
-              <div className="border rounded p-4 bg-gray-50">
-                {!formData.productType ? (
-                  <div className="text-gray-500 text-center py-8">
-                    <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                    <p>Please select a Product Type (Category) in Step 1 to view available products.</p>
-                  </div>
-                ) : categoryProducts.length === 0 ? (
-                  <div className="text-gray-500 text-center py-8">
-                    <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                    <p>No products found for the selected category: <strong>{formData.productType}</strong></p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead>
-                        <tr className="bg-gray-100">
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Select</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Product Name</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Brand</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">SKU</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Base Price (₹)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {categoryProducts.map((product) => {
-                          const isSelected = selectedEligibleProducts.some(ep => ep.productId === product.id);
-                          return (
-                            <tr key={product.id} className="border-b hover:bg-gray-50">
-                              <td className="px-3 py-2">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={e => handleEligibleProductSelect(product, e.target.checked)}
-                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                />
-                              </td>
-                              <td className="px-3 py-2 font-medium text-gray-900">{product.name}</td>
-                              <td className="px-3 py-2 text-gray-600">{product.brand || '-'}</td>
-                              <td className="px-3 py-2 text-gray-600 font-mono text-xs">{product.sku || '-'}</td>
-                              <td className="px-3 py-2 text-gray-600">₹{product.basePrice || 0}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+            {/* Section 1: Available Products from Selected Category (both types) */}
+            {(
+              <div className="mb-8">
+                <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
+                  <Package className="h-4 w-4 mr-2 text-blue-600" />
+                  Available Products (from Campaign Products Table) - {formData.productType || 'Select Category'}
+                </h4>
+                <div className="border rounded p-4 bg-gray-50">
+                  {!formData.productType ? (
+                    <div className="text-gray-500 text-center py-8">
+                      <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                      <p>Please select a Product Type (Category) in Step 1 to view available products.</p>
+                    </div>
+                  ) : categoryProducts.length === 0 ? (
+                    <div className="text-gray-500 text-center py-8">
+                      <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                      <p>No products found for the selected category: <strong>{formData.productType}</strong></p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">Select</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">Product Name</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">Brand</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">SKU</th>
+                            {/* No price column here; this is points-based selection */}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {categoryProducts.map((product) => {
+                            const isSelected = selectedEligibleProducts.some(ep => ep.productId === product.id);
+                            return (
+                              <tr key={product.id} className="border-b hover:bg-gray-50">
+                                <td className="px-3 py-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={e => handleEligibleProductSelect(product, e.target.checked)}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  />
+                                </td>
+                                <td className="px-3 py-2 font-medium text-gray-900">{product.name}</td>
+                                <td className="px-3 py-2 text-gray-600">{product.brand || '-'}</td>
+                                <td className="px-3 py-2 text-gray-600 font-mono text-xs">{product.sku || '-'}</td>
+                                {/* No price cell */}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Section 2: Selected Eligible Products with Points Assignment */}
+            {/* Section 2: Selected Eligible Products with Assignment (both types) */}
             {selectedEligibleProducts.length > 0 && (
               <div className="mb-6">
                 <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
@@ -659,8 +675,11 @@ const CampaignCreate = () => {
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Product Name</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-700">Brand</th>
                           <th className="px-3 py-2 text-left font-medium text-gray-700">SKU</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Base Price (₹)</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Points Per Purchase</th>
+                          {/* No price column; points-based earning */}
+                          {/* Points for voucher; Buy X Get Y for free_product */}
+                          {(formData.rewardType === 'voucher' || formData.rewardType === 'voucher_restricted') && (
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">Points Per Purchase</th>
+                          )}
                           {formData.rewardType === 'free_product' && (
                             <>
                               <th className="px-3 py-2 text-left font-medium text-gray-700">Min Purchase Qty</th>
@@ -679,18 +698,20 @@ const CampaignCreate = () => {
                               <td className="px-3 py-2 font-medium text-gray-900">{product?.name || 'Unknown Product'}</td>
                               <td className="px-3 py-2 text-gray-600">{product?.brand || '-'}</td>
                               <td className="px-3 py-2 text-gray-600 font-mono text-xs">{product?.sku || '-'}</td>
-                              <td className="px-3 py-2 text-gray-600">₹{product?.basePrice || 0}</td>
-                              <td className="px-3 py-2">
-                                <input
-                                  type="number"
-                                  value={selectedProduct.pointCost || ''}
-                                  onChange={e => handleEligibleProductChange(selectedProduct.productId, 'pointCost', e.target.value)}
-                                  className="w-24 px-2 py-1 border rounded text-sm"
-                                  placeholder="Points"
-                                  min="0"
-                                  required
-                                />
-                              </td>
+                              {/* No price cell */}
+                              {(formData.rewardType === 'voucher' || formData.rewardType === 'voucher_restricted') && (
+                                <td className="px-3 py-2">
+                                  <input
+                                    type="number"
+                                    value={selectedProduct.pointCost || ''}
+                                    onChange={e => handleEligibleProductChange(selectedProduct.productId, 'pointCost', e.target.value)}
+                                    className="w-24 px-2 py-1 border rounded text-sm"
+                                    placeholder="Points"
+                                    min="0"
+                                    required
+                                  />
+                                </td>
+                              )}
                               {formData.rewardType === 'free_product' && (
                                 <>
                                   <td className="px-3 py-2">
@@ -745,150 +766,131 @@ const CampaignCreate = () => {
               </div>
             )}
 
-            {/* Section 3: Voucher Redemption Products (only for voucher campaigns) */}
-            {formData.rewardType === 'voucher' && (
-            <div className="mb-8">
-              <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
-                <Target className="h-4 w-4 mr-2 text-purple-600" />
-                Voucher Redemption Products (from Products Table)
-              </h4>
-              <div className="mb-4 text-gray-500 text-sm">Select products from your managed products that can be redeemed using vouchers generated from this campaign.</div>
-              
-              <div className="border rounded p-4 bg-purple-50">
-                {manufacturerProducts.length === 0 ? (
-                  <div className="text-gray-500 text-center py-8">
-                    <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                    <p>No products found in your managed products. Please add products in the Manage Products page first.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead>
-                        <tr className="bg-purple-100">
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Select</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Product Name</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Category</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">SKU</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Base Price (₹)</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {manufacturerProducts.map((product) => {
-                          const isSelected = selectedVoucherProducts.some(vp => vp.productId === product.id);
-                          return (
-                            <tr key={product.id} className="border-b hover:bg-purple-100">
-                              <td className="px-3 py-2">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={e => handleVoucherProductSelect(product, e.target.checked)}
-                                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                                  disabled={!product.isActive}
-                                />
-                              </td>
-                              <td className="px-3 py-2 font-medium text-gray-900">{product.name}</td>
-                              <td className="px-3 py-2 text-gray-600">{product.category || '-'}</td>
-                              <td className="px-3 py-2 text-gray-600 font-mono text-xs">{product.sku || '-'}</td>
-                              <td className="px-3 py-2 text-gray-600">₹{product.basePrice || 0}</td>
-                              <td className="px-3 py-2">
-                                <span className={`px-2 py-1 text-xs rounded-full ${
-                                  product.isActive 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {product.isActive ? 'Active' : 'Inactive'}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-            )}
-
-            {/* Section 4: Selected Voucher Redemption Products (only for voucher campaigns) */}
-            {formData.rewardType === 'voucher' && selectedVoucherProducts.length > 0 && (
-              <div className="mb-6">
+            {/* Voucher redemption products (only for voucher_restricted) */}
+            {formData.rewardType === 'voucher_restricted' && (
+              <div className="mb-8">
                 <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
                   <Target className="h-4 w-4 mr-2 text-purple-600" />
-                  Selected Voucher Redemption Products ({selectedVoucherProducts.length})
+                  Voucher Redemption Products (from Products Table)
                 </h4>
+                <div className="mb-4 text-gray-500 text-sm">Select products that vouchers from this campaign can be redeemed against.</div>
                 <div className="border rounded p-4 bg-purple-50">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead>
-                        <tr className="bg-purple-100">
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Product Name</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Category</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">SKU</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Base Price (₹)</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Voucher Value (₹)</th>
-                          <th className="px-3 py-2 text-left font-medium text-gray-700">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedVoucherProducts.map((selectedProduct) => {
-                          const product = manufacturerProducts.find(p => p.id === selectedProduct.productId);
-                          return (
-                            <tr key={selectedProduct.productId} className="border-b hover:bg-purple-100">
-                              <td className="px-3 py-2 font-medium text-gray-900">{product?.name || 'Unknown Product'}</td>
-                              <td className="px-3 py-2 text-gray-600">{product?.category || '-'}</td>
-                              <td className="px-3 py-2 text-gray-600 font-mono text-xs">{product?.sku || '-'}</td>
-                              <td className="px-3 py-2 text-gray-600">₹{product?.basePrice || 0}</td>
-                              <td className="px-3 py-2">
-                                <input
-                                  type="number"
-                                  value={selectedProduct.voucherValue || ''}
-                                  onChange={e => handleVoucherProductChange(selectedProduct.productId, 'voucherValue', e.target.value)}
-                                  className="w-24 px-2 py-1 border rounded text-sm"
-                                  placeholder="₹"
-                                  min="0"
-                                  step="0.01"
-                                  required
-                                />
-                              </td>
-                              <td className="px-3 py-2">
-                                <button
-                                  onClick={() => handleVoucherProductSelect(product, false)}
-                                  className="text-red-600 hover:text-red-800 text-sm font-medium"
-                                >
-                                  Remove
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                  {manufacturerProducts.length === 0 ? (
+                    <div className="text-gray-500 text-center py-8">
+                      <AlertCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                      <p>No products found in your managed products. Please add products in the Manage Products page first.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="bg-purple-100">
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">Select</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">Product Name</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">Category</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">SKU</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">Base Price (₹)</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {manufacturerProducts.map((product) => {
+                            const isSelected = selectedVoucherProducts.some(vp => vp.productId === product.id);
+                            return (
+                              <tr key={product.id} className="border-b hover:bg-purple-100">
+                                <td className="px-3 py-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={e => handleVoucherProductSelect(product, e.target.checked)}
+                                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                    disabled={!product.isActive}
+                                  />
+                                </td>
+                                <td className="px-3 py-2 font-medium text-gray-900">{product.name}</td>
+                                <td className="px-3 py-2 text-gray-600">{product.category || '-'}</td>
+                                <td className="px-3 py-2 text-gray-600 font-mono text-xs">{product.sku || '-'}</td>
+                                <td className="px-3 py-2 text-gray-600">₹{product.basePrice || 0}</td>
+                                <td className="px-3 py-2">
+                                  <span className={`px-2 py-1 text-xs rounded-full ${
+                                    product.isActive 
+                                      ? 'bg-green-100 text-green-800' 
+                                      : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {product.isActive ? 'Active' : 'Inactive'}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
+                {selectedVoucherProducts.length > 0 && (
+                  <div className="mt-6 border rounded p-4 bg-purple-50">
+                    <h4 className="text-md font-medium text-gray-900 mb-3 flex items-center">
+                      <Target className="h-4 w-4 mr-2 text-purple-600" />
+                      Selected Voucher Redemption Products ({selectedVoucherProducts.length})
+                    </h4>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="bg-purple-100">
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">Product</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">Category</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">Required Points</th>
+                            <th className="px-3 py-2 text-left font-medium text-gray-700">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedVoucherProducts.map((selectedProduct) => {
+                            const product = manufacturerProducts.find(p => p.id === selectedProduct.productId);
+                            return (
+                              <tr key={selectedProduct.productId} className="border-b hover:bg-purple-100">
+                                <td className="px-3 py-2 font-medium text-gray-900">{product?.name || 'Unknown Product'}</td>
+                                <td className="px-3 py-2 text-gray-600">{product?.category || '-'}</td>
+                                <td className="px-3 py-2">
+                                  <input
+                                    type="number"
+                                    value={selectedProduct.voucherValue || ''}
+                                    onChange={e => handleVoucherProductChange(selectedProduct.productId, 'voucherValue', e.target.value)}
+                                    className="w-28 px-2 py-1 border rounded text-sm"
+                                    placeholder="Points"
+                                    min="1"
+                                    step="1"
+                                    required
+                                  />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <button
+                                    onClick={() => handleVoucherProductSelect(product, false)}
+                                    className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                  >
+                                    Remove
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+                {errors.voucherProducts && <p className="mt-2 text-sm text-red-600">{errors.voucherProducts}</p>}
               </div>
             )}
 
             {/* Summary Section */}
-            {(selectedEligibleProducts.length > 0 || selectedVoucherProducts.length > 0) && (
+            {(selectedEligibleProducts.length > 0) && (
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <h4 className="text-sm font-medium text-blue-900 mb-2">Campaign Summary</h4>
                 <div className="text-sm text-blue-800">
-                  {selectedEligibleProducts.length > 0 && (
-                    <p>• <strong>{selectedEligibleProducts.length}</strong> product(s) selected for campaign points</p>
-                  )}
-                  {selectedVoucherProducts.length > 0 && (
-                    <p>• <strong>{selectedVoucherProducts.length}</strong> product(s) selected for voucher redemption</p>
-                  )}
-                  {selectedEligibleProducts.length > 0 && (
-                    <p>• Total points to assign: <strong>{selectedEligibleProducts.reduce((sum, ep) => sum + (ep.pointCost || 0), 0)}</strong></p>
-                  )}
-                  {selectedVoucherProducts.length > 0 && (
-                    <p>• Total voucher value: <strong>₹{selectedVoucherProducts.reduce((sum, vp) => sum + (vp.voucherValue || 0), 0)}</strong></p>
-                  )}
+                  <p>• <strong>{selectedEligibleProducts.length}</strong> product(s) selected for campaign</p>
                   <p className="text-xs text-blue-600 mt-1">
-                    💡 Tip: Products can be selected for both points earning and voucher redemption.
+                    💡 For voucher campaigns, assign points per product. For free product campaigns, configure Buy X Get Y.
                   </p>
                 </div>
               </div>
