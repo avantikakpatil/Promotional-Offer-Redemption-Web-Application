@@ -53,14 +53,21 @@ const Analytics = () => {
       
       // Fetch campaigns
       const campaignsResponse = await api.get('/manufacturer/campaigns');
-      setCampaigns(campaignsResponse.data);
+      // Ensure campaigns is always an array
+      const campaignsData = Array.isArray(campaignsResponse.data) ? campaignsResponse.data : [];
+      setCampaigns(campaignsData);
 
       // Fetch resellers
       const resellersResponse = await api.get('/manufacturer/resellers');
-      setResellers(resellersResponse.data);
+      // Ensure resellers is always an array
+      const resellersData = Array.isArray(resellersResponse.data) ? resellersResponse.data : [];
+      setResellers(resellersData);
     } catch (err) {
       setError('Failed to fetch initial data');
       console.error('Error fetching initial data:', err);
+      // Set empty arrays on error to prevent map errors
+      setCampaigns([]);
+      setResellers([]);
     } finally {
       setLoading(false);
     }
@@ -184,7 +191,7 @@ const Analytics = () => {
               className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
             >
               <option value="">All Campaigns</option>
-              {campaigns.map((campaign) => (
+              {Array.isArray(campaigns) && campaigns.map((campaign) => (
                 <option key={campaign.id} value={campaign.id}>
                   {campaign.name}
                 </option>
@@ -241,7 +248,7 @@ const Analytics = () => {
               className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
             >
               <option value="">All Resellers</option>
-              {resellers.map((reseller) => (
+              {Array.isArray(resellers) && resellers.map((reseller) => (
                 <option key={reseller.id} value={reseller.id}>
                   {reseller.name}
                 </option>
@@ -396,28 +403,30 @@ const Analytics = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {analyticsData?.detailedData?.map((row, index) => (
-                  <tr key={index}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(row.date).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {row.campaignName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {row.resellerName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {row.scans}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {row.redemptions}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ₹{row.value}
-                    </td>
-                  </tr>
-                )) || (
+                {Array.isArray(analyticsData?.detailedData) && analyticsData.detailedData.length > 0 ? (
+                  analyticsData.detailedData.map((row, index) => (
+                    <tr key={index}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {new Date(row.date).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {row.campaignName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {row.resellerName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {row.scans}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {row.redemptions}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ₹{row.value}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
                   <tr>
                     <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">
                       No data available
@@ -433,4 +442,4 @@ const Analytics = () => {
   );
 };
 
-export default Analytics; 
+export default Analytics;

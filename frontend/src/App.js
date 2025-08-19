@@ -13,7 +13,6 @@ import DashboardHome from './components/Dashboard/Manufacturer/DashboardHome';
 import CampaignCreate from './components/Dashboard/Manufacturer/CampaignCreate';
 import ViewCampaigns from './components/Dashboard/Manufacturer/ViewCampaigns';
 import QRCodeManagement from './components/Dashboard/Manufacturer/QRCodeManagement';
-import ResellerAssign from './components/Dashboard/Manufacturer/ResellerAssign';
 import Analytics from './components/Dashboard/Manufacturer/Analytics';
 import ResellerManage from './components/Dashboard/Manufacturer/ResellerManage';
 import Settings from './components/Dashboard/Manufacturer/Settings';
@@ -115,7 +114,6 @@ function App() {
                 <Route path="campaign/:id/edit" element={<CampaignEdit />} />
                 <Route path="campaign/:id" element={<React.Suspense fallback={<div>Loading...</div>}><CampaignView /></React.Suspense>} />
                 <Route path="qr-codes" element={<QRCodeManagement />} />
-                <Route path="assign-reseller" element={<ResellerAssign />} />
                 <Route path="assign-credentials" element={<ResellerCredentialsAssign />} />
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="resellers" element={<ResellerManage />} />
