@@ -23,6 +23,7 @@ const Sidebar = () => {
     { name: 'Manage Products', href: '/manufacturer/products', icon: ArchiveBoxIcon },
     { name: 'QR Codes', href: '/manufacturer/qr-codes', icon: QrCodeIcon },
     { name: 'Assign Reseller', href: '/manufacturer/assign-reseller', icon: UserGroupIcon },
+    { name: 'Assign Credentials', href: '/manufacturer/assign-credentials', icon: UsersIcon },
     { name: 'Analytics', href: '/manufacturer/analytics', icon: ChartBarIcon },
     { name: 'Manage Resellers', href: '/manufacturer/resellers', icon: UsersIcon },
     { name: 'Settings', href: '/manufacturer/settings', icon: CogIcon },

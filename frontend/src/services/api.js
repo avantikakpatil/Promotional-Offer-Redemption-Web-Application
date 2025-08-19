@@ -92,4 +92,11 @@ export const productAPI = {
   updateProduct: (id, productData) => api.put(`/manufacturer/product/${id}`, productData),
 };
 
+// Manufacturer Reseller Credentials API
+export const manufacturerResellerAPI = {
+  createReseller: (data) => api.post('/manufacturer/resellers', data),
+  listResellers: () => api.get('/manufacturer/resellers'),
+  resetResellerPassword: (id, data) => api.put(`/manufacturer/resellers/${id}/password`, data),
+};
+
 export default api;

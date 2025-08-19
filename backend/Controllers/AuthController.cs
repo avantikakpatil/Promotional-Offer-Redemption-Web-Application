@@ -59,48 +59,9 @@ namespace backend.Controllers
         }
 
         [HttpPost("signup")]
-        public async Task<IActionResult> Signup([FromBody] SignupRequest request)
+        public IActionResult Signup([FromBody] object _)
         {
-            try
-            {
-                if (await _context.Users.AnyAsync(u => u.Email == request.Email))
-                {
-                    return BadRequest("Email already exists");
-                }
-
-                var user = new User
-                {
-                    Name = request.Name,
-                    Email = request.Email,
-                    Phone = request.Phone,
-                    Role = request.Role,
-                    PasswordHash = HashPassword(request.Password),
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                _context.Users.Add(user);
-                await _context.SaveChangesAsync();
-
-                var token = GenerateJwtToken(user);
-
-                return Ok(new
-                {
-                    token,
-                    user = new
-                    {
-                        id = user.Id,
-                        name = user.Name,
-                        email = user.Email,
-                        role = user.Role,
-                        points = user.Points
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Signup error: {ex.Message}");
-                return StatusCode(500, new { error = "Internal server error during signup", details = ex.Message });
-            }
+            return Forbid(); // Disable public signup; accounts must be provisioned by manufacturer/admin
         }
 
         [HttpPost("login")]

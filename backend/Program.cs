@@ -153,6 +153,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICampaignService, CampaignService>();
 builder.Services.AddScoped<IVoucherGenerationService, VoucherGenerationService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Register custom services using the extension method
 builder.Services.AddCustomServices();
@@ -245,8 +246,6 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
-
 // Use CORS (Order is CRITICAL - must be before Authentication and Authorization)
 if (app.Environment.IsDevelopment())
 {
@@ -258,6 +257,19 @@ else
     // Use stricter CORS in production
     app.UseCors("AllowReactApp");
 }
+
+// Short-circuit CORS preflight requests to avoid HTTPS redirection on OPTIONS
+app.Use(async (context, next) =>
+{
+    if (string.Equals(context.Request.Method, "OPTIONS", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.StatusCode = StatusCodes.Status204NoContent;
+        return;
+    }
+    await next();
+});
+
+app.UseHttpsRedirection();
 
 // Use Authentication & Authorization (Order matters!)
 app.UseAuthentication();

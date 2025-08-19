@@ -59,39 +59,9 @@ namespace backend.Controllers.Reseller
         }
 
         [HttpPost("signup")]
-        public async Task<IActionResult> Signup([FromBody] SignupRequest request)
+        public IActionResult Signup([FromBody] object _)
         {
-            if (await _context.Users.AnyAsync(u => u.Email == request.Email))
-            {
-                return BadRequest("Email already exists");
-            }
-
-            var user = new User
-            {
-                Name = request.Name,
-                Email = request.Email,
-                Phone = request.Phone,
-                Role = request.Role,
-                PasswordHash = HashPassword(request.Password)
-            };
-
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            var token = GenerateJwtToken(user);
-
-            return Ok(new
-            {
-                token,
-                user = new
-                {
-                    id = user.Id,
-                    name = user.Name,
-                    email = user.Email,
-                    role = user.Role,
-                    points = user.Points
-                }
-            });
+            return Forbid(); // Reseller accounts must be created by manufacturer
         }
 
         [HttpPost("login")]
