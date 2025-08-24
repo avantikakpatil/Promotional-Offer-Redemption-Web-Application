@@ -59,9 +59,62 @@ namespace backend.Controllers
         }
 
         [HttpPost("signup")]
-        public IActionResult Signup([FromBody] object _)
+        public async Task<IActionResult> Signup([FromBody] SignupRequest request)
         {
-            return Forbid(); // Disable public signup; accounts must be provisioned by manufacturer/admin
+            try
+            {
+                if (request == null)
+                {
+                    return BadRequest("Request body is null");
+                }
+
+                if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
+                {
+                    return BadRequest("Email and password are required");
+                }
+
+                var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+                if (existingUser != null)
+                {
+                    return Conflict("User with this email already exists");
+                }
+
+                var newUser = new User
+                {
+                    Name = request.Name,
+                    Email = request.Email,
+                    Phone = request.Phone,
+                    PasswordHash = HashPassword(request.Password),
+                    Role = request.Role,
+                    CreatedAt = DateTime.UtcNow,
+                    LastLoginAt = DateTime.UtcNow
+                };
+
+                _context.Users.Add(newUser);
+                await _context.SaveChangesAsync();
+
+                var token = GenerateJwtToken(newUser);
+
+                return Ok(new
+                {
+                    token,
+                    user = new
+                    {
+                        id = newUser.Id,
+                        name = newUser.Name,
+                        email = newUser.Email,
+                        role = newUser.Role,
+                        points = newUser.Points
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                // Log the exception details
+                Console.WriteLine($"Signup error: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                return StatusCode(500, new { error = "Internal server error during signup", details = ex.Message });
+            }
         }
 
         [HttpPost("login")]

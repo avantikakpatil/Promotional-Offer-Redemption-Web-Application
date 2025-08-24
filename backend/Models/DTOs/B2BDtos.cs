@@ -113,22 +113,26 @@ namespace backend.Models.DTOs
     }
 
     // Shopkeeper DTOs
-    public class RedeemVoucherDto
-    {
-        [Required]
-        public string QRCode { get; set; } = string.Empty;
-        
-        [Required]
-        public List<int> SelectedProductIds { get; set; } = new List<int>();
-        
-        public string? Notes { get; set; }
-    }
 
     public class VoucherValidationDto
     {
         [Required]
         public string QRCode { get; set; } = string.Empty;
         public int? CampaignId { get; set; } // Added for shopkeeper QR validation
+    }
+
+    public class RedeemVoucherDto
+    {
+        public string QRCode { get; set; }
+        public List<int>? SelectedProductIds { get; set; }
+        public List<ManualProductDetail>? RedeemedManualProducts { get; set; }
+    }
+
+    public class ManualProductDetail
+    {
+        public string Name { get; set; }
+        public int Quantity { get; set; }
+        public decimal Value { get; set; }
     }
 
     // Common DTOs
@@ -194,6 +198,10 @@ namespace backend.Models.DTOs
 
         public string? ShippingAddress { get; set; }
         public string? Notes { get; set; }
+
+        // Optional fields for frontend validation
+        public decimal? TotalAmount { get; set; }
+        public int? TotalPointsEarned { get; set; }
     }
 
     public class CreateOrderItemRequest

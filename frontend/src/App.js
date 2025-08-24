@@ -22,6 +22,8 @@ import Navbar from './components/Common/Navbar';
 import Vouchers from './components/Dashboard/Reseller/Vouchers';
 import ProductManage from './components/Dashboard/Manufacturer/ProductManage';
 import CampaignEdit from './components/Dashboard/Manufacturer/CampaignEdit';
+import Notifications from './components/Dashboard/Reseller/Notifications';
+import ManufacturerNotifications from './components/Dashboard/Manufacturer/Notifications';
 // Add a placeholder CampaignView component
 const CampaignView = React.lazy(() => import('./components/Dashboard/Manufacturer/CampaignView'));
 
@@ -54,7 +56,8 @@ function App() {
         <AuthProvider>
           <div className="app">
             <Navbar />
-            <Routes>
+            <div className="pt-16"> {/* Added padding for fixed navbar */}
+              <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
@@ -88,6 +91,7 @@ function App() {
               <Route path="/reseller/qr-codes" element={<Navigate to="/reseller/dashboard/qr-codes" replace />} />
               <Route path="/reseller/history" element={<Navigate to="/reseller/dashboard/history" replace />} />
               <Route path="/reseller/settings" element={<Navigate to="/reseller/dashboard/settings" replace />} />
+              <Route path="/reseller/notifications" element={<Navigate to="/reseller/dashboard/notifications" replace />} />
 
               <Route
                 path="/shopkeeper/dashboard/*"
@@ -120,11 +124,13 @@ function App() {
                 <Route path="settings" element={<Settings />} />
                 <Route path="help" element={<Help />} />
                 <Route path="products" element={<ProductManage />} />
+                <Route path="notifications" element={<ManufacturerNotifications />} />
               </Route>
 
               {/* Redirect root to login */}
               <Route path="/" element={<Navigate to="/login" />} />
             </Routes>
+          </div>
           </div>
         </AuthProvider>
       </Router>

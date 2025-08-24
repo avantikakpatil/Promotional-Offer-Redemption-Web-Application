@@ -37,7 +37,21 @@ namespace backend.Models
         
         [StringLength(100)]
         public string? GSTNumber { get; set; }
-        
+
+        [StringLength(50)]
+        public string? PANNumber { get; set; }
+
+        [StringLength(100)]
+        public string? StoreType { get; set; }
+
+        [StringLength(100)]
+        public string? BusinessHours { get; set; }
+
+        // JSON-serialized settings
+        public string? NotificationSettingsJson { get; set; }
+        public string? SecuritySettingsJson { get; set; }
+        public string? PreferenceSettingsJson { get; set; }
+
         // For Resellers - assigned manufacturer
         public int? AssignedManufacturerId { get; set; }
         

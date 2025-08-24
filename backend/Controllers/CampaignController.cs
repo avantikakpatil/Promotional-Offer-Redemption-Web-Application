@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using backend.Data;
 using backend.Models;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims; // Added for Claims
+using backend.Models.DTOs; // Added for DTOs
 
 namespace backend.Controllers
 {
@@ -23,12 +25,24 @@ namespace backend.Controllers
         {
             try
             {
+                // Get current reseller ID from claims if authenticated
+                int? resellerId = null;
+                if (User.Identity.IsAuthenticated)
+                {
+                    var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                    if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int parsedResellerId))
+                    {
+                        resellerId = parsedResellerId;
+                    }
+                }
+
                 // Get all active campaigns created by manufacturers (like Haldiram) for dealers/resellers
                 var campaigns = await _context.Campaigns
                     .Include(c => c.Manufacturer)
                     .Include(c => c.EligibleProducts)
                     .Include(c => c.VoucherProducts)
-                    .Where(c => c.IsActive && c.StartDate <= DateTime.UtcNow && c.EndDate >= DateTime.UtcNow)
+                    .Include(c => c.CampaignResellers) // Include CampaignResellers
+                    .Where(c => c.EndDate.Date >= DateTime.UtcNow.Date)
                     .OrderByDescending(c => c.CreatedAt)
                     .Select(c => new
                     {
@@ -68,7 +82,20 @@ namespace backend.Controllers
                             id = c.Manufacturer.Id,
                             name = c.Manufacturer.Name,
                             businessName = c.Manufacturer.BusinessName
-                        }
+                        },
+                        // Include reseller's assignment status if resellerId is available
+                        assignment = resellerId.HasValue ? c.CampaignResellers
+                            .Where(cr => cr.ResellerId == resellerId.Value)
+                            .Select(cr => new
+                            {
+                                id = cr.Id,
+                                isApproved = cr.IsApproved,
+                                totalPointsEarned = cr.TotalPointsEarned,
+                                totalOrderValue = cr.TotalOrderValue,
+                                totalVouchersGenerated = cr.TotalVouchersGenerated,
+                                // Add other relevant fields from CampaignReseller if needed
+                            })
+                            .FirstOrDefault() : null
                     })
                     .ToListAsync();
 
@@ -102,6 +129,7 @@ namespace backend.Controllers
                     c.eligibleProducts,
                     c.voucherProducts,
                     c.manufacturer,
+                    c.assignment, // Include assignment here
                     rewardTiers = rewardTiers.Where(rt => rt.campaignId == c.id).ToList()
                 }).ToList();
 
@@ -129,10 +157,22 @@ namespace backend.Controllers
         {
             try
             {
+                // Get current reseller ID from claims if authenticated
+                int? resellerId = null;
+                if (User.Identity.IsAuthenticated)
+                {
+                    var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                    if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int parsedResellerId))
+                    {
+                        resellerId = parsedResellerId;
+                    }
+                }
+
                 var campaign = await _context.Campaigns
                     .Include(c => c.Manufacturer)
                     .Include(c => c.EligibleProducts)
                     .Include(c => c.VoucherProducts)
+                    .Include(c => c.CampaignResellers) // Include CampaignResellers
                     .Where(c => c.Id == id && c.IsActive)
                     .Select(c => new
                     {
@@ -169,7 +209,20 @@ namespace backend.Controllers
                             id = c.Manufacturer.Id,
                             name = c.Manufacturer.Name,
                             businessName = c.Manufacturer.BusinessName
-                        }
+                        },
+                        // Include reseller's assignment status if resellerId is available
+                        assignment = resellerId.HasValue ? c.CampaignResellers
+                            .Where(cr => cr.ResellerId == resellerId.Value)
+                            .Select(cr => new
+                            {
+                                id = cr.Id,
+                                isApproved = cr.IsApproved,
+                                totalPointsEarned = cr.TotalPointsEarned,
+                                totalOrderValue = cr.TotalOrderValue,
+                                totalVouchersGenerated = cr.TotalVouchersGenerated,
+                                // Add other relevant fields from CampaignReseller if needed
+                            })
+                            .FirstOrDefault() : null
                     })
                     .FirstOrDefaultAsync();
 
@@ -209,6 +262,7 @@ namespace backend.Controllers
                     campaign.eligibleProducts,
                     campaign.voucherProducts,
                     campaign.manufacturer,
+                    campaign.assignment, // Include assignment here
                     rewardTiers = rewardTiers
                 };
 
@@ -225,6 +279,32 @@ namespace backend.Controllers
                     message = "An error occurred while fetching campaign", 
                     error = ex.Message 
                 });
+            }
+        }
+
+        // PUT: api/campaigns/{id}/status
+        [HttpPut("{id}/status")]
+        public async Task<IActionResult> UpdateCampaignStatus(int id, [FromBody] UpdateCampaignStatusDto statusDto)
+        {
+            try
+            {
+                var campaign = await _context.Campaigns.FindAsync(id);
+
+                if (campaign == null)
+                {
+                    return NotFound(new { success = false, message = "Campaign not found" });
+                }
+
+                campaign.IsActive = statusDto.IsActive;
+                campaign.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true, message = "Campaign status updated successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "An error occurred while updating campaign status", error = ex.Message });
             }
         }
     }

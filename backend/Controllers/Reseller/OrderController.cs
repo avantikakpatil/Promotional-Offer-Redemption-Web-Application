@@ -14,13 +14,18 @@ namespace backend.Controllers.Reseller
     public class OrderController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly INotificationService _notificationService;
         private readonly ICampaignPointsService _campaignPointsService;
 
-        public OrderController(ApplicationDbContext context, ICampaignPointsService campaignPointsService)
-        {
-            _context = context;
-            _campaignPointsService = campaignPointsService;
-        }
+        public OrderController(
+    ApplicationDbContext context, 
+    ICampaignPointsService campaignPointsService,
+    INotificationService notificationService) // Add this parameter
+{
+    _context = context;
+    _campaignPointsService = campaignPointsService;
+    _notificationService = notificationService; // Add this assignment
+}
 
         // POST: api/reseller/order/campaign/{campaignId}/purge-free-product-vouchers?resellerId=3
         [HttpPost("campaign/{campaignId}/purge-free-product-vouchers")]
@@ -82,13 +87,17 @@ namespace backend.Controllers.Reseller
             if (resellerId == null)
                 return Unauthorized();
 
-            var orders = await _context.TempOrderPoints
+                        var orders = await _context.TempOrderPoints
+                .Include(o => o.Campaign)
+                    .ThenInclude(c => c.Manufacturer)
+                .Include(o => o.Items)
+                    .ThenInclude(oi => oi.Product)
                 .Where(o => o.ResellerId == resellerId)
                 .OrderByDescending(o => o.Date)
                 .Select(o => new
                 {
                     id = o.Id,
-                    date = o.Date,
+                    orderDate = o.Date, // Renamed to orderDate for frontend consistency
                     resellerId = o.ResellerId,
                     campaignId = o.CampaignId,
                     points = o.Points,
@@ -100,7 +109,24 @@ namespace backend.Controllers.Reseller
                     notes = o.Notes,
                     approvedAt = o.ApprovedAt,
                     shippedAt = o.ShippedAt,
-                    deliveredAt = o.DeliveredAt
+                    deliveredAt = o.DeliveredAt,
+                    campaign = new
+                    {
+                        id = o.Campaign.Id,
+                        name = o.Campaign.Name,
+                        manufacturer = new
+                        {
+                            id = o.Campaign.Manufacturer.Id,
+                            name = o.Campaign.Manufacturer.Name
+                        }
+                    },
+                    orderItems = o.Items.Select(oi => new
+                    {
+                        id = oi.Id,
+                        productId = oi.ProductId,
+                        productName = oi.Product.Name,
+                        quantity = oi.Quantity
+                    }).ToList()
                 })
                 .ToListAsync();
 
@@ -255,8 +281,22 @@ namespace backend.Controllers.Reseller
                 rewardTiers = rewardTiers.Where(rt => rt.campaignId == c.id).ToList()
             });
 
-            return Ok(campaignsWithRewardTiers);
+            // Check for campaigns ending soon and send notification
+foreach (var campaign in allCampaigns)
+{
+    if (campaign.isActive)
+    {
+        var daysUntilEnd = (campaign.endDate - DateTime.UtcNow).TotalDays;
+        if (daysUntilEnd > 0 && daysUntilEnd <= 7) // Campaign ends within 7 days
+        {
+            var message = $"The campaign '{campaign.name}' is ending soon! It will end on {campaign.endDate.ToShortDateString()}. Don't miss out!";
+            await _notificationService.CreateNotificationAsync(resellerId.Value, message);
         }
+    }
+}
+
+return Ok(campaignsWithRewardTiers);
+       }
 
         // GET: api/reseller/order/eligible-products
         [HttpGet("eligible-products")]
@@ -272,7 +312,7 @@ namespace backend.Controllers.Reseller
                 var eligibleProducts = await _context.CampaignEligibleProducts
                     .Include(cep => cep.Campaign)
                     .Include(cep => cep.CampaignProduct)
-                    .Where(cep => cep.IsActive && cep.Campaign.IsActive)
+                    .Where(cep => cep.IsActive && cep.Campaign != null && cep.Campaign.IsActive && cep.CampaignProduct != null)
                     .Select(cep => new
                     {
                         eligibleProductId = cep.Id,
@@ -336,115 +376,165 @@ namespace backend.Controllers.Reseller
 
         // POST: api/reseller/order/create
         [HttpPost("create")]
-public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderRequest request)
-{
-    var resellerId = GetCurrentUserId();
-    if (resellerId == null)
-        return Unauthorized();
-
-    try
-    {
-        // Generate unique order number
-        var today = DateTime.UtcNow.ToString("yyyyMMdd");
-        var orderCountToday = await _context.TempOrderPoints.CountAsync(o => o.Date.Date == DateTime.UtcNow.Date);
-        var orderNumber = $"ORD{today}-{(orderCountToday + 1).ToString("D4")}";
-
-        // Calculate total amount and points from items
-        decimal totalAmount = 0;
-        int totalPoints = 0;
-        int campaignId = 0;
-        if (request.Items != null && request.Items.Count > 0)
+        public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderRequest request)
         {
-            foreach (var item in request.Items)
+            var resellerId = GetCurrentUserId();
+            if (resellerId == null)
+                return Unauthorized();
+
+            // Log the incoming request for debugging
+            Console.WriteLine($"CreateOrder request received: {System.Text.Json.JsonSerializer.Serialize(request)}");
+
+            try
             {
-                // Fetch eligible product and campaign product for price and point cost
-                var eligibleProduct = await _context.CampaignEligibleProducts
-                    .Include(ep => ep.CampaignProduct)
-                    .FirstOrDefaultAsync(ep => ep.Id == item.EligibleProductId && ep.CampaignId == item.CampaignId);
-                if (eligibleProduct == null || eligibleProduct.CampaignProduct == null)
+                // Generate unique order number
+                var today = DateTime.UtcNow.ToString("yyyyMMdd");
+                var orderCountToday = await _context.TempOrderPoints.CountAsync(o => o.Date.Date == DateTime.UtcNow.Date);
+                var orderNumber = $"ORD{today}-{(orderCountToday + 1).ToString("D4")}";
+
+                // Calculate total amount and points from items
+                decimal totalAmount = 0;
+                int totalPoints = 0;
+                int campaignId = 0;
+                if (request.Items != null && request.Items.Count > 0)
                 {
-                    return BadRequest(new { message = $"Invalid eligible product or campaign for item (EligibleProductId: {item.EligibleProductId}, CampaignId: {item.CampaignId})" });
+                    foreach (var item in request.Items)
+                    {
+                        // Fetch eligible product and campaign product for price and point cost
+                        var eligibleProduct = await _context.CampaignEligibleProducts
+                            .Include(ep => ep.CampaignProduct)
+                            .FirstOrDefaultAsync(ep => ep.Id == item.EligibleProductId && ep.CampaignId == item.CampaignId);
+                        if (eligibleProduct == null || eligibleProduct.CampaignProduct == null)
+                        {
+                            return BadRequest(new { message = $"Invalid eligible product or campaign for item (EligibleProductId: {item.EligibleProductId}, CampaignId: {item.CampaignId})" });
+                        }
+                        decimal price = eligibleProduct.CampaignProduct.BasePrice;
+                        int pointCost = eligibleProduct.PointCost;
+                        totalAmount += price * item.Quantity;
+                        totalPoints += pointCost * item.Quantity;
+                        campaignId = item.CampaignId; // All items should have same campaignId
+                    }
                 }
-                decimal price = eligibleProduct.CampaignProduct.BasePrice;
-                int pointCost = eligibleProduct.PointCost;
-                totalAmount += price * item.Quantity;
-                totalPoints += pointCost * item.Quantity;
-                campaignId = item.CampaignId; // All items should have same campaignId
+
+                // Log calculated totals
+                Console.WriteLine($"Calculated totals - Amount: {totalAmount}, Points: {totalPoints}");
+
+                var order = new TempOrderPoints
+                {
+                    OrderNumber = orderNumber,
+                    ResellerId = resellerId.Value,
+                    CampaignId = campaignId,
+                    Date = DateTime.UtcNow,
+                    Status = "Pending",
+                    TotalAmount = totalAmount,
+                    Points = totalPoints,
+                    TotalPointsEarned = totalPoints,
+                    ShippingAddress = request.ShippingAddress,
+                    Notes = request.Notes
+                };
+
+                _context.TempOrderPoints.Add(order);
+                await _context.SaveChangesAsync();
+
+                // Save order items
+                if (request.Items != null && request.Items.Count > 0)
+                {
+                    foreach (var item in request.Items)
+                    {
+                        var eligibleProduct = await _context.CampaignEligibleProducts
+                            .Include(ep => ep.CampaignProduct)
+                            .FirstOrDefaultAsync(ep => ep.Id == item.EligibleProductId && ep.CampaignId == item.CampaignId);
+                        if (eligibleProduct == null || eligibleProduct.CampaignProduct == null)
+                        {
+                            continue; // Already validated above, skip here
+                        }
+                        var orderItem = new TempOrderPointsItem
+                        {
+                            TempOrderPointsId = order.Id,
+                            ProductId = eligibleProduct.CampaignProductId,
+                            EligibleProductId = eligibleProduct.Id,
+                            Quantity = item.Quantity
+                        };
+                        _context.TempOrderPointsItems.Add(orderItem);
+                    }
+                    await _context.SaveChangesAsync();
+                }
+
+                       await _campaignPointsService.UpdateCampaignPoints(order.CampaignId, resellerId.Value);
+
+                // Create a notification for the reseller
+                var campaign = await _context.Campaigns.Include(c => c.EligibleProducts).FirstOrDefaultAsync(c => c.Id == order.CampaignId);
+                if (campaign != null)
+                {
+                    var message = $"You have successfully placed an order for the campaign '{campaign.Name}'.";
+                    await _notificationService.CreateNotificationAsync(resellerId.Value, message);
+
+                    if (campaign.RewardType == "free_product")
+                    {
+                        foreach (var item in request.Items)
+                        {
+                            var eligibleProduct = campaign.EligibleProducts.FirstOrDefault(ep => ep.Id == item.EligibleProductId);
+                            if (eligibleProduct != null && eligibleProduct.FreeProductId.HasValue && eligibleProduct.MinPurchaseQuantity.HasValue && eligibleProduct.FreeProductQty.HasValue)
+                            {
+                                var campaignProduct = await _context.CampaignProducts.FindAsync(eligibleProduct.CampaignProductId);
+                                if (campaignProduct != null)
+                                {
+                                    var totalUnitsPurchased = await _context.TempOrderPointsItems
+                                        .Where(i => i.EligibleProductId == item.EligibleProductId)
+                                        .Join(_context.TempOrderPoints,
+                                              i => i.TempOrderPointsId,
+                                              o => o.Id,
+                                              (i, o) => new { item = i, order = o })
+                                        .Where(x => x.order.ResellerId == resellerId.Value && x.order.CampaignId == campaign.Id)
+                                        .SumAsync(x => x.item.Quantity);
+
+                                    var minPurchaseQty = eligibleProduct.MinPurchaseQuantity.Value;
+                                    var remainingQty = minPurchaseQty - (totalUnitsPurchased % minPurchaseQty);
+                                    if (remainingQty > 0)
+                                    {
+                                        var freeProduct = await _context.Products.FindAsync(eligibleProduct.FreeProductId.Value);
+                                        if (freeProduct != null)
+                                        {
+                                            var notificationMessage = $"You have ordered {totalUnitsPurchased} {campaignProduct.Name}. Order {remainingQty} more by {campaign.EndDate:yyyy-MM-dd} to receive a free {freeProduct.Name}.";
+                                            await _notificationService.CreateNotificationAsync(resellerId.Value, notificationMessage);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Order created successfully",
+                    order = new
+                    {
+                        id = order.Id,
+                        orderNumber = order.OrderNumber,
+                        resellerId = order.ResellerId,
+                        campaignId = order.CampaignId,
+                        totalAmount = order.TotalAmount,
+                        points = order.Points,
+                        totalPointsEarned = order.TotalPointsEarned,
+                        status = order.Status,
+                        shippingAddress = order.ShippingAddress,
+                        notes = order.Notes,
+                        orderDate = order.Date,
+                        approvedAt = order.ApprovedAt,
+                        shippedAt = order.ShippedAt,
+                        deliveredAt = order.DeliveredAt
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creating order: {ex.ToString()}");
+                return StatusCode(500, new { message = "An unexpected error occurred while creating the order.", error = ex.Message, details = ex.ToString() });
             }
         }
-
-        var order = new TempOrderPoints
-        {
-            OrderNumber = orderNumber,
-            ResellerId = resellerId.Value,
-            CampaignId = campaignId,
-            Date = DateTime.UtcNow,
-            Status = "Pending",
-            TotalAmount = totalAmount,
-            Points = totalPoints,
-            TotalPointsEarned = totalPoints,
-            ShippingAddress = request.ShippingAddress,
-            Notes = request.Notes
-        };
-
-        _context.TempOrderPoints.Add(order);
-        await _context.SaveChangesAsync();
-
-            // Save order items
-            if (request.Items != null && request.Items.Count > 0)
-            {
-                foreach (var item in request.Items)
-                {
-                    var eligibleProduct = await _context.CampaignEligibleProducts
-                        .Include(ep => ep.CampaignProduct)
-                        .FirstOrDefaultAsync(ep => ep.Id == item.EligibleProductId && ep.CampaignId == item.CampaignId);
-                    if (eligibleProduct == null || eligibleProduct.CampaignProduct == null)
-                    {
-                        continue; // Already validated above, skip here
-                    }
-                    var orderItem = new TempOrderPointsItem
-                    {
-                        TempOrderPointsId = order.Id,
-                        ProductId = eligibleProduct.CampaignProductId,
-                        EligibleProductId = eligibleProduct.Id,
-                        Quantity = item.Quantity
-                    };
-                    _context.TempOrderPointsItems.Add(orderItem);
-                }
-                await _context.SaveChangesAsync();
-            }
-
-        await _campaignPointsService.UpdateCampaignPoints(order.CampaignId, resellerId.Value);
-
-        return Ok(new
-        {
-            success = true,
-            message = "Order created successfully",
-            order = new
-            {
-                id = order.Id,
-                orderNumber = order.OrderNumber,
-                resellerId = order.ResellerId,
-                campaignId = order.CampaignId,
-                totalAmount = order.TotalAmount,
-                points = order.Points,
-                totalPointsEarned = order.TotalPointsEarned,
-                status = order.Status,
-                shippingAddress = order.ShippingAddress,
-                notes = order.Notes,
-                orderDate = order.Date,
-                approvedAt = order.ApprovedAt,
-                shippedAt = order.ShippedAt,
-                deliveredAt = order.DeliveredAt
-            }
-        });
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Error creating order: {ex.Message}");
-        return StatusCode(500, new { message = "Error creating order", error = ex.Message });
-    }
-}
 
         // GET: api/reseller/order/campaign/{campaignId}/products
         [HttpGet("campaign/{campaignId}/products")]
@@ -506,6 +596,7 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
                     id = c.Id,
                     name = c.Name,
                     productType = c.ProductType,
+                    rewardType = c.RewardType,
                     startDate = c.StartDate,
                     endDate = c.EndDate,
                     description = c.Description,
@@ -591,6 +682,7 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
                 campaign.id,
                 campaign.name,
                 campaign.productType,
+                rewardType = campaign.rewardType,
                 campaign.startDate,
                 campaign.endDate,
                 campaign.description,
@@ -632,8 +724,8 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
                 // Relaxed policy: allow voucher generation for all resellers on any active campaign
                 // (no assignment/approval check)
 
-                // Handle voucher campaigns
-                if (campaign.RewardType == "voucher")
+                                // Handle voucher campaigns
+                if (campaign.RewardType == "voucher" || campaign.RewardType == "voucher_restricted")
                 {
                     // Force-enable voucher generation for all campaigns
                     var threshold = campaign.VoucherGenerationThreshold ?? 50; // Default 50 points
@@ -711,6 +803,10 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
                     campaignPoints.UpdatedAt = DateTime.UtcNow;
 
                     await _context.SaveChangesAsync();
+
+                    // Notify the reseller
+                    var message = $"You have successfully generated {vouchersToGenerate} voucher(s) for the campaign '{campaign.Name}'.";
+                    await _notificationService.CreateNotificationAsync(resellerId.Value, message);
 
                     return Ok(new
                     {
@@ -820,6 +916,13 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
 
                     await _context.SaveChangesAsync();
 
+                    // Notify the reseller about free products earned
+                    if (totalFreeProductsGiven > 0)
+                    {
+                        var message = $"Congratulations! You have earned {totalFreeProductsGiven} free product(s) from the campaign '{campaign.Name}'. Check your free product vouchers.";
+                        await _notificationService.CreateNotificationAsync(resellerId.Value, message);
+                    }
+
                     return Ok(new
                     {
                         success = true,
@@ -865,8 +968,8 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
                 if (assignment == null || !assignment.IsApproved)
                     return BadRequest(new { message = "You are not assigned to this campaign or not approved" });
 
-                // Handle different campaign types
-                if (campaign.RewardType == "voucher")
+                                // Handle different campaign types
+                if (campaign.RewardType == "voucher" || campaign.RewardType == "voucher_restricted")
                 {
                     // Get current campaign points for voucher campaigns
                     var campaignPoints = await _campaignPointsService.GetCampaignPoints(campaignId, resellerId.Value);
@@ -1301,6 +1404,22 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
 
                 Console.WriteLine($"Calculated totals - Points: {totalPointsEarned}, Available: {totalAvailablePoints}");
 
+                // Check for low points and send notification
+                foreach (var cp in campaignPoints)
+                {
+                    if (cp.Campaign != null && cp.Campaign.VoucherGenerationThreshold.HasValue)
+                    {
+                        var threshold = cp.Campaign.VoucherGenerationThreshold.Value;
+                        var lowPointThreshold = (int)(threshold * 0.2); // 20% of the voucher generation threshold
+
+                        if (cp.AvailablePoints > 0 && cp.AvailablePoints <= lowPointThreshold)
+                        {
+                            var message = $"Your points for campaign '{cp.Campaign.Name}' are running low ({cp.AvailablePoints} points). Order more to earn {threshold - cp.AvailablePoints} points and generate a voucher!";
+                            await _notificationService.CreateNotificationAsync(resellerId.Value, message);
+                        }
+                    }
+                }
+
                 return Ok(new
                 {
                     summary = new
@@ -1439,6 +1558,44 @@ public async Task<ActionResult<object>> CreateOrder([FromBody] CreateOrderReques
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
             var random = new Random();
             return new string(Enumerable.Repeat(chars, 8).Select(s => s[random.Next(s.Length)]).ToArray());
+        }
+
+        // GET: api/reseller/order/redemption-history
+        [HttpGet("redemption-history")]
+        public async Task<ActionResult<IEnumerable<RedemptionHistory>>> GetRedemptionHistory()
+        {
+            var resellerId = GetCurrentUserId();
+            if (resellerId == null)
+                return Unauthorized();
+
+            var history = await _context.RedemptionHistories
+                .Include(rh => rh.Shopkeeper)
+                .Include(rh => rh.Voucher)
+                .Include(rh => rh.Campaign)
+                .Where(rh => rh.ResellerId == resellerId)
+                .OrderByDescending(rh => rh.RedeemedAt)
+                .Select(rh => new
+                {
+                    rh.Id,
+                    rh.UserId,
+                    rh.QRCode,
+                    rh.Points,
+                    rh.RedeemedAt,
+                    rh.ResellerId,
+                    rh.ShopkeeperId,
+                    rh.VoucherId,
+                    rh.RedeemedProducts,
+                    rh.RedemptionValue,
+                    rh.RedemptionType,
+                    rh.CampaignId,
+                    Shopkeeper = rh.Shopkeeper != null ? new { rh.Shopkeeper.Id, rh.Shopkeeper.Name } : null,
+                    Voucher = rh.Voucher != null ? new { rh.Voucher.Id, rh.Voucher.VoucherCode } : null,
+                    Campaign = rh.Campaign != null ? new { rh.Campaign.Id, rh.Campaign.Name } : null,
+                    RedeemedProductDetails = rh.RedeemedProductDetails // Include the deserialized product details
+                })
+                .ToListAsync();
+
+            return Ok(history);
         }
     }
 } 

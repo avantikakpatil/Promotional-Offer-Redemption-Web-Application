@@ -11,6 +11,7 @@ import {
   QuestionMarkCircleIcon,
   QueueListIcon,
   ArchiveBoxIcon,
+  BellIcon,
 } from '@heroicons/react/24/outline';
 
 const Sidebar = () => {
@@ -27,6 +28,7 @@ const Sidebar = () => {
     { name: 'Manage Resellers', href: '/manufacturer/resellers', icon: UsersIcon },
     { name: 'Settings', href: '/manufacturer/settings', icon: CogIcon },
     { name: 'Help', href: '/manufacturer/help', icon: QuestionMarkCircleIcon },
+    { name: 'Notifications', href: '/manufacturer/notifications', icon: BellIcon },
   ];
 
   return (

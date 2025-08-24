@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using backend.Data;
 using backend.Models;
 using backend.Models.DTOs;
+using backend.Models.DTOs;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -102,6 +103,7 @@ namespace backend.Controllers.Shopkeeper
                 ResellerName = voucher.Reseller?.Name,
                 CampaignName = voucher.Campaign?.Name,
                 CampaignId = voucher.CampaignId, // Ensure campaignId is always present
+                RewardType = voucher.Campaign?.RewardType, // Add RewardType
                 EligibleProducts = products,
                 ExpiryDate = voucher.ExpiryDate
             });
@@ -125,30 +127,6 @@ namespace backend.Controllers.Shopkeeper
             if (voucher.ExpiryDate <= DateTime.UtcNow)
                 return BadRequest("Voucher has expired");
 
-            // Validate selected products
-            var eligibleProductIds = new List<int>();
-            if (!string.IsNullOrEmpty(voucher.EligibleProducts))
-            {
-                try
-                {
-                    eligibleProductIds = JsonSerializer.Deserialize<List<int>>(voucher.EligibleProducts);
-                }
-                catch
-                {
-                    // If JSON parsing fails, return empty list
-                }
-            }
-
-            if (eligibleProductIds != null && eligibleProductIds.Any() && redeemDto.SelectedProductIds != null && !redeemDto.SelectedProductIds.All(id => eligibleProductIds.Contains(id)))
-                return BadRequest("Some selected products are not eligible for this voucher");
-
-            // Get selected products
-            var selectedProducts = await _context.Products
-                .Where(p => redeemDto.SelectedProductIds != null && redeemDto.SelectedProductIds.Contains(p.Id))
-                .ToListAsync();
-
-            var totalValue = selectedProducts.Sum(p => p.RetailPrice);
-
             // Process redemption
             var shopkeeperId = GetCurrentUserId();
             if (shopkeeperId == null)
@@ -157,6 +135,52 @@ namespace backend.Controllers.Shopkeeper
             voucher.IsRedeemed = true;
             voucher.RedeemedAt = DateTime.UtcNow;
             voucher.RedeemedByShopkeeperId = shopkeeperId;
+
+            decimal totalValue = 0;
+            string redeemedProductsJson = "";
+            string redemptionType = "";
+
+            if (voucher.Campaign?.RewardType == "voucher_restricted")
+            {
+                var eligibleProductIds = new List<int>();
+                if (!string.IsNullOrEmpty(voucher.EligibleProducts))
+                {
+                    try
+                    {
+                        eligibleProductIds = JsonSerializer.Deserialize<List<int>>(voucher.EligibleProducts);
+                    }
+                    catch
+                    {
+                        // If JSON parsing fails, return empty list
+                    }
+                }
+
+                if (redeemDto.SelectedProductIds == null || !redeemDto.SelectedProductIds.Any())
+                {
+                    return BadRequest("Product IDs are required for voucher_restricted campaigns.");
+                }
+
+                if (eligibleProductIds != null && eligibleProductIds.Any() && !redeemDto.SelectedProductIds.All(id => eligibleProductIds.Contains(id)))
+                    return BadRequest("Some selected products are not eligible for this voucher");
+
+                var selectedProducts = await _context.Products
+                    .Where(p => redeemDto.SelectedProductIds.Contains(p.Id))
+                    .ToListAsync();
+
+                totalValue = selectedProducts.Sum(p => p.RetailPrice);
+                redeemedProductsJson = JsonSerializer.Serialize(selectedProducts.Select(p => new { p.Id, p.Name, p.RetailPrice }));
+                redemptionType = "voucher_restricted";
+            }
+            else // Default to "voucher" type
+            {
+                if (redeemDto.RedeemedManualProducts == null || !redeemDto.RedeemedManualProducts.Any())
+                {
+                    return BadRequest("Product details are required for voucher campaigns.");
+                }
+                totalValue = redeemDto.RedeemedManualProducts.Sum(p => p.Value);
+                redeemedProductsJson = JsonSerializer.Serialize(redeemDto.RedeemedManualProducts);
+                redemptionType = "voucher";
+            }
 
             // Create redemption history
             var redemptionHistory = new RedemptionHistory
@@ -168,9 +192,9 @@ namespace backend.Controllers.Shopkeeper
                 ResellerId = voucher.ResellerId,
                 ShopkeeperId = shopkeeperId,
                 VoucherId = voucher.Id,
-                RedeemedProducts = JsonSerializer.Serialize(selectedProducts.Select(p => new { p.Id, p.Name, p.RetailPrice })),
+                RedeemedProducts = redeemedProductsJson,
                 RedemptionValue = totalValue,
-                RedemptionType = "voucher"
+                RedemptionType = redemptionType
             };
 
             _context.RedemptionHistories.Add(redemptionHistory);
@@ -183,7 +207,7 @@ namespace backend.Controllers.Shopkeeper
                 Message = "Voucher redeemed successfully",
                 VoucherCode = voucher.VoucherCode,
                 RedeemedValue = totalValue,
-                RedeemedProducts = selectedProducts.Select(p => new { p.Name, p.RetailPrice }),
+                RedeemedProducts = redeemedProductsJson, // Return the serialized JSON
                 RedeemedAt = DateTime.UtcNow
             });
         }
@@ -202,6 +226,25 @@ namespace backend.Controllers.Shopkeeper
                 .Include(rh => rh.Campaign)
                 .Where(rh => rh.ShopkeeperId == shopkeeperId)
                 .OrderByDescending(rh => rh.RedeemedAt)
+                .Select(rh => new
+                {
+                    rh.Id,
+                    rh.UserId,
+                    rh.QRCode,
+                    rh.Points,
+                    rh.RedeemedAt,
+                    rh.ResellerId,
+                    rh.ShopkeeperId,
+                    rh.VoucherId,
+                    rh.RedeemedProducts,
+                    rh.RedemptionValue,
+                    rh.RedemptionType,
+                    rh.CampaignId,
+                    Reseller = rh.Reseller != null ? new { rh.Reseller.Id, rh.Reseller.Name } : null,
+                    Voucher = rh.Voucher != null ? new { rh.Voucher.Id, rh.Voucher.VoucherCode } : null,
+                    Campaign = rh.Campaign != null ? new { rh.Campaign.Id, rh.Campaign.Name } : null,
+                    RedeemedProductDetails = rh.RedeemedProductDetails // Include the deserialized product details
+                })
                 .ToListAsync();
 
             return Ok(history);
@@ -321,11 +364,6 @@ namespace backend.Controllers.Shopkeeper
             return userIdClaim != null ? int.Parse(userIdClaim) : null;
         }
 
-        private class ProductInfo
-        {
-            public int Id { get; set; }
-            public string Name { get; set; } = string.Empty;
-            public decimal RetailPrice { get; set; }
-        }
+        
     }
-} 
+}

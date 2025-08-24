@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 
 namespace backend.Models
 {
@@ -50,5 +51,36 @@ namespace backend.Models
         
         [ForeignKey("CampaignId")]
         public virtual Campaign? Campaign { get; set; }
+
+        [NotMapped]
+        public List<ProductInfo>? RedeemedProductDetails
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(RedeemedProducts))
+                    return null;
+                try
+                {
+                    return JsonSerializer.Deserialize<List<ProductInfo>>(RedeemedProducts);
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                RedeemedProducts = JsonSerializer.Serialize(value);
+            }
+        }
+    }
+
+    public class ProductInfo
+    {
+        public int? Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public decimal? RetailPrice { get; set; }
+        public int? Quantity { get; set; }
+        public decimal? Value { get; set; }
     }
 } 

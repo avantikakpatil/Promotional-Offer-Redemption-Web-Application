@@ -84,8 +84,11 @@ const Campaigns = () => {
       setSelectedCampaign(campaign);
       setShowDetailsModal(true);
       
+      console.log('Initial campaign object:', campaign);
+
       const response = await campaignAPI.getCampaignDetails(campaign.id);
       if (response.data) {
+        console.log('Campaign details from API:', response.data);
         setSelectedCampaign(response.data);
       }
     } catch (err) {
@@ -104,8 +107,8 @@ const Campaigns = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
       });
       const data = await response.json();
       if (response.ok && data.success) {
@@ -163,6 +166,7 @@ const Campaigns = () => {
     const now = new Date();
     const startDate = new Date(campaign.startDate);
     const endDate = new Date(campaign.endDate);
+    endDate.setHours(23, 59, 59, 999); // Set to end of the day
     if (!campaign.isActive) return 'Inactive';
     if (startDate > now) return 'Upcoming';
     if (endDate < now) return 'Expired';
@@ -185,44 +189,100 @@ const Campaigns = () => {
     }
   };
 
-  const CampaignCard = ({ campaign, type }) => (
-    <div className="bg-white rounded-lg shadow-md border hover:shadow-lg transition-shadow">
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">{campaign.name}</h3>
-            <p className="text-sm text-gray-600 mb-2">by {campaign.manufacturer?.name || 'Unknown Manufacturer'}</p>
-            <div className="flex items-center gap-2">
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(campaign)}`}>
-                {getCampaignStatus(campaign)}
-              </span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                type === 'free_product' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'
-              }`}>
-                {type === 'free_product' ? 'Free Product' : 'Voucher'}
-              </span>
+  const getTimeRemaining = (endDateString) => {
+    const endDate = new Date(endDateString);
+    endDate.setHours(23, 59, 59, 999); // Ensure end of day
+    const now = new Date();
+    const diffTime = endDate.getTime() - now.getTime();
+
+    if (diffTime <= 0) {
+      return { days: 0, hours: 0, minutes: 0, totalMilliseconds: 0 };
+    }
+
+    const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diffTime % (1000 * 60 * 60)) / (1000 * 60));
+
+    return { days, hours, minutes, totalMilliseconds: diffTime };
+  };
+
+  const formatCampaignType = (rewardType) => {
+    if (typeof rewardType !== 'string' || !rewardType.trim()) {
+        return 'Not specified';
+    }
+    const lowerCaseRewardType = rewardType.toLowerCase();
+    switch (lowerCaseRewardType) {
+      case 'voucher':
+        return 'Voucher';
+      case 'voucher_restricted':
+        return 'Restricted Voucher';
+      case 'free_product':
+        return 'Free Product';
+      default:
+        return rewardType.charAt(0).toUpperCase() + rewardType.slice(1);
+    }
+  };
+
+  const CampaignCard = ({ campaign, type }) => {
+    const timeRemaining = getTimeRemaining(campaign.endDate);
+    const isExpired = timeRemaining.totalMilliseconds <= 0;
+
+    return (
+      <div className="bg-white rounded-lg shadow-md border hover:shadow-lg transition-shadow">
+        <div className="p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">{campaign.name}</h3>
+              <p className="text-sm text-gray-600 mb-2">by {campaign.manufacturer?.name || 'Unknown Manufacturer'}</p>
+              <p className="text-sm text-gray-700 mb-2 line-clamp-2">{campaign.description}</p>
+              
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(campaign)}`}>
+                  {getCampaignStatus(campaign)}
+                </span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  type === 'free_product' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'
+                }`}>
+                  {type === 'free_product' ? 'Free Product' : 'Voucher'}
+                </span>
+                {!isExpired && timeRemaining.days > 0 && (
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                    Ends in {timeRemaining.days} days
+                  </span>
+                )}
+                {!isExpired && timeRemaining.days === 0 && (
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                    Ends in {timeRemaining.hours}h {timeRemaining.minutes}m
+                  </span>
+                )}
+                {isExpired && (
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    Ended
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex gap-3">
-          <button 
-            onClick={() => showCampaignDetails(campaign)}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            View Details
-          </button>
-          <button 
-            onClick={() => participateInCampaign(campaign.id)}
-            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            disabled={participating[campaign.id] || (campaign.assignment && campaign.assignment.isApproved)}
-          >
-            {campaign.assignment && campaign.assignment.isApproved ? 'Participating' : (participating[campaign.id] ? 'Joining...' : 'Participate')}
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => showCampaignDetails(campaign)}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              View Details
+            </button>
+            <button
+              onClick={() => participateInCampaign(campaign.id)}
+              className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              disabled={participating[campaign.id] || (campaign.assignment && campaign.assignment.isApproved)}
+            >
+              {campaign.assignment && campaign.assignment.isApproved ? 'Participating' : (participating[campaign.id] ? 'Joining...' : 'Participate')}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -466,17 +526,10 @@ const Campaigns = () => {
                         <span className="font-medium text-gray-700 block mb-1">End Date:</span>
                         <p className="text-gray-600">{new Date(selectedCampaign.endDate).toLocaleDateString()}</p>
                       </div>
-                      <div>
-                        <span className="font-medium text-gray-700 block mb-1">Points per Unit:</span>
-                        <p className="text-gray-600">{selectedCampaign.points}</p>
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-700 block mb-1">Min Order Value:</span>
-                        <p className="text-gray-600">₹{selectedCampaign.minimumOrderValue || 'Not specified'}</p>
-                      </div>
+                      
                       <div>
                         <span className="font-medium text-gray-700 block mb-1">Campaign Type:</span>
-                        <p className="text-gray-600">{selectedCampaign.rewardType || 'Not specified'}</p>
+                        <p className="text-gray-600">{formatCampaignType(selectedCampaign.rewardType)}</p>
                       </div>
                       <div>
                         <span className="font-medium text-gray-700 block mb-1">Status:</span>
@@ -638,9 +691,9 @@ const Campaigns = () => {
                   )}
 
                   {/* Participation Status */}
-                  {selectedCampaign.assignment && (
-                    <div className="bg-yellow-50 p-6 rounded-lg">
-                      <h4 className="text-xl font-semibold text-yellow-800 mb-4">Your Participation Status</h4>
+                  <div className="bg-yellow-50 p-6 rounded-lg">
+                    <h4 className="text-xl font-semibold text-yellow-800 mb-4">Your Participation Status</h4>
+                    {selectedCampaign.assignment ? (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                         <div>
                           <span className="font-medium text-yellow-700 block mb-1">Status:</span>
@@ -661,8 +714,19 @@ const Campaigns = () => {
                           <p className="text-yellow-600 font-semibold text-lg">{selectedCampaign.assignment.totalVouchersGenerated || 0}</p>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-yellow-700 mb-4">You are not yet participating in this campaign.</p>
+                        <button 
+                          onClick={() => participateInCampaign(selectedCampaign.id)}
+                          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                          disabled={participating[selectedCampaign.id]}
+                        >
+                          {participating[selectedCampaign.id] ? 'Joining...' : 'Participate Now'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Recent Orders */}
                   {Array.isArray(selectedCampaign.orders) && selectedCampaign.orders.length > 0 && (

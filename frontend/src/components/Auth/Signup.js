@@ -55,7 +55,11 @@ const Signup = () => {
           navigate('/');
       }
     } catch (error) {
-      setError('Failed to create an account.');
+      if (error.message) {
+        setError(error.message);
+      } else {
+        setError('Failed to create an account. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -89,7 +93,11 @@ const Signup = () => {
         // Always redirect to customer dashboard for Google sign-up
         navigate('/customer/dashboard');
       } catch (error) {
-        setError('Failed to sign up with Google.');
+        if (error.message) {
+          setError(error.message);
+        } else {
+          setError('Failed to sign up with Google. Please try again.');
+        }
       } finally {
         setLoading(false);
       }

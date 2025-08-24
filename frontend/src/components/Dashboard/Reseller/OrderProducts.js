@@ -16,6 +16,12 @@ const OrderProducts = () => {
     fetchEligibleProducts();
   }, []);
 
+  const isCampaignExpired = (campaign) => {
+    const now = new Date();
+    const endDate = new Date(campaign.endDate);
+    return endDate < now;
+  };
+
   const fetchEligibleProducts = async () => {
     try {
       setLoading(true);
@@ -29,8 +35,8 @@ const OrderProducts = () => {
       const response = await fetch('/api/reseller/order/eligible-products', {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) {
@@ -40,7 +46,12 @@ const OrderProducts = () => {
 
       const data = await response.json();
       console.log('Fetched eligible products:', data); // Debug log
-      setCampaigns(data.campaigns || []);
+
+      const activeCampaigns = (data.campaigns || []).filter(campaignGroup => {
+        return !isCampaignExpired(campaignGroup.campaign);
+      });
+
+      setCampaigns(activeCampaigns);
     } catch (err) {
       console.error('Error fetching eligible products:', err);
       setError(`Failed to load products: ${err.message}`);
@@ -65,7 +76,7 @@ const OrderProducts = () => {
         productName: product.name,
         unitPrice: product.basePrice,
         pointsPerUnit: product.pointCost, // CHANGED from product.pointsPerUnit
-        quantity: 1
+        quantity: 1,
       }]);
     }
   };
@@ -115,10 +126,10 @@ const OrderProducts = () => {
         items: cart.map(item => ({
           eligibleProductId: item.eligibleProductId,
           campaignId: item.campaignId,
-          quantity: item.quantity
+          quantity: item.quantity,
         })),
         totalAmount, // send to backend for validation
-        totalPointsEarned // send to backend for validation
+        totalPointsEarned, // send to backend for validation
       };
 
       // Log detailed order request for debugging
@@ -127,16 +138,16 @@ const OrderProducts = () => {
         items: orderRequest.items,
         totalAmount,
         totalPointsEarned,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       const response = await fetch('/api/reseller/order/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(orderRequest)
+        body: JSON.stringify(orderRequest),
       });
 
       console.log('Order response status:', response.status);
@@ -157,7 +168,7 @@ const OrderProducts = () => {
               '• Invalid product or campaign IDs',
               '• Database constraint violations',
               '• Concurrent access issues',
-              '• Required fields missing in backend'
+              '• Required fields missing in backend',
             ];
           } else {
             errorMessage = errorData.message || errorData.error || errorMessage;
@@ -191,8 +202,8 @@ const OrderProducts = () => {
         order: {
           ...result.order,
           totalAmount: result.order?.totalAmount ?? totalAmount,
-          totalPointsEarned: result.order?.totalPointsEarned ?? totalPointsEarned
-        }
+          totalPointsEarned: result.order?.totalPointsEarned ?? totalPointsEarned,
+        },
       });
       setShowSuccess(true);
       setCart([]); // Clear cart
@@ -216,7 +227,7 @@ const OrderProducts = () => {
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'INR'
+      currency: 'INR',
     }).format(amount);
   };
 
@@ -382,7 +393,8 @@ const OrderProducts = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {campaignGroup.products.map((product) => {
                           const status = getProductStatus(product);
-                          const isAvailable = product.isActive && (!product.redemptionLimit || product.redemptionLimit > 0);
+                          const isCampaignActive = !isCampaignExpired(campaignGroup.campaign); // Reuse the function
+                          const isAvailable = product.isActive && (!product.redemptionLimit || product.redemptionLimit > 0) && isCampaignActive;
                           
                           return (
                             <div key={product.eligibleProductId} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -394,7 +406,7 @@ const OrderProducts = () => {
                                   </p>
                                   {product.sku && <p className="text-xs text-gray-500 mt-1">SKU: {product.sku}</p>}
                                 </div>
-                                <span className={`text-sm font-medium px-2 py-1 rounded-full ${
+                                <span className={`text-sm font-medium px-2 py-1 rounded-full ${ 
                                   status.text === 'Available' ? 'bg-green-100 text-green-800' : 
                                   'bg-red-100 text-red-800'
                                 }`}>
@@ -426,13 +438,12 @@ const OrderProducts = () => {
                               
                               <button
                                 onClick={() => addToCart(product, campaignGroup.campaign.id)}
-                                disabled={!isAvailable}
-                                className={`w-full px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center ${
-                                  isAvailable
+                                disabled={!isAvailable || !isCampaignActive}
+                                className={`w-full px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-center ${ 
+                                  isAvailable && isCampaignActive
                                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                }`}
-                              >
+                                }`}>
                                 <Plus size={16} className="mr-2" />
                                 Add to Cart
                               </button>

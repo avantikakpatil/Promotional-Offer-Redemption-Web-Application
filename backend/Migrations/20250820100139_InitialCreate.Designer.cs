@@ -12,7 +12,7 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250818145725_InitialCreate")]
+    [Migration("20250820100139_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -691,6 +691,10 @@ namespace backend.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
+                    b.Property<string>("BusinessHours")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
                     b.Property<string>("BusinessLicense")
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
@@ -721,6 +725,13 @@ namespace backend.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
+                    b.Property<string>("NotificationSettingsJson")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("PANNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -733,10 +744,20 @@ namespace backend.Migrations
                     b.Property<int>("Points")
                         .HasColumnType("int");
 
+                    b.Property<string>("PreferenceSettingsJson")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
+
+                    b.Property<string>("SecuritySettingsJson")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("StoreType")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .ValueGeneratedOnAddOrUpdate()

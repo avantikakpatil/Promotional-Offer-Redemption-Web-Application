@@ -16,11 +16,13 @@ namespace backend.Controllers.Manufacturer
     {
         private readonly ICampaignService _campaignService;
         private readonly ApplicationDbContext _context;
+        private readonly INotificationService _notificationService;
 
-        public CampaignController(ICampaignService campaignService, ApplicationDbContext context)
+        public CampaignController(ICampaignService campaignService, ApplicationDbContext context, INotificationService notificationService)
         {
             _campaignService = campaignService;
             _context = context;
+            _notificationService = notificationService;
         }
 
         [HttpPost]
@@ -69,6 +71,14 @@ namespace backend.Controllers.Manufacturer
                 if (!result.Success)
                 {
                     return BadRequest(result);
+                }
+
+                // Notify all resellers about the new campaign
+                var resellers = await _context.Users.Where(u => u.Role == "reseller").ToListAsync();
+                foreach (var reseller in resellers)
+                {
+                    var message = $"A new campaign '{result.Data!.Name}' has been launched.";
+                    await _notificationService.CreateNotificationAsync(reseller.Id, message);
                 }
 
                 return CreatedAtAction(
@@ -395,6 +405,10 @@ namespace backend.Controllers.Manufacturer
             campaignReseller.ApprovedByUserId = manufacturerId;
 
             await _context.SaveChangesAsync();
+
+            // Notify the reseller
+            var message = $"You have been approved for the campaign '{campaignReseller.Campaign.Name}'.";
+            await _notificationService.CreateNotificationAsync(resellerId, message);
 
             return Ok(new { Message = "Reseller approved successfully" });
         }

@@ -154,6 +154,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICampaignService, CampaignService>();
 builder.Services.AddScoped<IVoucherGenerationService, VoucherGenerationService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 // Register custom services using the extension method
 builder.Services.AddCustomServices();

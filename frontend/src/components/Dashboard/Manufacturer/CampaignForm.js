@@ -29,7 +29,7 @@ const CampaignForm = ({
     if (initialData.eligibleProducts && Array.isArray(initialData.eligibleProducts)) {
       setSelectedEligibleProducts(
         initialData.eligibleProducts.map(ep => ({
-          productId: ep.productId,
+          campaignProductId: ep.campaignProductId,
           productName: ep.productName,
           pointCost: ep.pointCost,
           redemptionLimit: ep.redemptionLimit,
@@ -76,9 +76,9 @@ const CampaignForm = ({
     setFormData((prev) => ({ ...prev, rewardTiers: prev.rewardTiers.filter((_, i) => i !== index) }));
   };
 
-  const handleEligibleProductChange = (productId, field, value) => {
+  const handleEligibleProductChange = (campaignProductId, field, value) => {
     setSelectedEligibleProducts((prev) =>
-      prev.map((ep) => (ep.productId === productId ? { ...ep, [field]: value } : ep))
+      prev.map((ep) => (ep.campaignProductId === campaignProductId ? { ...ep, [field]: value } : ep))
     );
   };
 
@@ -86,10 +86,10 @@ const CampaignForm = ({
     if (checked) {
       setSelectedEligibleProducts((prev) => [
         ...prev,
-        { productId: product.id, productName: product.name, pointCost: '', redemptionLimit: '', isActive: true },
+        { campaignProductId: product.id, productName: product.name, pointCost: 1, redemptionLimit: '', isActive: true },
       ]);
     } else {
-      setSelectedEligibleProducts((prev) => prev.filter((ep) => ep.productId !== product.id));
+      setSelectedEligibleProducts((prev) => prev.filter((ep) => ep.campaignProductId !== product.id));
     }
   };
 
@@ -104,8 +104,8 @@ const CampaignForm = ({
         reward: tier.reward,
       })),
       eligibleProducts: selectedEligibleProducts.map((ep) => ({
-        productId: ep.productId,
-        pointCost: parseInt(ep.pointCost),
+        campaignProductId: ep.campaignProductId,
+        pointCost: ep.pointCost ? parseInt(ep.pointCost) : 0,
         redemptionLimit: ep.redemptionLimit ? parseInt(ep.redemptionLimit) : null,
         isActive: ep.isActive,
       })),
@@ -156,7 +156,7 @@ const CampaignForm = ({
               </thead>
               <tbody>
                 {eligibleProducts.map((product) => {
-                  const selected = selectedEligibleProducts.find((ep) => ep.productId === product.id);
+                  const selected = selectedEligibleProducts.find((ep) => ep.campaignProductId === product.id);
                   return (
                     <tr key={product.id}>
                       <td className="px-2 py-1 text-center">
@@ -216,4 +216,4 @@ const CampaignForm = ({
   );
 };
 
-export default CampaignForm; 
+export default CampaignForm;

@@ -29,10 +29,25 @@ namespace backend.Data
         public DbSet<TempOrderPointsItem> TempOrderPointsItems { get; set; }
     public DbSet<CampaignFreeProductReward> CampaignFreeProductRewards { get; set; }
     public DbSet<FreeProductVoucher> FreeProductVouchers { get; set; }
+    public DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+
+            // Notification configuration
+            builder.Entity<Notification>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Message).IsRequired();
+                entity.Property(e => e.IsRead).IsRequired();
+                entity.Property(e => e.CreatedAt).IsRequired();
+
+                entity.HasOne(e => e.User)
+                      .WithMany()
+                      .HasForeignKey(e => e.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
             // FreeProductVoucher configuration
             builder.Entity<FreeProductVoucher>(entity =>
             {

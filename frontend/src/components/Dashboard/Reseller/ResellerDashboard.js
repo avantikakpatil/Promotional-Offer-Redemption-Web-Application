@@ -10,6 +10,7 @@ import Vouchers from './Vouchers';
 import RedemptionHistory from './RedemptionHistory';
 import Settings from './Settings';
 
+
 const ResellerDashboard = () => {
   return (
     <ResellerLayout>
@@ -22,6 +23,7 @@ const ResellerDashboard = () => {
         <Route path="/vouchers" element={<Vouchers />} />
         <Route path="/history" element={<RedemptionHistory />} />
         <Route path="/settings" element={<Settings />} />
+        
       </Routes>
     </ResellerLayout>
   );

@@ -29,19 +29,21 @@ namespace backend.Services
         {
             try
             {
-                // Validate reward type
+                // FIXED: Validate reward type to include voucher_restricted
                 if (string.IsNullOrWhiteSpace(createCampaignDto.RewardType) ||
-                    (createCampaignDto.RewardType != "voucher" && createCampaignDto.RewardType != "free_product" && createCampaignDto.RewardType != "voucher_restricted"))
+                    (createCampaignDto.RewardType != "voucher" && 
+                     createCampaignDto.RewardType != "voucher_restricted" && 
+                     createCampaignDto.RewardType != "free_product"))
                 {
                     return new ApiResponse<CampaignDto>
                     {
                         Success = false,
-                        Message = "Invalid reward type. Must be 'voucher', 'voucher_restricted' or 'free_product'.",
-                        Errors = new List<string> { "RewardType must be 'voucher', 'voucher_restricted' or 'free_product'" }
+                        Message = "Invalid reward type. Must be 'voucher', 'voucher_restricted', or 'free_product'.",
+                        Errors = new List<string> { "RewardType must be 'voucher', 'voucher_restricted', or 'free_product'" }
                     };
                 }
 
-                // Enforce only one reward type
+                // FIXED: Enforce validation for both voucher types
                 if (createCampaignDto.RewardType == "voucher" || createCampaignDto.RewardType == "voucher_restricted")
                 {
                     if (createCampaignDto.VoucherGenerationThreshold == null || createCampaignDto.VoucherValue == null)
@@ -52,19 +54,6 @@ namespace backend.Services
                             Message = "Voucher generation threshold and value are required.",
                             Errors = new List<string> { "Please enter both threshold and value for voucher generation." }
                         };
-                    }
-                    if (createCampaignDto.RewardType == "voucher_restricted")
-                    {
-                        bool hasVoucherProducts = createCampaignDto.VoucherProducts != null && createCampaignDto.VoucherProducts.Any();
-                        if (!hasVoucherProducts)
-                        {
-                            return new ApiResponse<CampaignDto>
-                            {
-                                Success = false,
-                                Message = "At least one voucher redemption product is required for restricted voucher campaigns.",
-                                Errors = new List<string> { "Specify at least one voucher redemption product." }
-                            };
-                        }
                     }
                 }
                 else if (createCampaignDto.RewardType == "free_product")
@@ -152,6 +141,7 @@ namespace backend.Services
                     Description = createCampaignDto.Description,
                     IsActive = createCampaignDto.IsActive,
                     ManufacturerId = manufacturerId,
+                    // FIXED: Handle both voucher types
                     VoucherGenerationThreshold = (createCampaignDto.RewardType == "voucher" || createCampaignDto.RewardType == "voucher_restricted") ? (createCampaignDto.VoucherGenerationThreshold ?? defaultThreshold) : null,
                     VoucherValue = (createCampaignDto.RewardType == "voucher" || createCampaignDto.RewardType == "voucher_restricted") ? (createCampaignDto.VoucherValue ?? defaultValue) : null,
                     VoucherValidityDays = (createCampaignDto.RewardType == "voucher" || createCampaignDto.RewardType == "voucher_restricted") ? (createCampaignDto.VoucherValidityDays ?? 90) : null,
@@ -177,7 +167,7 @@ namespace backend.Services
                     }
                 }
 
-                // Add voucher products for redemption (if voucher/voucher_restricted type)
+                // FIXED: Add voucher products for redemption (for both voucher types)
                 if ((createCampaignDto.RewardType == "voucher" || createCampaignDto.RewardType == "voucher_restricted") && createCampaignDto.VoucherProducts != null)
                 {
                     foreach (var vp in createCampaignDto.VoucherProducts)
@@ -339,20 +329,23 @@ namespace backend.Services
         {
             try
             {
-                // Validate reward type
+                // FIXED: Validate reward type to include voucher_restricted
                 if (string.IsNullOrWhiteSpace(updateCampaignDto.RewardType) ||
-                    (updateCampaignDto.RewardType != "voucher" && updateCampaignDto.RewardType != "free_product" && updateCampaignDto.RewardType != "voucher_restricted"))
+                    (updateCampaignDto.RewardType != "voucher" && 
+                     updateCampaignDto.RewardType != "voucher_restricted" && 
+                     updateCampaignDto.RewardType != "free_product"))
                 {
                     return new ApiResponse<CampaignDto>
                     {
                         Success = false,
-                        Message = "Invalid reward type. Must be 'voucher', 'voucher_restricted' or 'free_product'.",
-                        Errors = new List<string> { "RewardType must be 'voucher', 'voucher_restricted' or 'free_product'" }
+                        Message = "Invalid reward type. Must be 'voucher', 'voucher_restricted', or 'free_product'.",
+                        Errors = new List<string> { "RewardType must be 'voucher', 'voucher_restricted', or 'free_product'" }
                     };
                 }
 
-                // Enforce only one reward type
-                if (string.Equals(updateCampaignDto.RewardType, "voucher", StringComparison.OrdinalIgnoreCase) || string.Equals(updateCampaignDto.RewardType, "voucher_restricted", StringComparison.OrdinalIgnoreCase))
+                // FIXED: Enforce validation for both voucher types
+                if (string.Equals(updateCampaignDto.RewardType, "voucher", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(updateCampaignDto.RewardType, "voucher_restricted", StringComparison.OrdinalIgnoreCase))
                 {
                     if (updateCampaignDto.VoucherGenerationThreshold == null || updateCampaignDto.VoucherValue == null)
                     {
@@ -362,18 +355,6 @@ namespace backend.Services
                             Message = "Voucher generation threshold and value are required.",
                             Errors = new List<string> { "Please enter both threshold and value for voucher generation." }
                         };
-                    }
-                    if (string.Equals(updateCampaignDto.RewardType, "voucher_restricted", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (updateCampaignDto.VoucherProducts == null || !updateCampaignDto.VoucherProducts.Any())
-                        {
-                            return new ApiResponse<CampaignDto>
-                            {
-                                Success = false,
-                                Message = "At least one voucher redemption product is required for restricted voucher campaigns.",
-                                Errors = new List<string> { "Please specify at least one voucher redemption product." }
-                            };
-                        }
                     }
                 }
                 else if (string.Equals(updateCampaignDto.RewardType, "free_product", StringComparison.OrdinalIgnoreCase))
@@ -413,7 +394,7 @@ namespace backend.Services
                 campaign.IsActive = updateCampaignDto.IsActive;
                 campaign.UpdatedAt = DateTime.UtcNow;
 
-                // Update reward type
+                // FIXED: Update reward type for both voucher types
                 campaign.RewardType = updateCampaignDto.RewardType;
                 campaign.VoucherGenerationThreshold = (updateCampaignDto.RewardType == "voucher" || updateCampaignDto.RewardType == "voucher_restricted") ? updateCampaignDto.VoucherGenerationThreshold : null;
                 campaign.VoucherValue = (updateCampaignDto.RewardType == "voucher" || updateCampaignDto.RewardType == "voucher_restricted") ? updateCampaignDto.VoucherValue : null;
@@ -441,8 +422,9 @@ namespace backend.Services
                     }
                 }
 
-                // Remove and update voucher products if reward type is voucher
-                if (string.Equals(updateCampaignDto.RewardType, "voucher", StringComparison.OrdinalIgnoreCase) || string.Equals(updateCampaignDto.RewardType, "voucher_restricted", StringComparison.OrdinalIgnoreCase))
+                // FIXED: Remove and update voucher products for both voucher types
+                if (string.Equals(updateCampaignDto.RewardType, "voucher", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(updateCampaignDto.RewardType, "voucher_restricted", StringComparison.OrdinalIgnoreCase))
                 {
                     _context.CampaignVoucherProducts.RemoveRange(campaign.VoucherProducts);
                     if (updateCampaignDto.VoucherProducts != null)

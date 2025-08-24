@@ -99,4 +99,10 @@ namespace backend.Models.DTOs
         public List<string> Errors { get; set; } = new List<string>();
         public string? ErrorCode { get; set; }
     }
+
+    public class UpdateCampaignStatusDto
+    {
+        [Required]
+        public bool IsActive { get; set; }
+    }
 }

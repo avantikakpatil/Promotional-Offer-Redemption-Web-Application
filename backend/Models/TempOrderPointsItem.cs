@@ -22,5 +22,8 @@ namespace backend.Models
 
         [ForeignKey("TempOrderPointsId")]
         public virtual TempOrderPoints? TempOrderPoints { get; set; }
+
+        [ForeignKey("ProductId")]
+        public virtual Product? Product { get; set; }
     }
 }

@@ -13,15 +13,11 @@ const ResellerSidebar = () => {
     { name: 'Vouchers', path: '/reseller/dashboard/vouchers', icon: '🎫' },
     { name: 'Order History', path: '/reseller/dashboard/history', icon: '📋' },
     { name: 'Settings', path: '/reseller/dashboard/settings', icon: '⚙️' },
+    
   ];
 
   return (
-    <div className="w-64 bg-white shadow-lg">
-      <div className="p-6">
-        <h2 className="text-2xl font-bold text-gray-800">Reseller Portal</h2>
-        <p className="text-gray-600 text-sm mt-1">Manage your business</p>
-      </div>
-      
+    <div className="fixed h-full w-63 bg-white shadow-lg z-30">
       <nav className="mt-6">
         <ul>
           {menuItems.map((item) => (
@@ -34,6 +30,11 @@ const ResellerSidebar = () => {
               >
                 <span className="mr-3">{item.icon}</span>
                 {item.name}
+                {item.badge > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             </li>
           ))}

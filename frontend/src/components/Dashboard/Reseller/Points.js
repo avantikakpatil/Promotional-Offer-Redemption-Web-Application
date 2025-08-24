@@ -11,6 +11,8 @@ const Points = () => {
   
   // Campaign-specific points data
   const [campaignPoints, setCampaignPoints] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5; // Number of items per page
   const [summary, setSummary] = useState({
     totalPointsEarned: 0,
     totalPointsUsed: 0,
@@ -134,14 +136,26 @@ const Points = () => {
     });
   };
 
+  const totalPages = Math.ceil(campaignPoints.length / itemsPerPage);
+
+  const currentCampaigns = campaignPoints.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (pageNumber) => {
+    if (pageNumber < 1 || pageNumber > totalPages) return;
+    setCurrentPage(pageNumber);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">My Points</h1>
-            <p className="text-gray-600 mt-2">Track your points balance and campaign performance</p>
+            <h1 className="text-2xl font-bold text-gray-800">My Points</h1>
+            <p className="text-sm text-gray-600 mt-1">Track your points balance and campaign performance</p>
           </div>
           {/* <button
             onClick={refreshPointsData}
@@ -202,88 +216,88 @@ const Points = () => {
       {/* Points Overview */}
       {!loading && !error && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white rounded-lg shadow p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center">
-                <div className="p-3 rounded-full bg-blue-100 text-blue-600">
-                  <FaStar className="text-2xl" />
+                <div className="p-2 rounded-full bg-blue-100 text-blue-600">
+                  <FaStar className="text-xl" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Points Earned</p>
-                  <p className="text-2xl font-bold text-gray-900">{summary.totalPointsEarned}</p>
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-gray-600">Total Points Earned</p>
+                  <p className="text-xl font-bold text-gray-900">{summary.totalPointsEarned}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center">
-                <div className="p-3 rounded-full bg-green-100 text-green-600">
-                  <FaCheckCircle className="text-2xl" />
+                <div className="p-2 rounded-full bg-green-100 text-green-600">
+                  <FaCheckCircle className="text-xl" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Available Points</p>
-                  <p className="text-2xl font-bold text-gray-900">{summary.totalAvailablePoints}</p>
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-gray-600">Available Points</p>
+                  <p className="text-xl font-bold text-gray-900">{summary.totalAvailablePoints}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center">
-                <div className="p-3 rounded-full bg-red-100 text-red-600">
-                  <FaMoneyBillWave className="text-2xl" />
+                <div className="p-2 rounded-full bg-red-100 text-red-600">
+                  <FaMoneyBillWave className="text-xl" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Points Used</p>
-                  <p className="text-2xl font-bold text-gray-900">{summary.totalPointsUsed}</p>
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-gray-600">Points Used</p>
+                  <p className="text-xl font-bold text-gray-900">{summary.totalPointsUsed}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center">
-                <div className="p-3 rounded-full bg-purple-100 text-purple-600">
-                  <FaGift className="text-2xl" />
+                <div className="p-2 rounded-full bg-purple-100 text-purple-600">
+                  <FaGift className="text-xl" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Vouchers Generated</p>
-                  <p className="text-2xl font-bold text-gray-900">{summary.totalVouchersGenerated}</p>
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-gray-600">Vouchers Generated</p>
+                  <p className="text-xl font-bold text-gray-900">{summary.totalVouchersGenerated}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Order Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-lg shadow p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center">
-                <div className="p-3 rounded-full bg-orange-100 text-orange-600">
-                  <FaShoppingCart className="text-2xl" />
+                <div className="p-2 rounded-full bg-orange-100 text-orange-600">
+                  <FaShoppingCart className="text-xl" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                  <p className="text-2xl font-bold text-gray-900">{summary.totalOrders}</p>
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-gray-600">Total Orders</p>
+                  <p className="text-xl font-bold text-gray-900">{summary.totalOrders}</p>
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center">
-                <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
-                  <span className="text-2xl">💰</span>
+                <div className="p-2 rounded-full bg-yellow-100 text-yellow-600">
+                  <span className="text-xl">💰</span>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Order Value</p>
-                  <p className="text-2xl font-bold text-gray-900">₹{summary.totalOrderValue.toLocaleString()}</p>
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-gray-600">Total Order Value</p>
+                  <p className="text-xl font-bold text-gray-900">₹{summary.totalOrderValue.toLocaleString()}</p>
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center">
-                <div className="p-3 rounded-full bg-indigo-100 text-indigo-600">
-                  <span className="text-2xl">🎁</span>
+                <div className="p-2 rounded-full bg-indigo-100 text-indigo-600">
+                  <span className="text-xl">🎁</span>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Voucher Value Generated</p>
-                  <p className="text-2xl font-bold text-gray-900">₹{summary.totalVoucherValueGenerated.toLocaleString()}</p>
+                <div className="ml-3">
+                  <p className="text-xs font-medium text-gray-600">Voucher Value Generated</p>
+                  <p className="text-xl font-bold text-gray-900">₹{summary.totalVoucherValueGenerated.toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -300,65 +314,65 @@ const Points = () => {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Campaign
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Points Earned
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Points Used
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Available Points
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Orders
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Order Value
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Vouchers Generated
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Last Updated
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {campaignPoints.map((campaign) => (
+                  {currentCampaigns.map((campaign) => (
                     <tr key={campaign.campaignId} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-2 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
                           {campaign.campaignName || 'Unknown Campaign'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-2 whitespace-nowrap">
                         <span className="text-sm font-medium text-green-600">
                           +{campaign.totalPointsEarned}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-2 whitespace-nowrap">
                         <span className="text-sm font-medium text-red-600">
                           {campaign.pointsUsedForVouchers}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-2 whitespace-nowrap">
                         <span className="text-sm font-medium text-blue-600">
                           {campaign.availablePoints}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                         {campaign.totalOrders}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                         ₹{campaign.totalOrderValue.toLocaleString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                         {campaign.totalVouchersGenerated}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(campaign.lastUpdated)}
                       </td>
                     </tr>
@@ -372,6 +386,29 @@ const Points = () => {
                 <div className="text-6xl mb-4">📊</div>
                 <h3 className="text-xl font-semibold text-gray-800 mb-2">No campaign points found</h3>
                 <p className="text-gray-600">Start placing orders to earn points from campaigns.</p>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {campaignPoints.length > itemsPerPage && (
+              <div className="flex justify-center items-center space-x-2 mt-4">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                >
+                  Previous
+                </button>
+                <span className="text-gray-700">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                >
+                  Next
+                </button>
               </div>
             )}
           </div>
