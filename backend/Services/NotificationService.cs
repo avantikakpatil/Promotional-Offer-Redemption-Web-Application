@@ -44,6 +44,12 @@ namespace backend.Services
                 .ToListAsync();
         }
 
+        public async Task<Notification> GetNotificationByIdAsync(int id, int userId)
+        {
+            return await _context.Notifications
+                .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
+        }
+
         public async Task MarkNotificationsAsReadAsync(int userId)
         {
             var notifications = await _context.Notifications
@@ -57,6 +63,31 @@ namespace backend.Services
                     notification.IsRead = true;
                 }
 
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task DeleteNotificationAsync(int id, int userId)
+        {
+            var notification = await _context.Notifications
+                .FirstOrDefaultAsync(n => n.Id == id && n.UserId == userId);
+
+            if (notification != null)
+            {
+                _context.Notifications.Remove(notification);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task DeleteAllNotificationsAsync(int userId)
+        {
+            var notifications = await _context.Notifications
+                .Where(n => n.UserId == userId)
+                .ToListAsync();
+
+            if (notifications.Any())
+            {
+                _context.Notifications.RemoveRange(notifications);
                 await _context.SaveChangesAsync();
             }
         }

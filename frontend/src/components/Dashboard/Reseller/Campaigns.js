@@ -13,6 +13,7 @@ const Campaigns = () => {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [participating, setParticipating] = useState({});
   const [productMap, setProductMap] = useState({});
+  const [voucherProducts, setVoucherProducts] = useState([]);
 
   // Fetch all campaign products and build a map of id -> name, sku, brand
   const fetchAllProducts = async () => {
@@ -83,13 +84,25 @@ const Campaigns = () => {
       setDetailsLoading(true);
       setSelectedCampaign(campaign);
       setShowDetailsModal(true);
-      
+      setVoucherProducts([]); // Reset voucher products
+
       console.log('Initial campaign object:', campaign);
 
       const response = await campaignAPI.getCampaignDetails(campaign.id);
       if (response.data) {
         console.log('Campaign details from API:', response.data);
         setSelectedCampaign(response.data);
+
+        if (response.data.rewardType === 'voucher_restricted') {
+          try {
+            const productsResponse = await api.get(`/reseller/voucher/campaign/${campaign.id}/products`);
+            if (productsResponse.data) {
+              setVoucherProducts(productsResponse.data);
+            }
+          } catch (err) {
+            console.error('Error fetching voucher products:', err);
+          }
+        }
       }
     } catch (err) {
       console.error('Error fetching campaign details:', err);
@@ -511,26 +524,32 @@ const Campaigns = () => {
                     <p className="text-gray-600 mb-6">{selectedCampaign.description}</p>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                       <div>
-                        <span className="font-medium text-gray-700 block mb-1">Product Type:</span>
-                        <p className="text-gray-600">{selectedCampaign.productType}</p>
+                        <span className="font-medium text-gray-700 block mb-1">Campaign Type:</span>
+                        <p className="text-gray-600">{formatCampaignType(selectedCampaign.rewardType)}</p>
                       </div>
-                      <div>
-                        <span className="font-medium text-gray-700 block mb-1">Manufacturer:</span>
-                        <p className="text-gray-600">{selectedCampaign.manufacturer?.name || 'Unknown'}</p>
-                      </div>
+
                       <div>
                         <span className="font-medium text-gray-700 block mb-1">Start Date:</span>
                         <p className="text-gray-600">{new Date(selectedCampaign.startDate).toLocaleDateString()}</p>
                       </div>
+
                       <div>
                         <span className="font-medium text-gray-700 block mb-1">End Date:</span>
                         <p className="text-gray-600">{new Date(selectedCampaign.endDate).toLocaleDateString()}</p>
                       </div>
                       
+                      
+
                       <div>
-                        <span className="font-medium text-gray-700 block mb-1">Campaign Type:</span>
-                        <p className="text-gray-600">{formatCampaignType(selectedCampaign.rewardType)}</p>
+                        <span className="font-medium text-gray-700 block mb-1">Product Type:</span>
+                        <p className="text-gray-600">{selectedCampaign.productType}</p>
                       </div>
+
+                      <div>
+                        <span className="font-medium text-gray-700 block mb-1">Manufacturer:</span>
+                        <p className="text-gray-600">{selectedCampaign.manufacturer?.name || 'Unknown'}</p>
+                      </div>                      
+
                       <div>
                         <span className="font-medium text-gray-700 block mb-1">Status:</span>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedCampaign)}`}>
@@ -654,7 +673,7 @@ const Campaigns = () => {
                   )}
 
                   {/* Voucher Products */}
-                  {Array.isArray(selectedCampaign.voucherProducts) && selectedCampaign.voucherProducts.length > 0 && (
+                  {/* {Array.isArray(selectedCampaign.voucherProducts) && selectedCampaign.voucherProducts.length > 0 && (
                     <div className="bg-indigo-50 p-6 rounded-lg">
                       <h4 className="text-xl font-semibold text-indigo-800 mb-4">
                         Voucher Products ({selectedCampaign.voucherProducts.length})
@@ -688,10 +707,36 @@ const Campaigns = () => {
                         ))}
                       </div>
                     </div>
+                  )} */}
+
+                  {/* Restricted Voucher Products */}
+                  {selectedCampaign.rewardType === 'voucher_restricted' && voucherProducts.length > 0 && (
+                    <div className="bg-teal-50 p-6 rounded-lg">
+                      <h4 className="text-xl font-semibold text-teal-800 mb-4">
+                        Redeemable Voucher Products ({voucherProducts.length})
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {voucherProducts.map((product, idx) => (
+                          <div key={product.productId || idx} className="p-4 bg-white rounded-lg border">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex-1">
+                                <h5 className="font-medium text-teal-700 text-lg">
+                                  {product.productName}
+                                </h5>
+                              </div>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">Voucher Value:</span>
+                              <p className="text-teal-600 font-semibold text-lg">₹{product.voucherValue}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
 
                   {/* Participation Status */}
-                  <div className="bg-yellow-50 p-6 rounded-lg">
+                  {/* <div className="bg-yellow-50 p-6 rounded-lg">
                     <h4 className="text-xl font-semibold text-yellow-800 mb-4">Your Participation Status</h4>
                     {selectedCampaign.assignment ? (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -726,10 +771,10 @@ const Campaigns = () => {
                         </button>
                       </div>
                     )}
-                  </div>
+                  </div> */}
 
                   {/* Recent Orders */}
-                  {Array.isArray(selectedCampaign.orders) && selectedCampaign.orders.length > 0 && (
+                  {/* {Array.isArray(selectedCampaign.orders) && selectedCampaign.orders.length > 0 && (
                     <div className="bg-gray-50 p-6 rounded-lg">
                       <h4 className="text-xl font-semibold text-gray-800 mb-4">Your Recent Orders</h4>
                       <div className="overflow-x-auto">
@@ -768,7 +813,7 @@ const Campaigns = () => {
                         </table>
                       </div>
                     </div>
-                  )}
+                  )} */}
 
                   {/* Action Buttons */}
                   <div className="flex gap-4 pt-6 border-t">

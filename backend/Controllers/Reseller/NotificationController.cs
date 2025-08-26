@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace backend.Controllers.Reseller
 {
@@ -23,7 +24,15 @@ namespace backend.Controllers.Reseller
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             var notifications = await _notificationService.GetNotificationsAsync(userId);
-            return Ok(notifications);
+            
+            // Return consistent format with items and totalCount
+            var response = new
+            {
+                items = notifications,
+                totalCount = notifications.Count()
+            };
+            
+            return Ok(response);
         }
 
         [HttpPost("mark-as-read")]
@@ -31,7 +40,31 @@ namespace backend.Controllers.Reseller
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
             await _notificationService.MarkNotificationsAsReadAsync(userId);
-            return Ok();
+            return Ok(new { message = "Notifications marked as read" });
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteNotification(int id)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            
+            // Optional: Check if notification exists first (only if you added the GetNotificationByIdAsync method)
+            // var notification = await _notificationService.GetNotificationByIdAsync(id, userId);
+            // if (notification == null)
+            // {
+            //     return NotFound(new { message = "Notification not found" });
+            // }
+            
+            await _notificationService.DeleteNotificationAsync(id, userId);
+            return Ok(new { message = "Notification deleted successfully" });
+        }
+
+        [HttpDelete("delete-all")]
+        public async Task<IActionResult> DeleteAllNotifications()
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            await _notificationService.DeleteAllNotificationsAsync(userId);
+            return Ok(new { message = "All notifications deleted successfully" });
         }
     }
 }

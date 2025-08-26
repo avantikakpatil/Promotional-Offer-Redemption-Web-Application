@@ -385,18 +385,25 @@ const CampaignCreate = () => {
           <div className="bg-white shadow-lg rounded-xl p-6 border border-gray-200">
             <div className="flex items-center space-x-2 mb-6">
               <Info className="h-5 w-5 text-blue-600" />
-              <h2 className="text-xl font-semibold text-gray-900">Basic Campaign Information</h2>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Basic Campaign Information
+              </h2>
             </div>
-            <div className="mb-4 text-gray-500 text-sm">Fill in the basic details for your campaign. <span className='text-blue-600'>(Step 1 of {steps.length})</span></div>
+            <div className="mb-4 text-gray-500 text-sm">
+              Fill in the basic details for your campaign.{" "}
+              <span className="text-blue-600">(Step 1 of {steps.length})</span>
+            </div>
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Reward Type *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reward Type *
+              </label>
               <div className="flex space-x-6">
                 <label className="inline-flex items-center">
                   <input
                     type="radio"
                     name="rewardType"
                     value="voucher"
-                    checked={formData.rewardType === 'voucher'}
+                    checked={formData.rewardType === "voucher"}
                     onChange={handleInputChange}
                     className="form-radio text-blue-600"
                   />
@@ -407,7 +414,7 @@ const CampaignCreate = () => {
                     type="radio"
                     name="rewardType"
                     value="voucher_restricted"
-                    checked={formData.rewardType === 'voucher_restricted'}
+                    checked={formData.rewardType === "voucher_restricted"}
                     onChange={handleInputChange}
                     className="form-radio text-purple-600"
                   />
@@ -418,19 +425,24 @@ const CampaignCreate = () => {
                     type="radio"
                     name="rewardType"
                     value="free_product"
-                    checked={formData.rewardType === 'free_product'}
+                    checked={formData.rewardType === "free_product"}
                     onChange={handleInputChange}
                     className="form-radio text-green-600"
                   />
                   <span className="ml-2">Free Product(s)</span>
                 </label>
               </div>
-              {errors.rewardType && <p className="mt-1 text-sm text-red-600">{errors.rewardType}</p>}
+              {errors.rewardType && (
+                <p className="mt-1 text-sm text-red-600">{errors.rewardType}</p>
+              )}
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Campaign Name *
                 </label>
                 <input
@@ -439,34 +451,49 @@ const CampaignCreate = () => {
                   id="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
+                  className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                    errors.name ? "border-red-500" : "border-gray-300"
+                  }`}
                   placeholder="e.g., Summer Sale Campaign"
                   required
                 />
-                {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+                {errors.name && (
+                  <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Product Type (Category) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Product Type (Category) *
+                </label>
                 <select
                   name="productType"
                   value={formData.productType}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.productType ? 'border-red-500' : 'border-gray-300'}`}
+                  className={`w-full px-3 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                    errors.productType ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 >
                   <option value="">Select Category</option>
                   {categories.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
                   ))}
                 </select>
-                {errors.productType && <p className="mt-1 text-sm text-red-600">{errors.productType}</p>}
+                {errors.productType && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.productType}
+                  </p>
+                )}
               </div>
 
-
-
               <div>
-                <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="startDate"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Start Date *
                 </label>
                 <input
@@ -475,14 +502,23 @@ const CampaignCreate = () => {
                   id="startDate"
                   value={formData.startDate}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.startDate ? 'border-red-500' : 'border-gray-300'}`}
+                  className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                    errors.startDate ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 />
-                {errors.startDate && <p className="mt-1 text-sm text-red-600">{errors.startDate}</p>}
+                {errors.startDate && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.startDate}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="endDate"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   End Date *
                 </label>
                 <input
@@ -491,20 +527,28 @@ const CampaignCreate = () => {
                   id="endDate"
                   value={formData.endDate}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.endDate ? 'border-red-500' : 'border-gray-300'}`}
+                  className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                    errors.endDate ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 />
-                {errors.endDate && <p className="mt-1 text-sm text-red-600">{errors.endDate}</p>}
+                {errors.endDate && (
+                  <p className="mt-1 text-sm text-red-600">{errors.endDate}</p>
+                )}
               </div>
 
-
-
               {/* Conditionally render voucher fields for voucher and voucher_restricted */}
-              {(formData.rewardType === 'voucher' || formData.rewardType === 'voucher_restricted') && (
+              {(formData.rewardType === "voucher" ||
+                formData.rewardType === "voucher_restricted") && (
                 <>
                   <div>
-                    <label htmlFor="voucherValue" className="block text-sm font-medium text-gray-700 mb-2">
-                      {formData.rewardType === 'voucher' ? 'Voucher Value (₹) *' : 'Voucher Value (Points) *'}
+                    <label
+                      htmlFor="voucherValue"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      {formData.rewardType === "voucher"
+                        ? "Voucher Value (₹) *"
+                        : "Voucher Value (₹) *"}
                     </label>
                     <input
                       type="number"
@@ -512,17 +556,32 @@ const CampaignCreate = () => {
                       id="voucherValue"
                       value={formData.voucherValue}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.voucherValue ? 'border-red-500' : 'border-gray-300'}`}
-                      placeholder={formData.rewardType === 'voucher' ? 'e.g., 100' : 'e.g., 1000'}
+                      className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                        errors.voucherValue
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
+                      placeholder={
+                        formData.rewardType === "voucher"
+                          ? "e.g., 100"
+                          : "e.g., 100"
+                      }
                       min="1"
                       step="1"
                       required
                     />
-                    {errors.voucherValue && <p className="mt-1 text-sm text-red-600">{errors.voucherValue}</p>}
+                    {errors.voucherValue && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors.voucherValue}
+                      </p>
+                    )}
                   </div>
 
                   <div>
-                    <label htmlFor="voucherGenerationThreshold" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label
+                      htmlFor="voucherGenerationThreshold"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
                       Voucher Generation Threshold (Points) *
                     </label>
                     <input
@@ -531,16 +590,27 @@ const CampaignCreate = () => {
                       id="voucherGenerationThreshold"
                       value={formData.voucherGenerationThreshold}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.voucherGenerationThreshold ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                        errors.voucherGenerationThreshold
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       placeholder="e.g., 50"
                       min="1"
                       required
                     />
-                    {errors.voucherGenerationThreshold && <p className="mt-1 text-sm text-red-600">{errors.voucherGenerationThreshold}</p>}
+                    {errors.voucherGenerationThreshold && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors.voucherGenerationThreshold}
+                      </p>
+                    )}
                   </div>
 
                   <div>
-                    <label htmlFor="voucherValidityDays" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label
+                      htmlFor="voucherValidityDays"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
                       Voucher Validity (Days) *
                     </label>
                     <input
@@ -549,12 +619,20 @@ const CampaignCreate = () => {
                       id="voucherValidityDays"
                       value={formData.voucherValidityDays}
                       onChange={handleInputChange}
-                      className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${errors.voucherValidityDays ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                        errors.voucherValidityDays
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       placeholder="e.g., 30"
                       min="1"
                       required
                     />
-                    {errors.voucherValidityDays && <p className="mt-1 text-sm text-red-600">{errors.voucherValidityDays}</p>}
+                    {errors.voucherValidityDays && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors.voucherValidityDays}
+                      </p>
+                    )}
                   </div>
                 </>
               )}
@@ -563,7 +641,10 @@ const CampaignCreate = () => {
               {/* Free product configuration is handled per eligible product in Step 2 */}
 
               <div className="md:col-span-2">
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="description"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Campaign Description *
                 </label>
                 <textarea
@@ -573,12 +654,16 @@ const CampaignCreate = () => {
                   value={formData.description}
                   onChange={handleInputChange}
                   className={`w-full px-4 py-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                    errors.description ? 'border-red-500' : 'border-gray-300'
+                    errors.description ? "border-red-500" : "border-gray-300"
                   }`}
                   placeholder="Describe your campaign goals and details..."
                   required
                 />
-                {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
+                {errors.description && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.description}
+                  </p>
+                )}
               </div>
 
               <div className="md:col-span-2">
@@ -590,7 +675,9 @@ const CampaignCreate = () => {
                     onChange={handleInputChange}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm font-medium text-gray-700">Active Campaign</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    Active Campaign
+                  </span>
                 </label>
               </div>
             </div>

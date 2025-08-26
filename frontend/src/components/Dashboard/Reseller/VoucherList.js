@@ -60,6 +60,19 @@ const VoucherList = ({ vouchers, freeProductVouchers }) => {
     }
   }, [vouchers]);
 
+  const parseEligibleProducts = (productsString) => {
+        if (!productsString) {
+            return [];
+        }
+        try {
+            const products = JSON.parse(productsString);
+            return Array.isArray(products) ? products : [];
+        } catch (error) {
+            console.error("Failed to parse eligible products:", error);
+            return [];
+        }
+    };
+
   const handleDownload = async (voucherCode) => {
     setDownloading(prev => ({ ...prev, [voucherCode]: true }));
     setFeedback(prev => ({ ...prev, [voucherCode]: '' }));
@@ -295,6 +308,7 @@ const VoucherList = ({ vouchers, freeProductVouchers }) => {
             const voucherStatus = getVoucherStatus(voucher);
             const StatusIcon = voucherStatus.icon;
             const qrDisplayData = voucher.qrCode && voucher.qrCode.trim() ? voucher.qrCode : voucher.voucherCode;
+            const eligibleProducts = parseEligibleProducts(voucher.eligibleProducts);
             return (
               <div
                 key={voucher.id}
@@ -357,19 +371,22 @@ const VoucherList = ({ vouchers, freeProductVouchers }) => {
                     <div className="flex items-center text-sm text-gray-600">
                       <Tag className="mr-2" size={16} />
                       <span className="font-medium">Campaign:</span>
-                      <span className="ml-1">{voucher.campaign?.name || 'N/A'}</span>
+                      <span className="ml-1">{voucher.campaignName || 'N/A'}</span>
                     </div>
                     
-                    {Array.isArray(voucher.eligibleProducts) && voucher.eligibleProducts.length > 0 && (
+                    {eligibleProducts.length > 0 && (
                       <div className="flex items-start text-sm text-gray-600">
                         <Package className="mr-2 mt-0.5 flex-shrink-0" size={16} />
                         <div>
                           <span className="font-medium">Eligible Products:</span>
                           <div className="ml-1 text-xs">
-                            {voucher.eligibleProducts.slice(0, 2).map((product, idx) => 
-                              typeof product === 'string' ? product : (product?.name || `Product ${idx + 1}`)
-                            ).join(', ')}
-                            {voucher.eligibleProducts.length > 2 && ` +${voucher.eligibleProducts.length - 2} more`}
+                            {eligibleProducts.slice(0, 2).map((product, idx) => (
+                                <span key={idx}>
+                                    {product.name || `Product ${product.id}`}
+                                    {idx < eligibleProducts.slice(0, 2).length - 1 && ', '}
+                                </span>
+                            ))}
+                            {eligibleProducts.length > 2 && ` +${eligibleProducts.length - 2} more`}
                           </div>
                         </div>
                       </div>

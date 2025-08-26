@@ -207,6 +207,34 @@ namespace backend.Controllers.Reseller
             });
         }
 
+        // GET: api/reseller/voucher/campaign/{campaignId}/products
+        [HttpGet("campaign/{campaignId}/products")]
+        public async Task<IActionResult> GetVoucherProducts(int campaignId)
+        {
+            var resellerId = GetCurrentUserId();
+            if (resellerId == null)
+                return Unauthorized();
+
+            var campaign = await _context.Campaigns
+                .FirstOrDefaultAsync(c => c.Id == campaignId && c.RewardType == "voucher_restricted");
+
+            if (campaign == null)
+                return NotFound("Campaign not found or not a restricted voucher campaign.");
+
+            var voucherProducts = await _context.CampaignVoucherProducts
+                .Include(cvp => cvp.Product)
+                .Where(cvp => cvp.CampaignId == campaignId && cvp.IsActive)
+                .Select(cvp => new 
+                {
+                    ProductId = cvp.ProductId,
+                    ProductName = cvp.Product.Name,
+                    VoucherValue = cvp.VoucherValue
+                })
+                .ToListAsync();
+
+            return Ok(voucherProducts);
+        }
+
         // GET: api/reseller/vouchers
         [HttpGet("vouchers")]
         public async Task<IActionResult> GetVouchers()

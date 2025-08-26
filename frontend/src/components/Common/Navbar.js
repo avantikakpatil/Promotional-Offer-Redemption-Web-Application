@@ -15,6 +15,7 @@ const Navbar = () => {
   const [loading, setLoading] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (user && user.role === 'reseller') {
@@ -43,6 +44,45 @@ const Navbar = () => {
       console.error('Error marking notifications as read:', error);
     }
   };
+
+  const deleteNotification = async (id) => {
+    try {
+        setError(null);
+        await api.delete(`/reseller/notification/${id}`);
+        
+        // Update state immediately for better UX
+        const updatedNotifications = notifications.filter(n => n.id !== id);
+        setNotifications(updatedNotifications);
+        setTotalCount(prev => prev - 1);
+        
+    } catch (error) {
+        console.error('Error deleting notification:', error);
+        setError('Failed to delete notification');
+        // Refresh notifications on error to ensure consistency
+        await fetchNotifications();
+    }
+};
+
+const deleteAllNotifications = async () => {
+    if (!window.confirm('Are you sure you want to delete all notifications?')) {
+        return;
+    }
+
+    try {
+        setError(null);
+        await api.delete('/reseller/notification/delete-all');
+        
+        // Clear state immediately
+        setNotifications([]);
+        setTotalCount(0);
+        
+    } catch (error) {
+        console.error('Error deleting all notifications:', error);
+        setError('Failed to delete all notifications');
+        // Refresh notifications on error
+        await fetchNotifications();
+    }
+};
 
   const toggleNotifications = () => {
     setShowNotifications(prev => !prev);
@@ -88,8 +128,13 @@ const Navbar = () => {
             </button>
             {showNotifications && (
               <div className="notification-dropdown">
-                <h3 className="dropdown-title">Notifications ({totalCount})</h3>
-                <button onClick={markAllAsRead} className="mark-read-button">Mark all as read</button>
+                <div className="dropdown-header">
+                  <h3 className="dropdown-title">Notifications ({totalCount})</h3>
+                  <div className="dropdown-actions">
+                    <button onClick={markAllAsRead} className="mark-read-button">Mark all as read</button>
+                    <button onClick={deleteAllNotifications} className="delete-all-button">🗑️ All</button>
+                  </div>
+                </div>
                 {loading ? (
                   <p>Loading notifications...</p>
                 ) : (
@@ -99,8 +144,11 @@ const Navbar = () => {
                     ) : (
                       notifications.map(notification => (
                         <li key={notification.id} className={`notification-item ${notification.isRead ? 'read' : 'unread'}`}>
-                          <p>{notification.message}</p>
-                          <span className="timestamp">{new Date(notification.createdAt).toLocaleString()}</span>
+                          <div className="notification-content">
+                            <p>{notification.message}</p>
+                            <span className="timestamp">{new Date(notification.createdAt).toLocaleString()}</span>
+                          </div>
+                          <button onClick={() => deleteNotification(notification.id)} className="delete-button">🗑️</button>
                         </li>
                       ))
                     )}
